@@ -27,7 +27,7 @@ class Expense {
   }) : updatedAt = updatedAt ?? DateTime.now();
 
   /// Generates a new UUID v4 id for a locally created expense.
-  static String newId() => Uuid().v4();
+  static String newId() => const Uuid().v4();
 
   Map<String, dynamic> toMap() {
     return {

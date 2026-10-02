@@ -77,7 +77,7 @@ class DatabaseHelper {
     final batch = db.batch();
     for (final row in oldRows) {
       batch.insert('expenses', {
-        'id': Uuid().v4(),
+        'id': const Uuid().v4(),
         'amount': row['amount'],
         'categoryId': row['categoryId'],
         'date': row['date'],
@@ -95,7 +95,7 @@ class DatabaseHelper {
   /// Returns the expense id.
   Future<String> insertExpense(Expense expense) async {
     final db = await database;
-    final id = expense.id ?? Uuid().v4();
+    final id = expense.id ?? const Uuid().v4();
     final updatedAt = DateTime.now().millisecondsSinceEpoch;
     await db.insert('expenses', {
       'id': id,
