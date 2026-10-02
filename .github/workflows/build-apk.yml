@@ -33,6 +33,27 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
+      - name: Re-sign APK with v1+v2 schemes (MIUI/Xiaomi compatibility)
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          APKSIGNER=$(find "$SDK/build-tools" -maxdepth 2 -name apksigner | sort -V | tail -1)
+          echo "Using apksigner: $APKSIGNER"
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          "$APKSIGNER" sign --ks ~/.android/debug.keystore \
+            --ks-pass:android --key-pass:android \
+            --v1-signing-enabled true --v2-signing-enabled true \
+            --out "$APK.resigned" "$APK" && mv "$APK.resigned" "$APK"
+          "$APKSIGNER" verify --print-certs "$APK" > /tmp/verify.txt
+          cat /tmp/verify.txt
+          grep -q "Verified using v1 scheme (JAR signing): true" /tmp/verify.txt
+          grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" /tmp/verify.txt
+          echo "v1+v2 signatures confirmed"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
