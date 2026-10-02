@@ -71,7 +71,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     SizedBox(
                       height: 220,
                       child: BarChart(
-                        data: BarChartData(
+                        BarChartData(
                           maxY: maxY,
                           barTouchData: BarTouchData(enabled: false),
                           gridData: const FlGridData(show: false),
@@ -229,7 +229,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: SizedBox(
                         height: 200,
                         child: PieChart(
-                          data: PieChartData(
+                          PieChartData(
                             sectionsSpace: 2,
                             centerSpaceRadius: 36,
                                 const Duration(milliseconds: 800),
