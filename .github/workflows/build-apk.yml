@@ -45,13 +45,13 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           "$APKSIGNER" sign --ks ~/.android/debug.keystore \
-            --ks-pass:pass:android --key-pass:pass:android \
+            --ks-pass pass:android --key-pass pass:android \
             --v1-signing-enabled true --v2-signing-enabled true \
             --out "$APK.resigned" "$APK" && mv "$APK.resigned" "$APK"
           "$APKSIGNER" verify --print-certs "$APK" > /tmp/verify.txt
           cat /tmp/verify.txt
-          grep -q "Verified using v1 scheme (JAR signing): true" /tmp/verify.txt
-          grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" /tmp/verify.txt
+          grep -qiE "v1 scheme.*true" /tmp/verify.txt
+          grep -qiE "v2 scheme.*true" /tmp/verify.txt
           echo "v1+v2 signatures confirmed"
 
       - name: Upload APK artifact
