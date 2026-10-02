@@ -188,8 +188,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       duration: const Duration(milliseconds: 300),
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
-                        final slide = Tween<Offset>(
-                          begin: const Offset(0, 0.3),
+                        final slide = const Tween<Offset>(
+                          begin: Offset(0, 0.3),
                           end: Offset.zero,
                         ).animate(animation);
                         return FadeTransition(
@@ -219,7 +219,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   else ...[
                     TweenAnimationBuilder<double>(
                       key: ValueKey(_selectedMonth),
-                      tween: Tween(begin: 0.94, end: 1.0),
+                      tween: const Tween(begin: 0.94, end: 1.0),
                       duration: const Duration(milliseconds: 550),
                       curve: Curves.easeOutBack,
                       builder: (context, value, child) => Transform.scale(
@@ -259,7 +259,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       StaggeredEntrance(
                         key: ValueKey(
                             '${_selectedMonth.millisecondsSinceEpoch}-${sortedCats[li].key}'),
-                        delayMs: (li * 40).clamp(0, 200),
+                        delayMs: (li * 40).clamp(0, 200).toInt(),
                         child: Padding(
                           padding:
                               const EdgeInsets.symmetric(vertical: 4),

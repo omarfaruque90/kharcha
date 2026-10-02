@@ -9,6 +9,7 @@ import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/add_expense_screen.dart';
 import '../utils/formatters.dart';
+import 'motion.dart';
 
 /// One row in the expense list. Tap to edit, swipe left to delete.
 class ExpenseTile extends StatelessWidget {
@@ -67,26 +68,29 @@ class ExpenseTile extends StatelessWidget {
           SnackBar(content: Text(AppStrings.get('msg_deleted', lang))),
         );
       },
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: cat.color.withValues(alpha: 0.15),
-          child: Icon(cat.icon, color: cat.color, size: 20),
-        ),
-        title: Text(AppStrings.categoryName(expense.categoryId, lang)),
-        subtitle: Text(subtitle.toString()),
-        trailing: Text(
-          formatMoney(expense.amount),
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+      child: PressableScale(
+        pressedScale: 0.98,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: cat.color.withValues(alpha: 0.15),
+            child: Icon(cat.icon, color: cat.color, size: 20),
           ),
-        ),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => AddExpenseScreen(expense: expense),
+          title: Text(AppStrings.categoryName(expense.categoryId, lang)),
+          subtitle: Text(subtitle.toString()),
+          trailing: Text(
+            formatMoney(expense.amount),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-          );
-        },
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => AddExpenseScreen(expense: expense),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

@@ -86,21 +86,21 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1900),
     );
     // Logo bounces in first...
-    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _logoScale = const Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.55, curve: Curves.elasticOut),
       ),
     );
     // ...then the tagline fades and slides up.
-    _taglineOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _taglineOpacity = const Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.45, 0.8, curve: Curves.easeOut),
       ),
     );
-    _taglineSlide = Tween<Offset>(
-      begin: const Offset(0, 0.6),
+    _taglineSlide = const Tween<Offset>(
+      begin: Offset(0, 0.6),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
@@ -193,8 +193,8 @@ class _MainShellState extends State<MainShell> {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
-          final slide = Tween<Offset>(
-            begin: const Offset(0.06, 0),
+          final slide = const Tween<Offset>(
+            begin: Offset(0.06, 0),
             end: Offset.zero,
           ).animate(animation);
           return FadeTransition(

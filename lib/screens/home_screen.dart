@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           items.fold(0.0, (sum, e) => sum + e.amount);
                       return StaggeredEntrance(
                         key: ValueKey('day-${day.millisecondsSinceEpoch}'),
-                        delayMs: (i * 70).clamp(0, 280),
+                        delayMs: (i * 70).clamp(0, 280).toInt(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
