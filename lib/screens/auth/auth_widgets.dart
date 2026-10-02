@@ -41,7 +41,7 @@ class AuthHeader extends StatelessWidget {
         const SizedBox(height: 12),
         const StaggeredEntrance(
           delayMs: 90,
-          child: const Text(
+          child: Text(
             'Kharcha',
             style: TextStyle(
               fontSize: 30,
