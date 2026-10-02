@@ -45,7 +45,7 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           "$APKSIGNER" sign --ks ~/.android/debug.keystore \
-            --ks-pass:android --key-pass:android \
+            --ks-pass:pass:android --key-pass:pass:android \
             --v1-signing-enabled true --v2-signing-enabled true \
             --out "$APK.resigned" "$APK" && mv "$APK.resigned" "$APK"
           "$APKSIGNER" verify --print-certs "$APK" > /tmp/verify.txt
