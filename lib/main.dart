@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'l10n/app_strings.dart';
 import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/add_expense_screen.dart';
+import 'screens/auth/auth_gate.dart';
 import 'screens/home_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
@@ -16,6 +18,8 @@ const Color kGold = Color(0xFFD4AF37);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase config comes from android/app/google-services.json.
+  await Firebase.initializeApp();
   await initializeDateFormatting();
   final settings = SettingsProvider();
   await settings.load();
@@ -112,7 +116,9 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 2100), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainShell()),
+        MaterialPageRoute(
+          builder: (_) => const AuthGate(home: MainShell()),
+        ),
       );
     });
   }
