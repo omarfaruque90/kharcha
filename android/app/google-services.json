@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "880803611778",
+    "project_id": "kharcha-365",
+    "storage_bucket": "kharcha-365.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:880803611778:android:8c5b70cee8b733f3ee209b",
+        "android_client_info": {
+          "package_name": "com.kharcha.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJQIx6pq9zN6FqRmBGtyvh8bcE2817V8I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
