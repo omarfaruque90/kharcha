@@ -27,12 +27,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            // Committed debug keystore ensures EVERY build shares one signature,
+            // so updates always install over previous versions (no "App not installed").
+            // Replace with a real release keystore before Play Store publishing.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
     buildTypes {
         release {
-            // No release keystore configured: fall back to debug signing so
-            // CI can produce an installable APK. Add your own signingConfigs
-            // here before publishing to the Play Store.
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.release
         }
     }
 }

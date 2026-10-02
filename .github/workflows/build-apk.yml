@@ -33,30 +33,12 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Sign APK with v1+v2 schemes (MIUI/Xiaomi compatibility)
+      - name: Verify APK signatures (v1+v2)
         run: |
           SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
           BT=$(find "$SDK/build-tools" -maxdepth 1 -type d -name "[0-9]*" | sort -V | tail -1)
-          APKSIGNER="$BT/apksigner"
-          echo "Using build-tools: $BT"
           APK=build/app/outputs/flutter-apk/app-release.apk
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android \
-              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
-          # Single apksigner pass applying v1+v2 (v1 required for MIUI/Xiaomi installers)
-          "$APKSIGNER" sign --ks ~/.android/debug.keystore \
-            --ks-pass pass:android --key-pass pass:android \
-            --v1-signing-enabled true --v2-signing-enabled true \
-            --v3-signing-enabled false \
-            --out "$APK.signed" "$APK" && mv "$APK.signed" "$APK"
-          # Diagnostics: show what's actually in the APK
-          echo "=== META-INF contents ==="
-          unzip -l "$APK" | grep -i "META-INF/" | head -20
-          echo "=== apksigner verify ==="
-          "$APKSIGNER" verify --print-certs "$APK" 2>&1 | head -20
-          # Hard requirement: v1 (JAR) signature files must exist
+          "$BT/apksigner" verify "$APK" && echo "apksigner verify: OK"
           unzip -l "$APK" | grep -qiE "META-INF/.+\.(RSA|DSA|EC)$" && echo "v1 (JAR) signature: PRESENT"
 
       - name: Upload APK artifact
