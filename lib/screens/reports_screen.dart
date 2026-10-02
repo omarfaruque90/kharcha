@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import '../widgets/motion.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -53,28 +54,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr(context, 'last_6_months'),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+          StaggeredEntrance(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr(context, 'last_6_months'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 220,
-                    child: BarChart(
-                      BarChartData(
-                        maxY: maxY,
-                        barTouchData: BarTouchData(enabled: false),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 220,
+                      child: BarChart(
+                        BarChartData(
+                          maxY: maxY,
+                          barTouchData: BarTouchData(enabled: false),
+                          gridData: const FlGridData(show: false),
+                          borderData: FlBorderData(show: false),
+                          swapAnimationDuration:
+                              const Duration(milliseconds: 800),
+                          swapAnimationCurve: Curves.easeOutCubic,
+                          titlesData: FlTitlesData(
                           show: true,
                           topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
@@ -140,49 +145,70 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
           ),
+          ),
           const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tr(context, 'by_category'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+          StaggeredEntrance(
+            delayMs: 120,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            tr(context, 'by_category'),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      DropdownButton<DateTime>(
-                        value: _selectedMonth,
-                        underline: const SizedBox.shrink(),
-                        items: [
-                          for (final m in monthOptions)
-                            DropdownMenuItem(
-                              value: m,
-                              child: Text(monthLong(m, lang)),
-                            ),
-                        ],
-                        onChanged: (m) {
-                          if (m != null) {
-                            setState(() => _selectedMonth = m);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${tr(context, 'month_total')}: ${formatMoney(monthTotal)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.bold,
+                        DropdownButton<DateTime>(
+                          value: _selectedMonth,
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            for (final m in monthOptions)
+                              DropdownMenuItem(
+                                value: m,
+                                child: Text(monthLong(m, lang)),
+                              ),
+                          ],
+                          onChanged: (m) {
+                            if (m != null) {
+                              setState(() => _selectedMonth = m);
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        final slide = Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(animation);
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: slide,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Text(
+                        '${tr(context, 'month_total')}: ${formatMoney(monthTotal)}',
+                        key: ValueKey(_selectedMonth),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   if (sortedCats.isEmpty)
                     Padding(
@@ -191,64 +217,83 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: Center(child: Text(tr(context, 'no_data'))),
                     )
                   else ...[
-                    SizedBox(
-                      height: 200,
-                      child: PieChart(
-                        PieChartData(
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 36,
-                          sections: [
-                            for (final e in sortedCats)
-                              PieChartSectionData(
-                                value: e.value,
-                                color: categoryById(e.key).color,
-                                title:
-                                    '${(e.value / monthTotal * 100).toStringAsFixed(0)}%',
-                                radius: 62,
-                                titleStyle: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey(_selectedMonth),
+                      tween: Tween(begin: 0.94, end: 1.0),
+                      duration: const Duration(milliseconds: 550),
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) => Transform.scale(
+                        scale: value,
+                        child: child,
+                      ),
+                      child: SizedBox(
+                        height: 200,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 36,
+                            swapAnimationDuration:
+                                const Duration(milliseconds: 800),
+                            swapAnimationCurve: Curves.easeInOutCubic,
+                            sections: [
+                              for (final e in sortedCats)
+                                PieChartSectionData(
+                                  value: e.value,
+                                  color: categoryById(e.key).color,
+                                  title:
+                                      '${(e.value / monthTotal * 100).toStringAsFixed(0)}%',
+                                  radius: 62,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    for (final e in sortedCats)
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: categoryById(e.key).color,
-                                shape: BoxShape.circle,
+                    for (var li = 0; li < sortedCats.length; li++)
+                      StaggeredEntrance(
+                        key: ValueKey(
+                            '${_selectedMonth.millisecondsSinceEpoch}-${sortedCats[li].key}'),
+                        delayMs: (li * 40).clamp(0, 200),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: categoryById(sortedCats[li].key).color,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              categoryById(e.key).icon,
-                              size: 16,
-                              color: categoryById(e.key).color,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                AppStrings.categoryName(e.key, lang),
+                              const SizedBox(width: 8),
+                              Icon(
+                                categoryById(sortedCats[li].key).icon,
+                                size: 16,
+                                color: categoryById(sortedCats[li].key).color,
                               ),
-                            ),
-                            Text(
-                              formatMoney(e.value),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  AppStrings.categoryName(
+                                      sortedCats[li].key, lang),
+                                ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                formatMoney(sortedCats[li].value),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                   ],
@@ -256,6 +301,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
           ),
+        ),
         ],
       ),
     );

@@ -6,6 +6,8 @@
 
 <p align="center">A simple, offline-first daily expense tracker for Android.<br/>অ্যান্ড্রয়েডের জন্য সহজ, অফলাইন দৈনিক খরচের হিসাব রাখার অ্যাপ।</p>
 
+<p align="center"><b>Runs on Android 5.0 (API 21) and up</b> · v2 adds smooth motion animations ✨</p>
+
 ---
 
 ## ✨ Features | ফিচার
@@ -18,6 +20,8 @@
 - 🌙 **Light / Dark theme**
 - 💾 **100% offline** — all data stored locally with SQLite
 - ৳ **BDT currency formatting**
+- 📱 **Android 5.0+** — runs on virtually every Android phone (API 21+)
+- ✨ **Motion animations** (v2) — animated transitions, springy cards, staggered lists, animated charts
 
 ## 🚀 Getting started | চালু করা
 

@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/motion.dart';
 
 const List<String> kPaymentMethods = ['cash', 'bkash', 'card', 'other'];
 
@@ -30,6 +31,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _categoryId = 'food';
   DateTime _date = DateTime.now();
   String _payment = 'cash';
+  bool _showSuccess = false;
 
   bool get _isEdit => widget.expense != null;
 
@@ -100,9 +102,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       );
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(AppStrings.get('msg_saved', lang))),
-      );
+      // Animated success check, then reset and go home.
+      setState(() => _showSuccess = true);
+      await Future.delayed(const Duration(milliseconds: 950));
+      if (!mounted) return;
+      setState(() => _showSuccess = false);
       _amountCtrl.clear();
       _noteCtrl.clear();
       setState(() {
@@ -135,9 +139,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       appBar: AppBar(
         title: Text(tr(context, _isEdit ? 'edit_expense' : 'add_expense')),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
+      body: Stack(
+        children: [
+          Form(
+            key: _formKey,
+            child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             TextFormField(
@@ -175,7 +181,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 return InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => setState(() => _categoryId = c.id),
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOut,
+                    transform: Matrix4.identity()
+                      ..scale(selected ? 1.06 : 1.0),
+                    transformAlignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: selected
@@ -187,6 +198,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             : theme.colorScheme.outlineVariant,
                         width: selected ? 2 : 1,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: selected
+                              ? c.color.withValues(alpha: 0.35)
+                              : Colors.transparent,
+                          blurRadius: selected ? 8 : 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -247,16 +267,59 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _save(lang),
-              icon: const Icon(Icons.check),
-              label: Text(tr(context, 'save')),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            PressableScale(
+              pressedScale: 0.97,
+              child: FilledButton.icon(
+                onPressed: () => _save(lang),
+                icon: const Icon(Icons.check),
+                label: Text(tr(context, 'save')),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
           ],
         ),
+      ),
+      // Animated success check overlay.
+      Positioned.fill(
+        child: AnimatedOpacity(
+          opacity: _showSuccess ? 1 : 0,
+          duration: const Duration(milliseconds: 200),
+          child: IgnorePointer(
+            ignoring: !_showSuccess,
+            child: Container(
+              color: Colors.black54,
+              child: Center(
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey(_showSuccess),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 450),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) => Transform.scale(
+                    scale: value,
+                    child: child,
+                  ),
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 52,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+        ],
       ),
     );
   }

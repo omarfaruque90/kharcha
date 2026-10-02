@@ -71,16 +71,56 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _taglineOpacity;
+  late final Animation<Offset> _taglineSlide;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1600), () {
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1900),
+    );
+    // Logo bounces in first...
+    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.55, curve: Curves.elasticOut),
+      ),
+    );
+    // ...then the tagline fades and slides up.
+    _taglineOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.45, 0.8, curve: Curves.easeOut),
+      ),
+    );
+    _taglineSlide = Tween<Offset>(
+      begin: const Offset(0, 0.6),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.45, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
+    _controller.forward();
+    Future.delayed(const Duration(milliseconds: 2100), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MainShell()),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -92,12 +132,15 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: Image.asset(
-                  'assets/app_logo.png',
-                  width: 140,
-                  height: 140,
+              ScaleTransition(
+                scale: _logoScale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: Image.asset(
+                    'assets/app_logo.png',
+                    width: 140,
+                    height: 140,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -111,9 +154,16 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                tr(context, 'tagline'),
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
+              FadeTransition(
+                opacity: _taglineOpacity,
+                child: SlideTransition(
+                  position: _taglineSlide,
+                  child: Text(
+                    tr(context, 'tagline'),
+                    style:
+                        const TextStyle(fontSize: 16, color: Colors.white70),
+                  ),
+                ),
               ),
             ],
           ),
@@ -138,14 +188,30 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          const HomeScreen(),
-          AddExpenseScreen(onSaved: _goHome),
-          const ReportsScreen(),
-          const SettingsScreen(),
-        ],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0.06, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: IndexedStack(
+          key: ValueKey<int>(_index),
+          index: _index,
+          children: [
+            const HomeScreen(),
+            AddExpenseScreen(onSaved: _goHome),
+            const ReportsScreen(),
+            const SettingsScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

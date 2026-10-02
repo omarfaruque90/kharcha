@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.0 — 2026-10-03
+
+**Kharcha v2** — smoother and runs on almost every Android phone.
+
+### Added
+- Motion animations across the app: animated screen transitions, springy summary cards, staggered expense-list entries, animated charts on the Reports tab, and a playful animated splash
+- Support for **Android 5.0 (API 21) and up** — the widest range Flutter allows, covering ~99%+ of devices
+
+### Fixed
+- Release APK is now signed with **both v1 and v2 signature schemes**, fixing "App not installed" errors on Xiaomi / MIUI / Redmi phones
+
 ## 1.0.0 — 2026-10-03
 
 First release of **Kharcha** (দৈনিক খরচের হিসাব).

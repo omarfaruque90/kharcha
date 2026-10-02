@@ -20,7 +20,8 @@ android {
 
     defaultConfig {
         applicationId = "com.kharcha.app"
-        minSdk = flutter.minSdkVersion
+        // Android 5.0 (API 21) — the lowest Flutter supports. Covers ~99%+ of devices.
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

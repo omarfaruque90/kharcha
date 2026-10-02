@@ -9,6 +9,7 @@ import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/expense_tile.dart';
+import '../widgets/motion.dart';
 import '../widgets/summary_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -78,26 +79,35 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: SummaryCard(
-                    title: tr(context, 'today'),
-                    amount: expenses.totalOn(DateTime.now()),
-                    icon: Icons.today,
+                  child: StaggeredEntrance(
+                    delayMs: 0,
+                    child: SummaryCard(
+                      title: tr(context, 'today'),
+                      amount: expenses.totalOn(DateTime.now()),
+                      icon: Icons.today,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: SummaryCard(
-                    title: tr(context, 'this_week'),
-                    amount: expenses.totalThisWeek(),
-                    icon: Icons.date_range,
+                  child: StaggeredEntrance(
+                    delayMs: 90,
+                    child: SummaryCard(
+                      title: tr(context, 'this_week'),
+                      amount: expenses.totalThisWeek(),
+                      icon: Icons.date_range,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: SummaryCard(
-                    title: tr(context, 'this_month'),
-                    amount: expenses.totalThisMonth(),
-                    icon: Icons.calendar_month,
+                  child: StaggeredEntrance(
+                    delayMs: 180,
+                    child: SummaryCard(
+                      title: tr(context, 'this_month'),
+                      amount: expenses.totalThisMonth(),
+                      icon: Icons.calendar_month,
+                    ),
                   ),
                 ),
               ],
@@ -183,34 +193,40 @@ class _HomeScreenState extends State<HomeScreen> {
                       final items = groups[day]!;
                       final dayTotal =
                           items.fold(0.0, (sum, e) => sum + e.amount);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _dayHeader(day, lang),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                      return StaggeredEntrance(
+                        key: ValueKey('day-${day.millisecondsSinceEpoch}'),
+                        delayMs: (i * 70).clamp(0, 280),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _dayHeader(day, lang),
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  formatMoney(dayTotal),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.primary,
+                                  Text(
+                                    formatMoney(dayTotal),
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          for (final e in items) ExpenseTile(expense: e),
-                        ],
+                            for (final e in items) ExpenseTile(expense: e),
+                          ],
+                        ),
                       );
                     },
                   ),
