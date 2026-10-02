@@ -71,7 +71,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: BarChart(
                       BarChartData(
                         maxY: maxY,
-                        barTouchData: const BarTouchData(enabled: false),
+                        barTouchData: BarTouchData(enabled: false),
                         gridData: const FlGridData(show: false),
                         borderData: FlBorderData(show: false),
                         titlesData: FlTitlesData(

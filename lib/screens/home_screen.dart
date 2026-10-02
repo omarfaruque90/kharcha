@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 hintText: tr(context, 'search_hint'),
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(
-                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),

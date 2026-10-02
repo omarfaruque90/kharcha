@@ -93,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.circular(32),
+                borderRadius: BorderRadius.circular(32),
                 child: Image.asset(
                   'assets/app_logo.png',
                   width: 140,

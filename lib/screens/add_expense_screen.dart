@@ -173,11 +173,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 final c = kCategories[i];
                 final selected = _categoryId == c.id;
                 return InkWell(
-                  borderRadius: const BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   onTap: () => setState(() => _categoryId = c.id),
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12),
                       color: selected
                           ? c.color.withValues(alpha: 0.18)
                           : theme.colorScheme.surfaceContainerHighest,
@@ -215,7 +215,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               trailing: const Icon(Icons.edit_calendar),
               onTap: () => _pickDate(lang),
               shape: RoundedRectangleBorder(
-                borderRadius: const BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12),
                 side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
             ),

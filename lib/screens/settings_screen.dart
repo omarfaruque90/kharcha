@@ -40,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
           ListTile(
             leading: ClipRRect(
-              borderRadius: const BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10),
               child: Image.asset(
                 'assets/app_logo.png',
                 width: 44,
