@@ -76,7 +76,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           barTouchData: BarTouchData(enabled: false),
                           gridData: const FlGridData(show: false),
                           borderData: FlBorderData(show: false),
-                              const Duration(milliseconds: 800),
                           titlesData: FlTitlesData(
                           show: true,
                           topTitles: const AxisTitles(
@@ -232,7 +231,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           PieChartData(
                             sectionsSpace: 2,
                             centerSpaceRadius: 36,
-                                const Duration(milliseconds: 800),
                             sections: [
                               for (final e in sortedCats)
                                 PieChartSectionData(
