@@ -71,7 +71,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     SizedBox(
                       height: 220,
                       child: BarChart(
-                        BarChartData(
+                        data: BarChartData(
                           maxY: maxY,
                           barTouchData: BarTouchData(enabled: false),
                           gridData: const FlGridData(show: false),
@@ -137,8 +137,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                         ],
                       ),
-                        swapAnimationDuration: const Duration(milliseconds: 800),
-                        swapAnimationCurve: Curves.easeOutCubic,
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutCubic,
                     ),
                   ),
                 ],
@@ -189,7 +189,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
                         final slide = Tween<Offset>(
-                          begin: Offset(0, 0.3),
+                          begin: const Offset(0, 0.3),
                           end: Offset.zero,
                         ).animate(animation);
                         return FadeTransition(
@@ -229,7 +229,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: SizedBox(
                         height: 200,
                         child: PieChart(
-                          PieChartData(
+                          data: PieChartData(
                             sectionsSpace: 2,
                             centerSpaceRadius: 36,
                                 const Duration(milliseconds: 800),
@@ -249,8 +249,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 ),
                             ],
                           ),
-                          swapAnimationDuration: const Duration(milliseconds: 800),
-                          swapAnimationCurve: Curves.easeInOutCubic,
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeInOutCubic,
                         ),
                       ),
                     ),
