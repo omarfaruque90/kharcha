@@ -38,7 +38,6 @@ jobs:
           SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
           BT=$(find "$SDK/build-tools" -maxdepth 1 -type d -name "[0-9]*" | sort -V | tail -1)
           APKSIGNER="$BT/apksigner"
-          ZIPALIGN="$BT/zipalign"
           echo "Using build-tools: $BT"
           APK=build/app/outputs/flutter-apk/app-release.apk
           if [ ! -f ~/.android/debug.keystore ]; then
@@ -46,19 +45,18 @@ jobs:
               -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-          # 1. v1 (JAR) signature with jarsigner - works on every Android version & MIUI
-          jarsigner -keystore ~/.android/debug.keystore -storepass android -keypass android \
-            -signedjar "$APK.v1" "$APK" androiddebugkey
-          # 2. re-align after jarsigner (required before apksigner)
-          "$ZIPALIGN" -f 4 "$APK.v1" "$APK.aligned"
-          # 3. v2 signature with apksigner (keeps the v1 signature intact)
+          # Single apksigner pass applying v1+v2 (v1 required for MIUI/Xiaomi installers)
           "$APKSIGNER" sign --ks ~/.android/debug.keystore \
             --ks-pass pass:android --key-pass pass:android \
-            --v1-signing-enabled false --v2-signing-enabled true \
-            --out "$APK.final" "$APK.aligned" && mv "$APK.final" "$APK"
-          rm -f "$APK.v1" "$APK.aligned"
-          # 4. format-independent verification
-          "$APKSIGNER" verify "$APK" && echo "apksigner verify: OK"
+            --v1-signing-enabled true --v2-signing-enabled true \
+            --v3-signing-enabled false \
+            --out "$APK.signed" "$APK" && mv "$APK.signed" "$APK"
+          # Diagnostics: show what's actually in the APK
+          echo "=== META-INF contents ==="
+          unzip -l "$APK" | grep -i "META-INF/" | head -20
+          echo "=== apksigner verify ==="
+          "$APKSIGNER" verify --print-certs "$APK" 2>&1 | head -20
+          # Hard requirement: v1 (JAR) signature files must exist
           unzip -l "$APK" | grep -qiE "META-INF/.+\.(RSA|DSA|EC)$" && echo "v1 (JAR) signature: PRESENT"
 
       - name: Upload APK artifact
