@@ -45,7 +45,17 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> remove(int id) async {
+  /// Replaces the whole in-memory list (used after a cloud pull).
+  Future<void> replaceAll(List<Expense> expenses) async {
+    _expenses
+      ..clear()
+      ..addAll(expenses);
+    _sort();
+    _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> remove(String id) async {
     await DatabaseHelper.instance.deleteExpense(id);
     _expenses.removeWhere((e) => e.id == id);
     notifyListeners();

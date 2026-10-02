@@ -16,6 +16,8 @@ dependencies:
   # Pinned below 1.0: fl_chart 1.x is a full API rewrite.
   fl_chart: ">=0.68.0 <1.0.0"
   intl: ^0.20.2
+  # UUID v4 ids shared between SQLite and Firestore (v3.0 sync).
+  uuid: ^4.5.0
   # Firebase (v3.0): auth + per-user cloud sync. Versions resolved by `flutter pub get` on CI.
   firebase_core: ^4.15.0
   firebase_auth: ^6.7.0
