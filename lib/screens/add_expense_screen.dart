@@ -293,7 +293,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               child: Center(
                 child: TweenAnimationBuilder<double>(
                   key: ValueKey(_showSuccess),
-                  tween: const Tween(begin: 0.0, end: 1.0),
+                  tween: Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 450),
                   curve: Curves.elasticOut,
                   builder: (context, value, child) => Transform.scale(

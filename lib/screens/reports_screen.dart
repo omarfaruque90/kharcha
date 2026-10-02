@@ -76,9 +76,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           barTouchData: BarTouchData(enabled: false),
                           gridData: const FlGridData(show: false),
                           borderData: FlBorderData(show: false),
-                          swapAnimationDuration:
                               const Duration(milliseconds: 800),
-                          swapAnimationCurve: Curves.easeOutCubic,
                           titlesData: FlTitlesData(
                           show: true,
                           topTitles: const AxisTitles(
@@ -139,6 +137,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                         ],
                       ),
+                        swapAnimationDuration: const Duration(milliseconds: 800),
+                        swapAnimationCurve: Curves.easeOutCubic,
                     ),
                   ),
                 ],
@@ -188,7 +188,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       duration: const Duration(milliseconds: 300),
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
-                        final slide = const Tween<Offset>(
+                        final slide = Tween<Offset>(
                           begin: Offset(0, 0.3),
                           end: Offset.zero,
                         ).animate(animation);
@@ -219,7 +219,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   else ...[
                     TweenAnimationBuilder<double>(
                       key: ValueKey(_selectedMonth),
-                      tween: const Tween(begin: 0.94, end: 1.0),
+                      tween: Tween(begin: 0.94, end: 1.0),
                       duration: const Duration(milliseconds: 550),
                       curve: Curves.easeOutBack,
                       builder: (context, value, child) => Transform.scale(
@@ -232,9 +232,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           PieChartData(
                             sectionsSpace: 2,
                             centerSpaceRadius: 36,
-                            swapAnimationDuration:
                                 const Duration(milliseconds: 800),
-                            swapAnimationCurve: Curves.easeInOutCubic,
                             sections: [
                               for (final e in sortedCats)
                                 PieChartSectionData(
@@ -251,6 +249,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 ),
                             ],
                           ),
+                          swapAnimationDuration: const Duration(milliseconds: 800),
+                          swapAnimationCurve: Curves.easeInOutCubic,
                         ),
                       ),
                     ),

@@ -33,7 +33,7 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
     );
     final curved =
         CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _opacity = const Tween<double>(begin: 0, end: 1).animate(curved);
+    _opacity = Tween<double>(begin: 0, end: 1).animate(curved);
     _offset = Tween<Offset>(
       begin: Offset(0, widget.slideFraction),
       end: Offset.zero,
