@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
     _taglineSlide = Tween<Offset>(
-      begin: Offset(0, 0.6),
+      begin: const Offset(0, 0.6),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
@@ -194,7 +194,7 @@ class _MainShellState extends State<MainShell> {
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
           final slide = Tween<Offset>(
-            begin: Offset(0.06, 0),
+            begin: const Offset(0.06, 0),
             end: Offset.zero,
           ).animate(animation);
           return FadeTransition(

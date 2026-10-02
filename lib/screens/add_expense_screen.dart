@@ -184,8 +184,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeInOut,
-                    transform: Matrix4.identity()
-                      ..scale(selected ? 1.06 : 1.0),
+                    transform: Matrix4.diagonal3Values(
+                      selected ? 1.06 : 1.0,
+                      selected ? 1.06 : 1.0,
+                      1.0,
+                    ),
                     transformAlignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
