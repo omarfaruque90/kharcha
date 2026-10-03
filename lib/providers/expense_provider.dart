@@ -228,6 +228,7 @@ class ExpenseProvider extends ChangeNotifier {
     final ids = _expenses
         .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
         .map((e) => e.id)
+        .whereType<String>()
         .toList();
     for (final id in ids) {
       try {
@@ -249,6 +250,7 @@ class ExpenseProvider extends ChangeNotifier {
             !e.date.isBefore(start) &&
             !e.date.isAfter(end))
         .map((e) => e.id)
+        .whereType<String>()
         .toList();
     for (final id in ids) {
       try {

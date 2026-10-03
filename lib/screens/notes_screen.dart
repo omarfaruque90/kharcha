@@ -5,8 +5,6 @@ import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/note.dart';
-import '../providers/settings_provider.dart';
-import 'package:provider/provider.dart';
 import '../widgets/motion.dart';
 
 /// Google Keep-style notes: colorful cards, pin, search, edit.
