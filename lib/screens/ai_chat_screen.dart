@@ -825,12 +825,24 @@ class _AiChatScreenState extends State<AiChatScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Text(
-              tr(context, 'ai_welcome_title'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+            ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  kGold,
+                  kGold.withValues(alpha: 0.7),
+                ],
+              ).createShader(bounds),
+              child: Text(
+                tr(context, 'ai_welcome_title'),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
