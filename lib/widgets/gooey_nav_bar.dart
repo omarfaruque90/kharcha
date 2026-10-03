@@ -259,7 +259,7 @@ class _BarPainter extends CustomPainter {
     path.close();
 
     canvas.drawShadow(
-        path, Colors.black.withValues(alpha: 0.35), 12, 0);
+        path, Colors.black.withValues(alpha: 0.35), 12, false);
     canvas.drawPath(path, Paint()..color = color);
   }
 
