@@ -222,7 +222,7 @@ class _CalcKey extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _CalcKey({super.key, required this.label, required this.onTap});
+  const _CalcKey({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

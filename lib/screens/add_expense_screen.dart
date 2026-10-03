@@ -638,7 +638,6 @@ class _IconSquare extends StatelessWidget {
   final VoidCallback onTap;
 
   const _IconSquare({
-    super.key,
     required this.icon,
     required this.active,
     required this.onTap,

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../models/bill_reminder.dart';
 import '../providers/money_provider.dart';
-import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
