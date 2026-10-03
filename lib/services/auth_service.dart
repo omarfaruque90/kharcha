@@ -145,6 +145,15 @@ class AuthService {
     }
   }
 
+  /// Anonymous / guest sign-in — no credentials needed.
+  Future<UserCredential> signInAnonymously() async {
+    try {
+      return await _auth.signInAnonymously();
+    } on FirebaseAuthException catch (e) {
+      _wrap(e);
+    }
+  }
+
   /// Starts phone-number verification. Normalizes Bangladeshi numbers.
   Future<void> startPhoneVerification({
     required String phoneNumber,

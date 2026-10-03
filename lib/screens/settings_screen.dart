@@ -203,7 +203,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? null
         : (user.displayName?.isNotEmpty == true
             ? user.displayName!
-            : (user.email ?? user.phoneNumber ?? ''));
+            : (user.email ??
+                user.phoneNumber ??
+                (user.isAnonymous
+                    ? tr(context, 'auth_guest_label')
+                    : '')));
 
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'nav_settings'))),

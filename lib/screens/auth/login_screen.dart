@@ -5,7 +5,6 @@ import '../../main.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/motion.dart';
 import 'auth_widgets.dart';
-import 'phone_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -53,12 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void _goSignup() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SignupScreen()),
-    );
-  }
-
-  void _goPhone() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PhoneScreen()),
     );
   }
 
@@ -179,9 +172,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   delayMs: 520,
                   child: PressableScale(
                     child: OutlinedButton.icon(
-                      onPressed: _busy ? null : _goPhone,
-                      icon: const Icon(Icons.phone_outlined),
-                      label: Text(tr(context, 'auth_phone_btn')),
+                      onPressed: _busy
+                          ? null
+                          : () => _run(AuthService
+                              .instance.signInAnonymously),
+                      icon: const Icon(Icons.person_outline),
+                      label: Text(tr(context, 'auth_guest_btn')),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
