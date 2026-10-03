@@ -21,13 +21,26 @@ class CalculatorPad extends StatefulWidget {
 class _CalculatorPadState extends State<CalculatorPad> {
   String _expr = '';
 
-  static const List<String> _keys = [
-    'C', '⌫', '÷', '×',
-    '7', '8', '9', '−',
-    '4', '5', '6', '+',
-    '1', '2', '3', '=',
-    '0', '00', '.', '=',
-  ];
+  /// Key layout: 4-column rows, with a single tall '=' key spanning the
+  /// last two rows (no duplicate '=' button).
+  Widget _calcRow(List<String> keys) {
+    return Row(
+      children: [
+        for (var i = 0; i < keys.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 1.3,
+              child: _CalcKey(
+                label: keys[i],
+                onTap: () => _press(keys[i]),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
   bool _isOperator(String s) =>
       s == '+' || s == '−' || s == '×' || s == '÷';
@@ -195,21 +208,39 @@ class _CalculatorPadState extends State<CalculatorPad> {
             ),
           ),
           const SizedBox(height: 6),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
-              childAspectRatio: 1.3,
-            ),
-            itemCount: _keys.length,
-            itemBuilder: (context, i) => _CalcKey(
-              label: _keys[i],
-              onTap: () => _press(_keys[i]),
-            ),
+          Column(
+            children: [
+              _calcRow(const ['C', '⌫', '÷', '×']),
+              const SizedBox(height: 6),
+              _calcRow(const ['7', '8', '9', '−']),
+              const SizedBox(height: 6),
+              _calcRow(const ['4', '5', '6', '+']),
+              const SizedBox(height: 6),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        children: [
+                          _calcRow(const ['1', '2', '3']),
+                          const SizedBox(height: 6),
+                          _calcRow(const ['0', '00', '.']),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _CalcKey(
+                        label: '=',
+                        onTap: () => _press('='),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

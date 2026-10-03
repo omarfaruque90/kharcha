@@ -40,6 +40,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController _amountCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
   final SpeechToText _speech = SpeechToText();
+  bool _speechReady = false;
+  String _partialWords = '';
 
   String _categoryId = 'food';
   DateTime _date = DateTime.now();
@@ -313,27 +315,43 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Future<void> _toggleVoice(String lang) async {
     if (_listening) {
       await _speech.stop();
-      if (mounted && _listening) setState(() => _listening = false);
+      if (mounted && _listening) {
+        setState(() {
+          _listening = false;
+          _partialWords = '';
+        });
+      }
       return;
     }
-    var available = false;
-    try {
-      available = await _speech.initialize(
-        onStatus: (status) {
-          if ((status == 'done' || status == 'notListening') &&
-              mounted &&
-              _listening) {
-            setState(() => _listening = false);
-          }
-        },
-        onError: (_) {
-          if (mounted && _listening) setState(() => _listening = false);
-        },
-      );
-    } catch (_) {
-      available = false;
+    // Initialize the speech engine only once and reuse it — initializing
+    // on every tap was the main source of the mic "lag".
+    if (!_speechReady) {
+      try {
+        _speechReady = await _speech.initialize(
+          onStatus: (status) {
+            if ((status == 'done' || status == 'notListening') &&
+                mounted &&
+                _listening) {
+              setState(() {
+                _listening = false;
+                _partialWords = '';
+              });
+            }
+          },
+          onError: (_) {
+            if (mounted && _listening) {
+              setState(() {
+                _listening = false;
+                _partialWords = '';
+              });
+            }
+          },
+        );
+      } catch (_) {
+        _speechReady = false;
+      }
     }
-    if (!available) {
+    if (!_speechReady) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.get('voice_unavailable', lang))),
@@ -341,24 +359,42 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
     if (!mounted) return;
-    setState(() => _listening = true);
+    setState(() {
+      _listening = true;
+      _partialWords = '';
+    });
     try {
       // listen() resolves once recognition starts; results arrive via
       // onResult and the session end via the onStatus handler above.
+      // partialResults + short pauseFor keep the UI feeling instant.
       await _speech.listen(
         onResult: (result) {
-          if (result.finalResult && mounted) {
+          if (!mounted) return;
+          if (result.finalResult) {
             _applyVoiceText(result.recognizedWords, lang);
-            if (_listening) setState(() => _listening = false);
+            if (_listening) {
+              setState(() {
+                _listening = false;
+                _partialWords = '';
+              });
+            }
+          } else if (_listening) {
+            setState(() => _partialWords = result.recognizedWords);
           }
         },
         listenOptions: SpeechListenOptions(
           listenFor: const Duration(seconds: 30),
-          pauseFor: const Duration(seconds: 4),
+          pauseFor: const Duration(seconds: 2),
+          partialResults: true,
         ),
       );
     } catch (_) {
-      if (mounted && _listening) setState(() => _listening = false);
+      if (mounted && _listening) {
+        setState(() {
+          _listening = false;
+          _partialWords = '';
+        });
+      }
     }
   }
 
@@ -498,7 +534,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        tr(context, 'voice_listening'),
+                        _partialWords.isNotEmpty
+                            ? _partialWords
+                            : tr(context, 'voice_listening'),
                         style:
                             const TextStyle(color: Colors.red),
                       ),
