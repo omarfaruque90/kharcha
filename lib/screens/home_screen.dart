@@ -12,7 +12,6 @@ import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/notification_center.dart';
-import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import '../widgets/expense_tile.dart';
 import '../widgets/hero_balance_card.dart';
@@ -20,41 +19,9 @@ import '../widgets/motion.dart';
 import '../widgets/smart_search.dart';
 import '../widgets/spending_insights.dart';
 import '../widgets/budget_forecast_card.dart';
-import 'budget_screen.dart';
-import 'calendar_screen.dart';
-import 'debts_screen.dart';
-import 'goals_screen.dart';
-import 'income_screen.dart';
-import 'notifications_screen.dart';
-import 'receipts_screen.dart';
-import 'recurring_screen.dart';
-import 'reminder_screen.dart';
-import 'reports_screen.dart';
-import 'split_bill_screen.dart';
-import 'subscriptions_screen.dart';
-import 'templates_screen.dart';
-import 'wishlist_screen.dart';
-import 'salary_screen.dart';
-import 'voice_report_screen.dart';
-import 'achievements_screen.dart';
-import 'challenge_screen.dart';
-import 'cash_screen.dart';
-import 'emergency_screen.dart';
-import 'fuel_screen.dart';
-import 'shopping_screen.dart';
-import 'gifts_screen.dart';
-import 'projects_screen.dart';
-import 'expense_map_screen.dart';
-import 'medical_screen.dart';
-import 'converter_screen.dart';
-import 'tip_screen.dart';
-import 'budget_planner_screen.dart';
 import 'ai_chat_screen.dart';
-import 'leaderboard_screen.dart';
-import 'public_templates_screen.dart';
-import 'tax_helper_screen.dart';
-import 'dues_screen.dart';
-import 'places_screen.dart';
+import 'notifications_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onAddPressed;
@@ -64,122 +31,6 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
-/// One money-tool shortcut: icon, label key, and the screen it opens.
-class _ToolDef {
-  final IconData icon;
-  final String labelKey;
-  final Widget Function() build;
-
-  const _ToolDef(this.icon, this.labelKey, this.build);
-}
-
-/// A section of the money-tools grid: Bangla-first header + tools.
-class _ToolSection {
-  final String titleKey;
-  final IconData icon;
-  final List<_ToolDef> tools;
-
-  const _ToolSection(this.titleKey, this.icon, this.tools);
-}
-
-/// All 34 money-tool shortcuts (33 originals + Reports), reorganized into four sections
-/// (nothing dropped, nothing renamed — only grouped). Plus a Reports
-/// shortcut in Insights.
-List<_ToolSection> _toolSections() => [
-      _ToolSection(
-        'tools_section_track',
-        Icons.track_changes_outlined,
-        [
-          _ToolDef(Icons.handshake_outlined, 'debts_title',
-              () => const DebtsScreen()),
-          _ToolDef(Icons.people_outline, 'split_title',
-              () => const SplitBillScreen()),
-          _ToolDef(Icons.subscriptions_outlined, 'subs_title',
-              () => const SubscriptionsScreen()),
-          _ToolDef(Icons.calendar_month_outlined, 'cal_title',
-              () => const CalendarScreen()),
-          _ToolDef(Icons.receipt_long_outlined, 'receipts_title',
-              () => const ReceiptsScreen()),
-          _ToolDef(Icons.event_note_outlined, 'dues_title',
-              () => const DuesScreen()),
-          _ToolDef(Icons.notifications_none_outlined, 'reminder_title',
-              () => const ReminderScreen()),
-        ],
-      ),
-      _ToolSection(
-        'tools_section_plan',
-        Icons.edit_calendar_outlined,
-        [
-          _ToolDef(Icons.account_balance_wallet_outlined, 'budget_title',
-              () => const BudgetScreen()),
-          _ToolDef(Icons.trending_up, 'income_title',
-              () => const IncomeScreen()),
-          _ToolDef(Icons.event_repeat_outlined, 'recurring_title',
-              () => const RecurringScreen()),
-          _ToolDef(Icons.savings_outlined, 'goals_title',
-              () => const GoalsScreen()),
-          _ToolDef(Icons.card_giftcard_outlined, 'wish_title',
-              () => const WishlistScreen()),
-          _ToolDef(Icons.bolt_outlined, 'tpl_title',
-              () => const TemplatesScreen()),
-          _ToolDef(Icons.payments_outlined, 'salary_title',
-              () => const SalaryScreen()),
-          _ToolDef(Icons.auto_awesome_outlined, 'bp_title',
-              () => const BudgetPlannerScreen()),
-        ],
-      ),
-      _ToolSection(
-        'tools_section_insights',
-        Icons.insights_outlined,
-        [
-          _ToolDef(Icons.chat_bubble_outline, 'ai_title',
-              () => const AiChatScreen()),
-          _ToolDef(Icons.mic_outlined, 'voice_title',
-              () => const VoiceReportScreen()),
-          _ToolDef(Icons.bar_chart_outlined, 'nav_reports',
-              () => const ReportsScreen()),
-        ],
-      ),
-      _ToolSection(
-        'tools_section_tools',
-        Icons.handyman_outlined,
-        [
-          _ToolDef(Icons.currency_exchange_outlined, 'conv_title',
-              () => const ConverterScreen()),
-          _ToolDef(Icons.percent_outlined, 'tip_title',
-              () => const TipScreen()),
-          _ToolDef(Icons.local_gas_station_outlined, 'fuel_title',
-              () => const FuelScreen()),
-          _ToolDef(Icons.shopping_cart_outlined, 'shop_title',
-              () => const ShoppingScreen()),
-          _ToolDef(Icons.card_giftcard_outlined, 'gift_title',
-              () => const GiftsScreen()),
-          _ToolDef(Icons.wallet_outlined, 'cash_title',
-              () => const CashScreen()),
-          _ToolDef(Icons.shield_outlined, 'vault_title',
-              () => const EmergencyScreen()),
-          _ToolDef(Icons.medical_services_outlined, 'medical_title',
-              () => const MedicalScreen()),
-          _ToolDef(Icons.work_outline, 'projects_title',
-              () => const ProjectsScreen()),
-          _ToolDef(Icons.map_outlined, 'expense_map_title',
-              () => const ExpenseMapScreen()),
-          _ToolDef(Icons.timer_outlined, 'challenge_title',
-              () => const ChallengeScreen()),
-          _ToolDef(Icons.emoji_events_outlined, 'ach_title',
-              () => const AchievementsScreen()),
-          _ToolDef(Icons.location_on_outlined, 'places_title',
-              () => const PlacesScreen()),
-          _ToolDef(Icons.leaderboard_outlined, 'leaderboard_title',
-              () => const LeaderboardScreen()),
-          _ToolDef(Icons.public_outlined, 'templates_public',
-              () => const PublicTemplatesScreen()),
-          _ToolDef(Icons.receipt_long_outlined, 'tax_title',
-              () => const TaxHelperScreen()),
-        ],
-      ),
-    ];
 
 class _HomeScreenState extends State<HomeScreen> {
   String? _categoryId; // null = all categories
@@ -271,6 +122,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: tr(context, 'nav_settings'),
+          icon: const Icon(Icons.settings_outlined),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SettingsScreen(),
+            ),
+          ),
+        ),
         title: GestureDetector(
           onLongPress: () => _quickProfileSwitch(context),
           child: Column(
@@ -308,6 +169,16 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: lang == 'bn' ? 'English' : 'বাংলা',
             icon: const Icon(Icons.translate),
             onPressed: () => settings.setLanguage(lang == 'bn' ? 'en' : 'bn'),
+          ),
+          IconButton(
+            tooltip: tr(context, 'ai_title'),
+            icon: const Icon(Icons.smart_toy_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AiChatScreen(),
+              ),
+            ),
           ),
         ],
       ),
@@ -363,51 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          // Money tools: sectioned grid (Bangla-first headers).
-          for (final section in _toolSections()) ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(16, 20, 16, 4),
-                child: KSection.header(
-                  context,
-                  icon: section.icon,
-                  title: tr(context, section.titleKey),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              sliver: SliverGrid(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.85,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (ctx, i) {
-                    final tool = section.tools[i];
-                    return StaggeredEntrance(
-                      key: ValueKey('${section.titleKey}-$i'),
-                      delayMs: (i * 35).clamp(0, 300).toInt(),
-                      child: _ToolTile(
-                        icon: tool.icon,
-                        label: tr(context, tool.labelKey),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => tool.build()),
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: section.tools.length,
-                ),
-              ),
-            ),
-          ],
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -644,71 +470,6 @@ class _MonthlyBudgetProgress extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One tile in the money-tools grid: icon + short text label
-/// (never icon-only), comfortably above the 48dp touch target.
-class _ToolTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ToolTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PressableScale(
-      onTap: onTap,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KSpacing.xs,
-            vertical: 10,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(KRadius.chip),
-                ),
-                child:
-                    Icon(icon, color: theme.colorScheme.primary, size: 22),
-              ),
-              const SizedBox(height: 6),
-              // Flexible keeps long labels (e.g. "পুনরাবৃত্ত খরচ")
-              // inside the tile instead of overflowing it.
-              Flexible(
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.2,
-                    fontSize: 10.5,
-                    height: 1.25,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

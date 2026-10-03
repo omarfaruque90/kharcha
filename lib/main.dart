@@ -22,7 +22,7 @@ import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/reports_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/more_screen.dart';
 import 'services/lock_service.dart';
 import 'services/achievements.dart';
 import 'services/carry_forward_service.dart';
@@ -805,7 +805,7 @@ class _MainShellState extends State<MainShell> {
             HomeScreen(onAddPressed: _goAdd),
             AddExpenseScreen(onSaved: _goHome),
             const ReportsScreen(),
-            const SettingsScreen(),
+            const MoreScreen(),
           ],
         ),
       ),
@@ -829,9 +829,9 @@ class _MainShellState extends State<MainShell> {
             label: tr(context, 'nav_reports'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
-            label: tr(context, 'nav_settings'),
+            icon: const Icon(Icons.more_horiz),
+            selectedIcon: const Icon(Icons.more_horiz),
+            label: tr(context, 'more'),
           ),
         ],
       ),
