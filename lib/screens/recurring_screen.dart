@@ -302,7 +302,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                 ],
               ),
               SwitchListTile(
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.zero,
                 title: Text(tr(context, 'active')),
                 value: _active,
                 onChanged: (v) => setState(() => _active = v),

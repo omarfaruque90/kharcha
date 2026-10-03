@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_strings.dart';
 import '../../main.dart';
 import '../../providers/expense_provider.dart';
+import '../../providers/money_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/sync_service.dart';
 import 'login_screen.dart';
@@ -59,7 +60,10 @@ class _SyncedHomeState extends State<_SyncedHome> {
     super.initState();
     // Refresh the expense list when another device changes the cloud data.
     _remoteSub = SyncService.instance.remoteChanges.listen((_) {
-      if (mounted) context.read<ExpenseProvider>().load();
+      if (mounted) {
+        context.read<ExpenseProvider>().load();
+        context.read<MoneyProvider>().load();
+      }
     });
     _boot();
   }
@@ -70,8 +74,11 @@ class _SyncedHomeState extends State<_SyncedHome> {
     } catch (_) {
       // Offline / rules not set yet — the app still works locally.
     }
-    // Reload the provider so merged cloud data shows up immediately.
-    if (mounted) await context.read<ExpenseProvider>().load();
+    // Reload the providers so merged cloud data shows up immediately.
+    if (mounted) {
+      await context.read<ExpenseProvider>().load();
+      await context.read<MoneyProvider>().load();
+    }
     if (mounted) setState(() => _ready = true);
   }
 
@@ -102,7 +109,7 @@ class _AuthLoading extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: const BorderRadius.circular(28),
                 child: Image.asset(
                   'assets/app_logo.png',
                   width: 110,

@@ -347,7 +347,7 @@ class _IncomeDialogState extends State<_IncomeDialog> {
               ),
               const SizedBox(height: 12),
               ListTile(
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
                 title: Text(
                   DateFormat.yMMMd(lang == 'bn' ? 'bn' : 'en').format(_date),

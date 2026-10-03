@@ -330,7 +330,7 @@ class _GoalDialogState extends State<_GoalDialog> {
                 },
               ),
               ListTile(
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
                 title: Text(
                   _deadline == null

@@ -146,7 +146,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: const BorderRadius.circular(16),
         border: Border.all(color: kGold.withValues(alpha: 0.45)),
       ),
       padding: const EdgeInsets.all(12),
@@ -158,7 +158,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: kEmerald.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: const BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -246,7 +246,7 @@ class _CalcKey extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: const BorderRadius.circular(14),
           border: isOperator
               ? Border.all(color: kGold.withValues(alpha: 0.65))
               : null,
