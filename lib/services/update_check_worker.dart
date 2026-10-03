@@ -26,7 +26,7 @@ class UpdateCheckWorker {
   /// WorkManager keeps a single schedule for the unique name.
   static Future<void> schedule() async {
     try {
-      await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+      await Workmanager().initialize(callbackDispatcher);
       await Workmanager().registerPeriodicTask(
         'khorcha-update-check-unique',
         taskName,
@@ -113,10 +113,10 @@ Future<void> _showUpdateNotification(String version) async {
       const InitializationSettings(android: androidSettings),
     );
     await plugin.show(
-      9001,
-      'Khorcha আপডেট এসেছে',
-      'নতুন ভার্সন v$version এসেছে। আপডেট করতে এখানে ট্যাপ করো।',
-      const NotificationDetails(
+      id: 9001,
+      title: 'Khorcha আপডেট এসেছে',
+      body: 'নতুন ভার্সন v$version এসেছে। আপডেট করতে এখানে ট্যাপ করো।',
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'khorcha_updates',
           'Khorcha Updates',
