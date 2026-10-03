@@ -163,7 +163,7 @@ class DatabaseHelper {
     final path = p.join(dir.path, dbFileNameFor(_profile));
     return openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
@@ -172,6 +172,7 @@ class DatabaseHelper {
         await _createV6Tables(db);
         await _applyV6Alters(db);
         await _createIndexes(db);
+        await _createV8Tables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -192,6 +193,9 @@ class DatabaseHelper {
         }
         if (oldVersion < 7) {
           await _createIndexes(db);
+        }
+        if (oldVersion < 8) {
+          await _createV8Tables(db);
         }
       },
     );
@@ -531,6 +535,23 @@ class DatabaseHelper {
         'CREATE INDEX IF NOT EXISTS idx_fuellogs_date ON fuel_logs(date)');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_gifts_date ON gifts(date)');
+  }
+
+  /// v8: user notes (Google Keep style).
+  Future<void> _createV8Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notes(
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL DEFAULT '',
+        color INTEGER NOT NULL DEFAULT 0,
+        pinned INTEGER NOT NULL DEFAULT 0,
+        updated INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated)');
   }
 
   /// v6 column additions on pre-existing tables. Runs on fresh installs
@@ -1379,6 +1400,37 @@ class DatabaseHelper {
 
   Future<int> deleteCustomCategory(String id) async {
     return _deleteRecord('custom_categories', id);
+  }
+
+  // --------------------------- notes --------------------
+  Future<List<Map<String, dynamic>>> getNotes() async {
+    final db = await database;
+    return db.query('notes', orderBy: 'pinned DESC, updated DESC');
+  }
+
+  Future<String> insertNote(Map<String, dynamic> map) async {
+    final db = await database;
+    final id = map['id'] as String? ?? const Uuid().v4();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.insert('notes', {
+      ...map,
+      'id': id,
+      'updated': now,
+      'updatedAt': now,
+    });
+    return id;
+  }
+
+  Future<int> updateNote(String id, Map<String, dynamic> map) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return db.update('notes', {...map, 'updated': now, 'updatedAt': now},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteNote(String id) async {
+    final db = await database;
+    return db.delete('notes', where: 'id = ?', whereArgs: [id]);
   }
 
   // --------------------------- notification center --------------------

@@ -35,6 +35,7 @@ import '../screens/leaderboard_screen.dart';
 import '../screens/public_templates_screen.dart';
 import '../screens/tax_helper_screen.dart';
 import '../screens/dues_screen.dart';
+import '../screens/notes_screen.dart';
 import '../screens/places_screen.dart';
 
 /// One money-tool shortcut: icon, label key, and the screen it opens.
@@ -117,6 +118,8 @@ List<ToolSection> toolSections() => [
         'tools_section_tools',
         Icons.handyman_outlined,
         [
+          ToolDef(Icons.note_alt_outlined, 'notes_title',
+              () => const NotesScreen()),
           ToolDef(Icons.currency_exchange_outlined, 'conv_title',
               () => const ConverterScreen()),
           ToolDef(Icons.percent_outlined, 'tip_title',

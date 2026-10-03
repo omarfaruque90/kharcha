@@ -14,6 +14,7 @@ import '../services/notification_center.dart';
 import '../utils/formatters.dart';
 import '../widgets/expense_tile.dart';
 import '../widgets/hero_balance_card.dart';
+import '../widgets/calculator_sheet.dart';
 import '../widgets/motion.dart';
 import '../widgets/smart_search.dart';
 import '../widgets/spending_insights.dart';
@@ -22,9 +23,11 @@ import 'ai_chat_screen.dart';
 import 'achievements_screen.dart';
 import 'budget_planner_screen.dart';
 import 'budget_screen.dart';
+import 'calendar_screen.dart';
 import 'cash_screen.dart';
 import 'goals_screen.dart';
 import 'leaderboard_screen.dart';
+import 'notes_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 import 'wishlist_screen.dart';
@@ -232,6 +235,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.only(right: 16),
                   children: [
+                    _QuickShortcut(
+                      icon: Icons.calculate_outlined,
+                      labelKey: 'calculator_title',
+                      onTap: () => CalculatorSheet.show(context),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.calendar_month_outlined,
+                      labelKey: 'cal_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CalendarScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.note_alt_outlined,
+                      labelKey: 'notes_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const NotesScreen()),
+                      ),
+                    ),
                     _QuickShortcut(
                       icon: Icons.emoji_events_outlined,
                       labelKey: 'ach_title',

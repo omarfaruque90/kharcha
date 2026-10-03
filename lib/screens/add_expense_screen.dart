@@ -22,7 +22,6 @@ import '../services/currency_service.dart';
 import '../services/notification_center.dart';
 import '../services/ocr_categorize.dart';
 import '../services/ocr_service.dart';
-import '../widgets/calculator_pad.dart';
 import '../widgets/branded_date_picker.dart';
 import '../widgets/category_dialogs.dart';
 import '../widgets/motion.dart';
@@ -34,8 +33,10 @@ import '../widgets/payment_selector.dart';
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
   final VoidCallback? onSaved;
+  final String? initialAmount;
 
-  const AddExpenseScreen({super.key, this.expense, this.onSaved});
+  const AddExpenseScreen(
+      {super.key, this.expense, this.onSaved, this.initialAmount});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -50,7 +51,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   DateTime _date = DateTime.now();
   String _payment = 'cash';
   String? _receiptPath;
-  bool _showCalculator = false;
   bool _showSuccess = false;
   bool _scanning = false;
   // Package V/AB: currency picker and mood tag.
@@ -77,6 +77,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialAmount != null) {
+      _amountCtrl.text = widget.initialAmount!;
+    }
     final e = widget.expense;
     if (e != null) {
       final whole = e.amount.truncateToDouble() == e.amount;
@@ -228,7 +231,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _date = DateTime.now();
         _payment = 'cash';
         _receiptPath = null;
-        _showCalculator = false;
         _currency = 'BDT';
         _mood = '';
         _ocrAutofilled = false;
@@ -609,33 +611,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                _IconSquare(
-                  icon: Icons.calculate_outlined,
-                  active: _showCalculator,
-                  onTap: () =>
-                      setState(() => _showCalculator = !_showCalculator),
-                ),
-                const SizedBox(width: 8),
-                _IconSquare(
-                  icon: Icons.calendar_month_outlined,
-                  active: false,
-                  onTap: () => _pickDate(lang),
-                ),
               ],
               ),
             ),
-            if (_showCalculator) ...[
-              const SizedBox(height: 12),
-              CalculatorPad(
-                onResult: (value) {
-                  final whole = value.truncateToDouble() == value;
-                  _amountCtrl.text = whole
-                      ? value.toStringAsFixed(0)
-                      : _trimDecimals(value);
-                },
-              ),
-            ],
             const SizedBox(height: 16),
             StaggeredEntrance(
               delayMs: 60,
@@ -1340,47 +1318,4 @@ class _MoodButton extends StatelessWidget {
 
 /// Small square icon button used next to the amount field (calculator
 /// toggle, voice input). Highlights emerald/gold when [active].
-class _IconSquare extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
 
-  const _IconSquare({
-    required this.icon,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return PressableScale(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: active
-              ? kGold
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: active ? kGold : kGold.withValues(alpha: 0.55),
-          ),
-          boxShadow: [
-            if (active)
-              BoxShadow(
-                color: kGold.withValues(alpha: 0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: active ? kDeepGreenDark : (isDark ? kGoldLight : kGoldDark),
-        ),
-      ),
-    );
-  }
-}
