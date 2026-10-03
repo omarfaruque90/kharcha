@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
-import '../models/app_subscription.dart';
+import '../models/subscription.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
@@ -166,7 +166,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                               key: ValueKey('sub-${s.id}'),
                               delayMs: (i * 50).clamp(0, 250).toInt(),
                               child: _SubscriptionCard(
-                                sub: s,
+                                s: s,
                                 onToggle: (v) => _toggle(s, v),
                                 onPaid: () => _markPaid(s),
                                 onEdit: () async {
@@ -568,25 +568,25 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
             final db = DatabaseHelper.instance;
             final existing = widget.existing;
             if (existing == null) {
-              await db.insertSubscription(AppSubscription()
-                ..id = AppSubscription.newId()
-                ..name = _nameCtrl.text.trim()
-                ..amount = double.parse(_amountCtrl.text.trim())
-                ..cycle = _cycle
-                ..nextDue = _nextDue
-                ..emoji = _emojiCtrl.text.trim()
-                ..active = _active
-                ..updatedAt = DateTime.now());
+              await db.insertSubscription(AppSubscription(
+                id: AppSubscription.newId(),
+                name: _nameCtrl.text.trim(),
+                amount: double.parse(_amountCtrl.text.trim()),
+                cycle: _cycle,
+                nextDue: _nextDue,
+                emoji: _emojiCtrl.text.trim(),
+                active: _active,
+              ));
             } else {
-              existing
-                ..name = _nameCtrl.text.trim()
-                ..amount = double.parse(_amountCtrl.text.trim())
-                ..cycle = _cycle
-                ..nextDue = _nextDue
-                ..emoji = _emojiCtrl.text.trim()
-                ..active = _active
-                ..updatedAt = DateTime.now();
-              await db.updateSubscription(existing);
+              await db.updateSubscription(existing.copyWith(
+                name: _nameCtrl.text.trim(),
+                amount: double.parse(_amountCtrl.text.trim()),
+                cycle: _cycle,
+                nextDue: _nextDue,
+                emoji: _emojiCtrl.text.trim(),
+                active: _active,
+                updatedAt: DateTime.now(),
+              ));
             }
             if (context.mounted) {
               Navigator.of(context).pop();

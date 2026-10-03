@@ -2,7 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
-import '../models/app_subscription.dart';
+import '../models/subscription.dart';
 import '../utils/formatters.dart';
 import 'notification_center.dart';
 import 'notification_service.dart';
