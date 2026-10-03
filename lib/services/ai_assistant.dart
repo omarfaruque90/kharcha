@@ -1,6 +1,5 @@
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
-import '../models/budget.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
