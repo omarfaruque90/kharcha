@@ -12,7 +12,20 @@
           "package_name": "com.kharcha.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "880803611778-tvr4uk9k9bup47u1e2ck3kua9fioq0aa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kharcha.app",
+            "certificate_hash": "84dc8f4a59b6da3862238b94427293a24a056f27"
+          }
+        },
+        {
+          "client_id": "880803611778-sk0e65sni5k5t9i4lqd8rmknd2d8v4ed.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDJQIx6pq9zN6FqRmBGtyvh8bcE2817V8I"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "880803611778-sk0e65sni5k5t9i4lqd8rmknd2d8v4ed.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
