@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show unawaited, Timer;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -19,10 +19,13 @@ import 'screens/lock_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/lock_service.dart';
+import 'services/home_widget_service.dart';
+import 'services/monthly_report_service.dart';
 import 'services/notification_center.dart';
 import 'services/notification_service.dart';
 import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
+import 'services/subscription_service.dart';
 import 'services/update_check_worker.dart';
 import 'services/update_service.dart';
 import 'widgets/motion.dart';
@@ -114,6 +117,24 @@ Future<void> _finishBootInBackground(
   try {
     await NotificationService.scheduleBillReminders();
   } catch (_) {}
+  // New v0.2 services: subscription due checks + monthly auto-report.
+  // Fire-and-forget, best-effort.
+  SubscriptionService.checkDue();
+  MonthlyReportService.maybeSend();
+  // Keep the Android home widget in sync: debounced refresh whenever
+  // expenses or income change, plus once after boot.
+  HomeWidgetService.refreshFrom(expenses, money);
+  Timer? widgetTimer;
+  void scheduleWidgetSync() {
+    widgetTimer?.cancel();
+    widgetTimer = Timer(
+      const Duration(seconds: 2),
+      () => HomeWidgetService.refreshFrom(expenses, money),
+    );
+  }
+
+  expenses.addListener(scheduleWidgetSync);
+  money.addListener(scheduleWidgetSync);
   SmsService.instance.attachNavigator(appNavigatorKey);
   // Prime the notification bell badge.
   await NotificationCenter.refreshUnread();

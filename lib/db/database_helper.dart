@@ -9,10 +9,13 @@ import '../models/app_notification.dart';
 import '../models/custom_category.dart';
 import '../models/custom_payment.dart';
 import '../models/custom_place.dart';
+import '../models/debt.dart';
 import '../models/expense.dart';
+import '../models/expense_template.dart';
 import '../models/income.dart';
 import '../models/recurring_expense.dart';
 import '../models/savings_goal.dart';
+import '../models/subscription.dart';
 import '../services/sync_service.dart';
 
 /// SQLite storage for expenses, incomes, budgets, recurring templates,
@@ -33,6 +36,10 @@ import '../services/sync_service.dart';
 ///
 /// v5 schema: adds `custom_categories` (user-created expense categories,
 /// local-only) and `notifications` (in-app notification center entries).
+///
+/// v6 schema: adds `debts` (money lent/borrowed tracking), `subscriptions`
+/// (recurring subscription reminders) and `templates` (quick-add expense
+/// presets). All UUID ids + updatedAt, following the v3 table pattern.
 class DatabaseHelper {
   DatabaseHelper._private();
 
@@ -53,12 +60,13 @@ class DatabaseHelper {
     final path = p.join(dir.path, 'kharcha.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
         await _createV3Tables(db);
         await _createV5Tables(db);
+        await _createV6Tables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -72,6 +80,9 @@ class DatabaseHelper {
         }
         if (oldVersion < 5) {
           await _createV5Tables(db);
+        }
+        if (oldVersion < 6) {
+          await _createV6Tables(db);
         }
       },
     );
@@ -222,6 +233,49 @@ class DatabaseHelper {
     } catch (_) {
       // Column already exists (e.g. partial upgrade) — safe to ignore.
     }
+  }
+
+  /// v6 tables: debts, subscriptions and expense templates. Called from
+  /// onCreate (fresh installs) and onUpgrade (v5->v6). CREATE TABLE IF NOT
+  /// EXISTS keeps it idempotent. Additive only — existing tables are never
+  /// dropped or altered here.
+  Future<void> _createV6Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS debts(
+        id TEXT PRIMARY KEY,
+        person TEXT NOT NULL,
+        amount REAL NOT NULL,
+        kind TEXT NOT NULL,
+        date INTEGER NOT NULL,
+        due_date INTEGER,
+        note TEXT NOT NULL DEFAULT '',
+        settled INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS subscriptions(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        cycle TEXT NOT NULL,
+        next_due INTEGER NOT NULL,
+        emoji TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS templates(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category_id TEXT NOT NULL DEFAULT '',
+        payment TEXT NOT NULL DEFAULT 'cash',
+        emoji TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
   }
 
   /// v1 -> v2: INTEGER AUTOINCREMENT ids become TEXT UUIDs; every row gets
@@ -1078,5 +1132,86 @@ class DatabaseHelper {
       limit: 1,
     );
     return rows.isNotEmpty;
+  }
+
+  // --------------------------------- debts ---------------------------
+  // Money lent to / borrowed from people. Local writes follow the
+  // _insertRecord/_updateRecord/_deleteRecord UUID + updatedAt pattern;
+  // no Firestore push here (sync wiring is owned by the sync package).
+
+  /// Newest debt first; pass [settled] to show only settled or unsettled.
+  Future<List<Debt>> getDebts({bool? settled}) async {
+    final db = await database;
+    final rows = await db.query(
+      'debts',
+      where: settled == null ? null : 'settled = ?',
+      whereArgs: settled == null ? null : [settled ? 1 : 0],
+      orderBy: 'date DESC',
+    );
+    return rows.map(Debt.fromMap).toList();
+  }
+
+  /// Inserts a debt record. Returns the new id.
+  Future<String> insertDebt(Debt debt) async {
+    return _insertRecord('debts', debt.toMap());
+  }
+
+  /// Marks a debt as paid off (settled = 1).
+  Future<int> settleDebt(String id) async {
+    return _updateRecord('debts', id, {'settled': 1});
+  }
+
+  Future<int> deleteDebt(String id) async {
+    return _deleteRecord('debts', id);
+  }
+
+  // ----------------------------- subscriptions -----------------------
+  // Recurring subscription reminders (Netflix, gym, ...).
+
+  /// Earliest due date first.
+  Future<List<AppSubscription>> getSubscriptions() async {
+    final db = await database;
+    final rows = await db.query('subscriptions', orderBy: 'next_due ASC');
+    return rows.map(AppSubscription.fromMap).toList();
+  }
+
+  /// Inserts a subscription. Returns the new id.
+  Future<String> insertSubscription(AppSubscription s) async {
+    return _insertRecord('subscriptions', s.toMap());
+  }
+
+  /// Full row update by id.
+  Future<int> updateSubscription(AppSubscription s) async {
+    return _updateRecord('subscriptions', s.id!, {
+      'name': s.name,
+      'amount': s.amount,
+      'cycle': s.cycle,
+      'next_due': s.nextDue.millisecondsSinceEpoch,
+      'emoji': s.emoji,
+      'active': s.active ? 1 : 0,
+    });
+  }
+
+  Future<int> deleteSubscription(String id) async {
+    return _deleteRecord('subscriptions', id);
+  }
+
+  // --------------------------- expense templates ---------------------
+  // Quick-add expense presets.
+
+  /// Alphabetical by name.
+  Future<List<ExpenseTemplate>> getTemplates() async {
+    final db = await database;
+    final rows = await db.query('templates', orderBy: 'name ASC');
+    return rows.map(ExpenseTemplate.fromMap).toList();
+  }
+
+  /// Inserts a template. Returns the new id.
+  Future<String> insertTemplate(ExpenseTemplate t) async {
+    return _insertRecord('templates', t.toMap());
+  }
+
+  Future<int> deleteTemplate(String id) async {
+    return _deleteRecord('templates', id);
   }
 }

@@ -16,12 +16,18 @@ import '../widgets/brand_gradient_card.dart';
 import '../widgets/expense_tile.dart';
 import '../widgets/motion.dart';
 import '../widgets/summary_card.dart';
+import '../widgets/spending_insights.dart';
 import 'budget_screen.dart';
+import 'calendar_screen.dart';
+import 'debts_screen.dart';
 import 'goals_screen.dart';
 import 'income_screen.dart';
 import 'notifications_screen.dart';
 import 'recurring_screen.dart';
 import 'reminder_screen.dart';
+import 'split_bill_screen.dart';
+import 'subscriptions_screen.dart';
+import 'templates_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onAddPressed;
@@ -166,6 +172,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SpendingInsights(),
+          ),
           Builder(
             builder: (context) {
               final key = monthKeyOf(DateTime.now());
@@ -259,6 +269,61 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const ReminderScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MoneyShortcut(
+                  icon: Icons.handshake_outlined,
+                  label: tr(context, 'debts_title'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DebtsScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MoneyShortcut(
+                  icon: Icons.people_outline,
+                  label: tr(context, 'split_title'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SplitBillScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MoneyShortcut(
+                  icon: Icons.subscriptions_outlined,
+                  label: tr(context, 'subs_title'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SubscriptionsScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MoneyShortcut(
+                  icon: Icons.calendar_month_outlined,
+                  label: tr(context, 'cal_title'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CalendarScreen(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MoneyShortcut(
+                  icon: Icons.bolt_outlined,
+                  label: tr(context, 'tpl_title'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TemplatesScreen(),
                     ),
                   ),
                 ),

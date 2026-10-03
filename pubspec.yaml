@@ -1,7 +1,7 @@
 name: kharcha
 description: "Kharcha — দৈনিক খরচের হিসাব (Daily Expense Tracker). A simple offline expense tracker with Bangla + English UI."
 publish_to: "none"
-version: 0.1.1+9
+version: 0.2.0+10
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -46,9 +46,11 @@ dependencies:
   file_picker: ^8.3.7
   package_info_plus: ^9.0.1 # current version for update checks
   open_filex: ^4.7.0 # trigger APK install (ships its own FileProvider)
+  home_widget: ^0.9.0 # home-screen expense widgets (v6)
   http: ^1.6.0 # GitHub releases API + APK download
   workmanager: ^0.9.0 # periodic background update checks
   shared_preferences: ^2.5.3 # last-notified update tag (main + background)
+  table_calendar: ^3.1.2 # calendar view for expenses (v6)
 
 dev_dependencies:
   flutter_test:
