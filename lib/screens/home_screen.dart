@@ -16,6 +16,7 @@ import '../widgets/expense_tile.dart';
 import '../widgets/hero_balance_card.dart';
 import '../widgets/calculator_sheet.dart';
 import '../widgets/money_overview.dart';
+import '../widgets/monthly_balance_card.dart';
 import '../widgets/motion.dart';
 import '../widgets/smart_search.dart';
 import '../widgets/spending_insights.dart';
@@ -208,6 +209,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: MoneyOverviewCard(),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: MonthlyBalanceCard(),
             ),
           ),
           const SliverToBoxAdapter(
