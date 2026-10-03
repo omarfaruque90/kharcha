@@ -243,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 );
                 // Refresh the avatar in case the photo was changed.
-                if (context.mounted) setState(() {});
+                if (mounted) setState(() {});
               },
             ),
             const Divider(),
