@@ -72,6 +72,7 @@ class _QuickTemplatesState extends State<QuickTemplates> {
           paymentMethod: t.payment.isEmpty ? 'cash' : t.payment,
         ),
       );
+      if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'tpl_added'))),
       );
@@ -273,10 +274,12 @@ class _QuickTemplatesState extends State<QuickTemplates> {
             itemCount: _templates.length + 1,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (ctx, i) {
-              if (i == _templates.length) return _AddTile(
-                dark: dark,
-                onTap: _showCreateDialog,
-              );
+              if (i == _templates.length) {
+                return _AddTile(
+                  dark: dark,
+                  onTap: _showCreateDialog,
+                );
+              }
               return _TemplateCard(
                 template: _templates[i],
                 dark: dark,

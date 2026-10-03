@@ -522,7 +522,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
                   controller: r.amountCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: '৳',
                     isDense: true,
                     border: const OutlineInputBorder(),

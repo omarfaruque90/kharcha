@@ -64,6 +64,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
       updatedAt: DateTime.now(),
     );
     await DatabaseHelper.instance.updateWishlist(updated);
+    if (!mounted) return;
     // Celebrate the moment the target is first reached.
     if (!wasReached && updated.targetReached && !updated.done) {
       final title = tr(context, 'notif_wish_title');
@@ -254,7 +255,7 @@ class _WishlistCard extends StatelessWidget {
 
     final leading = item.emoji.trim().isNotEmpty
         ? Text(item.emoji.trim(), style: const TextStyle(fontSize: 26))
-        : Icon(Icons.card_giftcard, color: kGoldDark);
+        : const Icon(Icons.card_giftcard, color: kGoldDark);
 
     final barColors = reached
         ? [const Color(0xFF10B981), const Color(0xFF059669)]

@@ -322,7 +322,7 @@ class _SubscriptionCard extends StatelessWidget {
 
     final leading = s.emoji.trim().isNotEmpty
         ? Text(s.emoji.trim(), style: const TextStyle(fontSize: 26))
-        : Icon(Icons.subscriptions_outlined, color: kGoldDark);
+        : const Icon(Icons.subscriptions_outlined, color: kGoldDark);
 
     return Card(
       child: InkWell(
