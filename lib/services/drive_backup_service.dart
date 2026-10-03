@@ -5,7 +5,6 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../db/database_helper.dart';
 import 'backup_service.dart';
 
 /// Google Drive auto-backup (appDataFolder — private to the app).
@@ -67,7 +66,8 @@ class DriveBackupService {
       {required bool interactive}) async {
     try {
       await GoogleSignIn.instance.initialize();
-      var account = GoogleSignIn.instance.currentUser;
+      var account =
+          await GoogleSignIn.instance.attemptLightweightAuthentication();
       if (account == null) {
         if (!interactive) return null;
         account = await GoogleSignIn.instance.authenticate();
