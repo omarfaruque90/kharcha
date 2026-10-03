@@ -45,6 +45,14 @@ class _SmartSearchState extends State<SmartSearch> {
   static const _recentKey = 'recent_searches';
   static const _maxRecent = 8;
 
+  /// Clears all saved search history (used from Settings).
+  static Future<void> clearHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_recentKey);
+    } catch (_) {}
+  }
+
   final _controller = TextEditingController();
   ParsedQuery? _query;
 
@@ -102,6 +110,25 @@ class _SmartSearchState extends State<SmartSearch> {
       await prefs.setString(_recentKey, jsonEncode(updated));
     } catch (_) {
       // Best effort only.
+    }
+  }
+
+  /// Removes one history entry (long-press on a chip).
+  Future<void> _removeRecent(String text) async {
+    final updated = _recent.where((s) => s != text).toList();
+    if (mounted) setState(() => _recent = updated);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_recentKey, jsonEncode(updated));
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              tr(context, 'search_hist_removed').replaceAll('{q}', text)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -338,10 +365,13 @@ class _SmartSearchState extends State<SmartSearch> {
             runSpacing: 4,
             children: [
               for (final s in _recent)
-                ActionChip(
-                  avatar: const Icon(Icons.history, size: 16),
-                  label: Text(s),
-                  onPressed: () => _runSearch(s),
+                GestureDetector(
+                  onLongPress: () => _removeRecent(s),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.history, size: 16),
+                    label: Text(s),
+                    onPressed: () => _runSearch(s),
+                  ),
                 ),
             ],
           ),

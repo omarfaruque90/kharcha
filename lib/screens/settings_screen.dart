@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../db/database_helper.dart';
 import '../widgets/motion.dart';
+import '../widgets/smart_search.dart';
 import '../providers/settings_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
@@ -933,6 +934,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.restore_outlined),
             title: Text(tr(context, 'restore_title')),
             onTap: _busy ? null : _doRestore,
+          ),
+          ListTile(
+            leading: const Icon(Icons.history_toggle_off_outlined),
+            title: Text(tr(context, 'clear_search_hist')),
+            subtitle: Text(tr(context, 'clear_search_hist_sub')),
+            onTap: _busy
+                ? null
+                : () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (dctx) => AlertDialog(
+                        title: Text(tr(dctx, 'clear_search_hist')),
+                        content:
+                            Text(tr(dctx, 'clear_search_hist_msg')),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dctx).pop(false),
+                            child: Text(tr(dctx, 'cancel')),
+                          ),
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.of(dctx).pop(true),
+                            child: Text(tr(dctx, 'delete')),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true && context.mounted) {
+                      await SmartSearch.clearHistory();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                tr(context, 'clear_search_hist_done')),
+                          ),
+                        );
+                      }
+                    }
+                  },
           ),
           const Divider(),
           SwitchListTile(
