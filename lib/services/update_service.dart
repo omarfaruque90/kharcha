@@ -294,19 +294,20 @@ class UpdateService {
   }
 
   static List<int>? _parseVersion(String v) {
-    // Accepts "1.2.3" and short forms like "0.1" (-> [0, 1, 0]).
-    final m =
-        RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(v.trim());
+    // Accepts "1.2.3", "0.0.0.1" and short forms like "0.1" (-> [0, 1, 0, 0]).
+    final m = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?')
+        .firstMatch(v.trim());
     if (m == null) return null;
     return [
       int.parse(m.group(1)!),
       int.parse(m.group(2)!),
       int.parse(m.group(3) ?? '0'),
+      int.parse(m.group(4) ?? '0'),
     ];
   }
 
   static bool _isNewer(List<int> remote, List<int> local) {
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 4; i++) {
       if (remote[i] != local[i]) return remote[i] > local[i];
     }
     return false;
