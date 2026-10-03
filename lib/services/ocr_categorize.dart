@@ -5,7 +5,7 @@
 /// 'food', 'transport', 'shopping', 'bills', 'health', 'pet_food', 'vet',
 /// 'entertainment', 'education'.
 ///
-/// The keyword lists mirror [SmsService.guessCategory] so SMS parsing and
+/// Keyword lists for merchant/category matching used by OCR and auto-categorization.
 /// OCR categorization agree. Returns null when nothing matches — the caller
 /// must leave the user's current selection untouched in that case.
 ///

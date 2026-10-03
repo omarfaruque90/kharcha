@@ -38,7 +38,6 @@ import 'services/recurring_detect_service.dart';
 import 'services/recurring_service.dart';
 import 'services/salary_service.dart';
 import 'services/scheduled_export_service.dart';
-import 'services/sms_service.dart';
 import 'services/stats_notification.dart';
 import 'services/subscription_service.dart';
 import 'services/update_check_worker.dart';
@@ -92,19 +91,6 @@ final GlobalKey<NavigatorState> appNavigatorKey =
     GlobalKey<NavigatorState>();
 
 /// AC: deletes an SMS auto-added expense (undo from the notification).
-Future<void> _undoSmsExpense(String expenseId) async {
-  try {
-    await DatabaseHelper.instance.deleteExpense(expenseId);
-    final ctx = appNavigatorKey.currentContext;
-    if (ctx != null && ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(
-            content:
-                Text(tr(ctx, 'sms_undo_done'))),
-      );
-    }
-  } catch (_) {}
-}
 
 /// AE: shows the bill photo + amount when a bill reminder is tapped.
 Future<void> _showBillReminder(String reminderId) async {
@@ -262,11 +248,6 @@ Future<void> _finishBootInBackgroundImpl(
   NotificationService.onTap = (payload) {
     if (payload == 'app_update') {
       UpdateService.promptNow(appNavigatorKey);
-    } else if (payload != null &&
-        payload.startsWith(SmsService.undoPayloadPrefix)) {
-      // AC: undo an auto-added SMS expense.
-      final id = payload.substring(SmsService.undoPayloadPrefix.length);
-      _undoSmsExpense(id);
     } else if (payload != null && payload.startsWith('bill_')) {
       // AE: show the bill photo + amount on reminder tap.
       _showBillReminder(payload.substring(5));
@@ -335,7 +316,6 @@ Future<void> _finishBootInBackgroundImpl(
 
   expenses.addListener(scheduleWidgetSync);
   money.addListener(scheduleWidgetSync);
-  SmsService.instance.attachNavigator(appNavigatorKey);
   // Prime the notification bell badge.
   await NotificationCenter.refreshUnread();
 }
@@ -735,15 +715,11 @@ class _LockGateState extends State<LockGate> {
     _startupTasksDone = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Fire-and-forget: rationale/update dialogs handle their own errors.
-      SmsService.instance.maybeStart();
       UpdateService.maybePromptOnStartup(appNavigatorKey);
       // App opened by tapping a notification while terminated.
       NotificationService.launchPayload().then((payload) {
         if (payload == 'app_update') {
           UpdateService.promptNow(appNavigatorKey);
-        } else if (payload != null &&
-            payload.startsWith(SmsService.undoPayloadPrefix)) {
-          _undoSmsExpense(payload.substring(SmsService.undoPayloadPrefix.length));
         } else if (payload != null && payload.startsWith('bill_')) {
           _showBillReminder(payload.substring(5));
         }
