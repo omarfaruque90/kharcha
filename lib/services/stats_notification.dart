@@ -3,7 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../utils/formatters.dart';
-import 'quick_add_notification.dart';
+import 'notification_service.dart';
 
 /// Package BQ — persistent daily/monthly spend stats notification.
 ///
@@ -19,18 +19,14 @@ import 'quick_add_notification.dart';
 ///   aggregate queries (today + current month). Callers just call
 ///   StatsNotification.refresh() — no totals to pass around.
 /// - Own [FlutterLocalNotificationsPlugin] instance (like
-///   quick_add_notification.dart and the update-check worker), because
+///   the update-check worker), because
 ///   NotificationService._plugin is private and showNow() has no ongoing
 ///   support. The WorkManager background isolate needs its own instance
 ///   anyway, since isolates can't share plugin instances.
 /// - Native-side caveat: the notification-response callback that was
 ///   registered LAST wins on Android. At startup, call init() AFTER
-///   NotificationService.init() and after QuickAddNotification's init.
-///   This init's callback forwards EVERY response (including actionIds)
-///   to [QuickAddNotification.routeResponse], which handles quick-add
-///   action buttons and forwards all other taps via
-///   [QuickAddNotification.onBodyTap] (the coordinator wires that to
-///   NotificationService.onTap).
+///   NotificationService.init(). This init's callback forwards all taps
+///   via NotificationService.onTap.
 /// - Default state is ENABLED (setting key 'stats_notif' defaults to '1'
 ///   when unset). setEnabled(false) persists '0' and cancels the
 ///   notification; refresh() also cancels when disabled, so a stale
@@ -61,10 +57,8 @@ class StatsNotification {
       const initSettings = InitializationSettings(android: androidInit);
       await _plugin.initialize(
         settings: initSettings,
-        // Registered LAST at startup, so this wins natively. Forward the
-        // full response (actionId included) to QuickAdd's router.
         onDidReceiveNotificationResponse: (resp) {
-          QuickAddNotification.routeResponse(resp);
+          NotificationService.onTap?.call(resp.payload);
         },
       );
 

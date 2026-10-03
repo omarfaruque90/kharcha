@@ -33,7 +33,6 @@ import 'services/home_widget_service.dart';
 import 'services/monthly_report_service.dart';
 import 'services/notification_center.dart';
 import 'services/notification_service.dart';
-import 'services/quick_add_notification.dart';
 import 'services/recurring_detect_service.dart';
 import 'services/recurring_service.dart';
 import 'services/salary_service.dart';
@@ -278,7 +277,6 @@ Future<void> _finishBootInBackgroundImpl(
   SalaryService.checkSalaryDay(expenses, money);
   ChallengeService.checkDaily();
   Achievements.checkAll();
-  QuickAddNotification.show();
   // v0.2 batch 4: carry-forward, recurring detect, stats notification.
   CarryForwardService.maybeRollover();
   StatsNotification.init();
@@ -293,13 +291,6 @@ Future<void> _finishBootInBackgroundImpl(
   try {
     CurrencyService.loadCached();
     CurrencyService.refreshRates();
-  } catch (_) {}
-  // Routes quick-add notification taps through the coordinator's onTap
-  // chain (which the coordinator is rewiring separately — do not touch
-  // StatsNotification.onTap here).
-  try {
-    QuickAddNotification.onBodyTap =
-        (payload) => NotificationService.onTap?.call(payload);
   } catch (_) {}
   _maybeSuggestRecurring();
   // Keep the Android home widget in sync: debounced refresh whenever
