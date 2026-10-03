@@ -236,7 +236,7 @@ class _BudgetCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               ClipRRect(
-                borderRadius: const BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
                   value: ratio.clamp(0.0, 1.0),
                   minHeight: 10,

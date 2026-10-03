@@ -27,7 +27,8 @@ class NotificationService {
     try {
       tzdata.initializeTimeZones();
       try {
-        final String zoneName = await FlutterTimezone.getLocalTimezone();
+        final String zoneName =
+            (await FlutterTimezone.getLocalTimezone()).identifier;
         tz.setLocalLocation(tz.getLocation(zoneName));
       } catch (_) {
         // tz.local stays UTC — scheduling still works, just offset.
@@ -36,7 +37,7 @@ class NotificationService {
       const androidInit =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidInit);
-      await _plugin.initialize(initSettings);
+      await _plugin.initialize(settings: initSettings);
 
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -66,7 +67,7 @@ class NotificationService {
       final now = tz.TZDateTime.now(tz.local);
       for (final r in reminders) {
         final id = (r.id ?? r.title).hashCode & 0x7fffffff;
-        await _plugin.cancel(id);
+        await _plugin.cancel(id: id);
         final day = _clampDay(r.dayOfMonth, now.year, now.month);
         var scheduled = tz.TZDateTime(tz.local, now.year, now.month, day, 9);
         if (!scheduled.isAfter(now)) {
@@ -79,7 +80,7 @@ class NotificationService {
             .replaceAll('{title}', r.title)
             .replaceAll('{amount}', r.amount.toStringAsFixed(0));
         await _plugin.zonedSchedule(
-          id,
+          id: id,
           title: AppStrings.get('notif_bill_title', lang),
           body: body,
           scheduledDate: scheduled,

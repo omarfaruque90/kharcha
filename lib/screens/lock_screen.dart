@@ -90,7 +90,7 @@ class _LockScreenState extends State<LockScreen> {
           children: [
             const SizedBox(height: 64),
             ClipRRect(
-              borderRadius: const BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(28),
               child: Image.asset(
                 'assets/app_logo.png',
                 width: 96,
@@ -172,7 +172,7 @@ class _LockScreenState extends State<LockScreen> {
 
   Widget _padKey(String digit) {
     return InkWell(
-      borderRadius: const BorderRadius.circular(48),
+      borderRadius: BorderRadius.circular(48),
       onTap: () => _press(digit),
       child: Center(
         child: Text(

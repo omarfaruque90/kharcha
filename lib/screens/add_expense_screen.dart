@@ -225,8 +225,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             if (_listening) setState(() => _listening = false);
           }
         },
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 4),
+        listenOptions: SpeechListenOptions(
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 4),
+        ),
       );
     } catch (_) {
       if (mounted && _listening) setState(() => _listening = false);
@@ -350,7 +352,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.red.withValues(alpha: 0.08),
-                  borderRadius: const BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                       color: Colors.red.withValues(alpha: 0.4)),
                 ),
@@ -390,7 +392,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 final c = kCategories[i];
                 final selected = _categoryId == c.id;
                 return InkWell(
-                  borderRadius: const BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   onTap: () => setState(() => _categoryId = c.id),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
@@ -402,7 +404,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                     transformAlignment: Alignment.center,
                     decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12),
                       color: selected
                           ? c.color.withValues(alpha: 0.18)
                           : theme.colorScheme.surfaceContainerHighest,
@@ -456,7 +458,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               trailing: const Icon(Icons.edit_calendar),
               onTap: () => _pickDate(lang),
               shape: RoundedRectangleBorder(
-                borderRadius: const BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12),
                 side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
             ),
@@ -493,7 +495,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.file(
                           File(_receiptPath!),
                           width: 76,
@@ -528,7 +530,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     width: 76,
                     height: 76,
                     decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                           color: theme.colorScheme.outlineVariant),
                     ),
@@ -653,7 +655,7 @@ class _IconSquare extends StatelessWidget {
           color: active
               ? kEmerald
               : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: const BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: active ? kEmerald : kGold.withValues(alpha: 0.55),
           ),

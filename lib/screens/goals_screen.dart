@@ -145,7 +145,7 @@ class GoalsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           ClipRRect(
-                            borderRadius: const BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8),
                             child: LinearProgressIndicator(
                               value: ratio.clamp(0.0, 1.0),
                               minHeight: 10,
@@ -340,7 +340,7 @@ class _GoalDialogState extends State<_GoalDialog> {
                 },
               ),
               ListTile(
-                contentPadding: const EdgeInsets.zero,
+                contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
                 title: Text(
                   _deadline == null

@@ -109,7 +109,7 @@ class _AuthLoading extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(28),
                 child: Image.asset(
                   'assets/app_logo.png',
                   width: 110,

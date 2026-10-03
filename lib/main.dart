@@ -90,23 +90,23 @@ class KharchaApp extends StatelessWidget {
         colorScheme: _brandScheme(Brightness.light),
         useMaterial3: true,
         // --- Kharcha brand polish (shared by every screen) ---
-        cardTheme: const CardThemeData(
+        cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        dialogTheme: const DialogThemeData(
+        dialogTheme: DialogThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
         ),
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme: BottomSheetThemeData(
           shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.vertical(top: Radius.circular(20)),
           ),
         ),
-        snackBarTheme: const SnackBarThemeData(
+        snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -116,7 +116,7 @@ class KharchaApp extends StatelessWidget {
           color: kGold.withValues(alpha: 0.25),
           thickness: 1,
         ),
-        inputDecorationTheme: const InputDecorationTheme(
+        inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -125,23 +125,23 @@ class KharchaApp extends StatelessWidget {
       darkTheme: ThemeData(
         colorScheme: _brandScheme(Brightness.dark),
         useMaterial3: true,
-        cardTheme: const CardThemeData(
+        cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        dialogTheme: const DialogThemeData(
+        dialogTheme: DialogThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
         ),
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme: BottomSheetThemeData(
           shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.vertical(top: Radius.circular(20)),
           ),
         ),
-        snackBarTheme: const SnackBarThemeData(
+        snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -151,7 +151,7 @@ class KharchaApp extends StatelessWidget {
           color: kGold.withValues(alpha: 0.25),
           thickness: 1,
         ),
-        inputDecorationTheme: const InputDecorationTheme(
+        inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),

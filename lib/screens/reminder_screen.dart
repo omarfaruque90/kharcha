@@ -271,7 +271,7 @@ class _ReminderDialogState extends State<_ReminderDialog> {
                 ),
               ),
               SwitchListTile(
-                contentPadding: const EdgeInsets.zero,
+                contentPadding: EdgeInsets.zero,
                 title: Text(tr(context, 'active')),
                 value: _active,
                 onChanged: (v) => setState(() => _active = v),
