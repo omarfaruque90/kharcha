@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../providers/expense_provider.dart';
-import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
