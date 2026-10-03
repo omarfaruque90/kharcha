@@ -472,7 +472,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lang = context.watch<SettingsProvider>().language;
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -480,34 +479,28 @@ class _AiChatScreenState extends State<AiChatScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('AI Assistant ✨'),
-            const SizedBox(width: 8),
-            // Mode badge: AI (real LLM) vs Offline (on-device rules).
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: _llmMode
-                    ? kGold.withValues(alpha: 0.25)
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _llmMode
-                      ? kGold.withValues(alpha: 0.6)
-                      : theme.colorScheme.outline.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    kGold.withValues(alpha: 0.9),
+                    kGold.withValues(alpha: 0.5),
+                  ],
                 ),
               ),
-              child: Text(
-                _llmMode ? 'AI' : tr(context, 'ai_badge_offline'),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: _llmMode
-                      ? kGold
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                ),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: Color(0xFF072A1F),
               ),
             ),
+            const SizedBox(width: 10),
+            const Text('AI Assistant'),
           ],
         ),
         centerTitle: true,
@@ -516,7 +509,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
+              child: _messages.isEmpty && !_typing
+                  ? _buildEmptyState(context, theme, isDark)
+                  : ListView.builder(
                 controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 itemCount: _messages.length + (_typing ? 1 : 0),
@@ -530,23 +525,40 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.78,
                       ),
-                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                        horizontal: 16,
+                        vertical: 11,
                       ),
                       decoration: BoxDecoration(
                         color: m.isUser
                             ? kGold
                             : isDark
-                                ? theme.colorScheme.surfaceContainerHighest
-                                : const Color(0xFFE9F2EC),
+                                ? theme.colorScheme.surfaceContainerHigh
+                                : Colors.white,
                         borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(18),
-                          topRight: const Radius.circular(18),
-                          bottomLeft: Radius.circular(m.isUser ? 18 : 4),
-                          bottomRight: Radius.circular(m.isUser ? 4 : 18),
+                          topLeft: const Radius.circular(20),
+                          topRight: const Radius.circular(20),
+                          bottomLeft: Radius.circular(m.isUser ? 20 : 6),
+                          bottomRight: Radius.circular(m.isUser ? 6 : 20),
                         ),
+                        boxShadow: m.isUser
+                            ? [
+                                BoxShadow(
+                                  color:
+                                      kGold.withValues(alpha: 0.25),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : [
+                                BoxShadow(
+                                  color: Colors.black
+                                      .withValues(alpha: 0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                       ),
                       child: m.imagePath != null
                           ? ClipRRect(
@@ -571,24 +583,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 },
               ),
             ),
-            // Suggestion chips above the input.
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Row(
-                children: [
-                  for (final s in AiAssistant.suggestions(lang)) ...[
-                    ActionChip(
-                      label: Text(s),
-                      avatar: const Icon(Icons.auto_awesome, size: 16),
-                      onPressed: () => _send(s),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ],
-              ),
-            ),
             // Input row.
             SafeArea(
               top: false,
@@ -606,31 +600,64 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       onPressed: _pickBill,
                     ),
                     Expanded(
-                      child: TextField(
-                        controller: _ctrl,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: _send,
-                        decoration: InputDecoration(
-                          hintText: tr(context, 'ai_hint'),
-                          filled: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
-                          ),
-                          // Mic lives INSIDE the chat field.
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _listening ? Icons.stop : Icons.mic_outlined,
-                              color: _listening
-                                  ? theme.colorScheme.error
-                                  : theme.colorScheme.onSurfaceVariant,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  kGold.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
                             ),
-                            tooltip: tr(context, 'voice_input_tip'),
-                            onPressed: _toggleMic,
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _ctrl,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: _send,
+                          decoration: InputDecoration(
+                            hintText: tr(context, 'ai_hint'),
+                            filled: true,
+                            fillColor: isDark
+                                ? theme.colorScheme.surfaceContainerHigh
+                                : Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(28),
+                              borderSide: BorderSide(
+                                color: kGold.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(28),
+                              borderSide: BorderSide(
+                                color: kGold.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(28),
+                              borderSide: const BorderSide(
+                                color: kGold,
+                                width: 1.5,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            // Mic lives INSIDE the chat field.
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _listening ? Icons.stop : Icons.mic_outlined,
+                                color: _listening
+                                    ? theme.colorScheme.error
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                              tooltip: tr(context, 'voice_input_tip'),
+                              onPressed: _toggleMic,
+                            ),
                           ),
                         ),
                       ),
@@ -649,6 +676,65 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Premium empty state: glowing orb + minimal text.
+  Widget _buildEmptyState(
+      BuildContext context, ThemeData theme, bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    kGold.withValues(alpha: 0.35),
+                    kGold.withValues(alpha: 0.08),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: kGold.withValues(alpha: 0.25),
+                    blurRadius: 32,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 36,
+                color: kGold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              tr(context, 'ai_welcome_title'),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(context, 'ai_welcome_sub'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
