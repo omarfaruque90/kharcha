@@ -313,8 +313,11 @@ class DatabaseHelper {
   }
 
   // ------------------------------------------------------------------
-  // Generic CRUD for the v3 tables (id + updatedAt pattern, local-only
-  // for now; Firestore sync is wired per-table in a later phase).
+  // Generic CRUD for the v3 tables (id + updatedAt pattern). Local writes
+  // push to Firestore via SyncService (no-op when logged out or while
+  // applying remote changes). Remote-applied writes go through
+  // upsertRemoteRecord/deleteRemoteRecord under the
+  // SyncService.applyingRemote guard (no push-back loops).
   // ------------------------------------------------------------------
 
   Future<String> _insertRecord(String table, Map<String, dynamic> map) async {
@@ -345,6 +348,61 @@ class DatabaseHelper {
     return db.delete(table, where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Pushes the current SQLite row for [id] in [table] to the Firestore
+  /// [collection]. No-op when logged out or while applying remote changes.
+  /// The row is re-read so the push carries the exact persisted state
+  /// (including the bumped updatedAt).
+  Future<void> _pushRow<T>({
+    required String table,
+    required String collection,
+    required String id,
+    required T Function(Map<String, dynamic> row) fromMap,
+    required Map<String, dynamic> Function(T item) toFirestore,
+  }) async {
+    if (SyncService.instance.applyingRemote) return;
+    final db = await database;
+    final rows = await db.query(
+      table,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+    await SyncService.instance.pushRecord(
+      collection,
+      id,
+      toFirestore(fromMap(rows.first)),
+    );
+  }
+
+  /// Pushes a cloud delete for [id] in [collection]. No-op when logged out
+  /// or while applying remote changes.
+  Future<void> _pushDelete(String collection, String id) async {
+    if (SyncService.instance.applyingRemote) return;
+    await SyncService.instance.pushRecordDelete(collection, id);
+  }
+
+  /// Upserts a remotely-fetched record into [table] by id without touching
+  /// the cloud. The caller (SyncService) holds the
+  /// [SyncService.applyingRemote] guard while calling this.
+  Future<void> upsertRemoteRecord(
+      String table, Map<String, dynamic> map) async {
+    final db = await database;
+    await db.insert(
+      table,
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Deletes a row for a remote delete without touching the cloud.
+  /// The caller (SyncService) holds the [SyncService.applyingRemote] guard
+  /// while calling this.
+  Future<void> deleteRemoteRecord(String table, String id) async {
+    final db = await database;
+    await db.delete(table, where: 'id = ?', whereArgs: [id]);
+  }
+
   // ------------------------------ incomes ----------------------------
 
   Future<String> insertIncome(Income income) async {
@@ -359,6 +417,13 @@ class DatabaseHelper {
       'note': income.note,
       'updatedAt': updatedAt,
     });
+    await _pushRow<Income>(
+      table: 'incomes',
+      collection: 'incomes',
+      id: id,
+      fromMap: Income.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
     return id;
   }
 
@@ -368,15 +433,28 @@ class DatabaseHelper {
     return rows.map(Income.fromMap).toList();
   }
 
-  Future<int> updateIncome(Income income) =>
-      _updateRecord('incomes', income.id!, {
-        'amount': income.amount,
-        'source': income.source,
-        'date': income.date.toIso8601String(),
-        'note': income.note,
-      });
+  Future<int> updateIncome(Income income) async {
+    final count = await _updateRecord('incomes', income.id!, {
+      'amount': income.amount,
+      'source': income.source,
+      'date': income.date.toIso8601String(),
+      'note': income.note,
+    });
+    await _pushRow<Income>(
+      table: 'incomes',
+      collection: 'incomes',
+      id: income.id!,
+      fromMap: Income.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return count;
+  }
 
-  Future<int> deleteIncome(String id) => _deleteRecord('incomes', id);
+  Future<int> deleteIncome(String id) async {
+    final count = await _deleteRecord('incomes', id);
+    await _pushDelete('incomes', id);
+    return count;
+  }
 
   Future<void> upsertIncome(Income income) async {
     final db = await database;
@@ -394,8 +472,17 @@ class DatabaseHelper {
 
   // ------------------------------ budgets ----------------------------
 
-  Future<String> insertBudget(Budget budget) =>
-      _insertRecord('budgets', budget.toMap());
+  Future<String> insertBudget(Budget budget) async {
+    final id = await _insertRecord('budgets', budget.toMap());
+    await _pushRow<Budget>(
+      table: 'budgets',
+      collection: 'budgets',
+      id: id,
+      fromMap: Budget.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   /// All budgets for one month (monthKey `yyyy-MM`), ordered by limit.
   Future<List<Budget>> getBudgetsForMonth(String monthKey) async {
@@ -417,6 +504,7 @@ class DatabaseHelper {
   }
 
   /// One budget per (categoryId, monthKey); replaces any existing row.
+  /// Pushes the final row to Firestore.
   Future<String> upsertBudget(Budget budget) async {
     final db = await database;
     final existing = await db.query(
@@ -427,32 +515,69 @@ class DatabaseHelper {
       limit: 1,
     );
     final updatedAt = DateTime.now().millisecondsSinceEpoch;
+    final String id;
     if (existing.isNotEmpty) {
-      final id = existing.first['id'] as String;
+      id = existing.first['id'] as String;
       await db.update(
         'budgets',
         {'limitAmount': budget.limitAmount, 'updatedAt': updatedAt},
         where: 'id = ?',
         whereArgs: [id],
       );
-      return id;
+    } else {
+      id = await _insertRecord('budgets', budget.toMap());
     }
-    return _insertRecord('budgets', budget.toMap());
+    await _pushRow<Budget>(
+      table: 'budgets',
+      collection: 'budgets',
+      id: id,
+      fromMap: Budget.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
   }
 
-  Future<int> updateBudget(Budget budget) => _updateRecord('budgets',
-      budget.id!, {
-    'categoryId': budget.categoryId,
-    'monthKey': budget.monthKey,
-    'limitAmount': budget.limitAmount,
-  });
+  Future<int> updateBudget(Budget budget) async {
+    final count = await _updateRecord('budgets', budget.id!, {
+      'categoryId': budget.categoryId,
+      'monthKey': budget.monthKey,
+      'limitAmount': budget.limitAmount,
+    });
+    await _pushRow<Budget>(
+      table: 'budgets',
+      collection: 'budgets',
+      id: budget.id!,
+      fromMap: Budget.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return count;
+  }
 
-  Future<int> deleteBudget(String id) => _deleteRecord('budgets', id);
+  Future<int> deleteBudget(String id) async {
+    final count = await _deleteRecord('budgets', id);
+    await _pushDelete('budgets', id);
+    return count;
+  }
+
+  /// Wipes all local budgets without touching the cloud (logout).
+  Future<void> wipeLocalBudgets() async {
+    final db = await database;
+    await db.delete('budgets');
+  }
 
   // ------------------------- recurring expenses ----------------------
 
-  Future<String> insertRecurringExpense(RecurringExpense r) =>
-      _insertRecord('recurring_expenses', r.toMap());
+  Future<String> insertRecurringExpense(RecurringExpense r) async {
+    final id = await _insertRecord('recurring_expenses', r.toMap());
+    await _pushRow<RecurringExpense>(
+      table: 'recurring_expenses',
+      collection: 'recurring',
+      id: id,
+      fromMap: RecurringExpense.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   Future<List<RecurringExpense>> getAllRecurringExpenses() async {
     final db = await database;
@@ -471,25 +596,55 @@ class DatabaseHelper {
     return rows.map(RecurringExpense.fromMap).toList();
   }
 
-  Future<int> updateRecurringExpense(RecurringExpense r) =>
-      _updateRecord('recurring_expenses', r.id!, {
-        'amount': r.amount,
-        'categoryId': r.categoryId,
-        'label': r.label,
-        'dayOfMonth': r.dayOfMonth,
-        'paymentMethod': r.paymentMethod,
-        'note': r.note,
-        'active': r.active ? 1 : 0,
-        'lastAddedMonth': r.lastAddedMonth,
-      });
+  /// Local update — also used by RecurringService.processDue() to stamp
+  /// lastAddedMonth; the push keeps the template in sync cross-device.
+  Future<int> updateRecurringExpense(RecurringExpense r) async {
+    final count = await _updateRecord('recurring_expenses', r.id!, {
+      'amount': r.amount,
+      'categoryId': r.categoryId,
+      'label': r.label,
+      'dayOfMonth': r.dayOfMonth,
+      'paymentMethod': r.paymentMethod,
+      'note': r.note,
+      'active': r.active ? 1 : 0,
+      'lastAddedMonth': r.lastAddedMonth,
+    });
+    await _pushRow<RecurringExpense>(
+      table: 'recurring_expenses',
+      collection: 'recurring',
+      id: r.id!,
+      fromMap: RecurringExpense.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return count;
+  }
 
-  Future<int> deleteRecurringExpense(String id) =>
-      _deleteRecord('recurring_expenses', id);
+  Future<int> deleteRecurringExpense(String id) async {
+    final count = await _deleteRecord('recurring_expenses', id);
+    await _pushDelete('recurring', id);
+    return count;
+  }
+
+  /// Wipes all local recurring templates without touching the cloud
+  /// (logout).
+  Future<void> wipeLocalRecurringExpenses() async {
+    final db = await database;
+    await db.delete('recurring_expenses');
+  }
 
   // ----------------------------- savings goals -----------------------
 
-  Future<String> insertSavingsGoal(SavingsGoal goal) =>
-      _insertRecord('savings_goals', goal.toMap());
+  Future<String> insertSavingsGoal(SavingsGoal goal) async {
+    final id = await _insertRecord('savings_goals', goal.toMap());
+    await _pushRow<SavingsGoal>(
+      table: 'savings_goals',
+      collection: 'goals',
+      id: id,
+      fromMap: SavingsGoal.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   Future<List<SavingsGoal>> getAllSavingsGoals() async {
     final db = await database;
@@ -498,22 +653,49 @@ class DatabaseHelper {
     return rows.map(SavingsGoal.fromMap).toList();
   }
 
-  Future<int> updateSavingsGoal(SavingsGoal goal) =>
-      _updateRecord('savings_goals', goal.id!, {
-        'title': goal.title,
-        'targetAmount': goal.targetAmount,
-        'savedAmount': goal.savedAmount,
-        'deadline': goal.deadline?.toIso8601String(),
-        'emoji': goal.emoji,
-      });
+  Future<int> updateSavingsGoal(SavingsGoal goal) async {
+    final count = await _updateRecord('savings_goals', goal.id!, {
+      'title': goal.title,
+      'targetAmount': goal.targetAmount,
+      'savedAmount': goal.savedAmount,
+      'deadline': goal.deadline?.toIso8601String(),
+      'emoji': goal.emoji,
+    });
+    await _pushRow<SavingsGoal>(
+      table: 'savings_goals',
+      collection: 'goals',
+      id: goal.id!,
+      fromMap: SavingsGoal.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return count;
+  }
 
-  Future<int> deleteSavingsGoal(String id) =>
-      _deleteRecord('savings_goals', id);
+  Future<int> deleteSavingsGoal(String id) async {
+    final count = await _deleteRecord('savings_goals', id);
+    await _pushDelete('goals', id);
+    return count;
+  }
+
+  /// Wipes all local savings goals without touching the cloud (logout).
+  Future<void> wipeLocalSavingsGoals() async {
+    final db = await database;
+    await db.delete('savings_goals');
+  }
 
   // ----------------------------- custom places -----------------------
 
-  Future<String> insertCustomPlace(CustomPlace place) =>
-      _insertRecord('custom_places', place.toMap());
+  Future<String> insertCustomPlace(CustomPlace place) async {
+    final id = await _insertRecord('custom_places', place.toMap());
+    await _pushRow<CustomPlace>(
+      table: 'custom_places',
+      collection: 'custom_places',
+      id: id,
+      fromMap: CustomPlace.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   Future<List<CustomPlace>> getAllCustomPlaces() async {
     final db = await database;
@@ -533,7 +715,7 @@ class DatabaseHelper {
   }
 
   /// Inserts a new label or bumps usageCount when it already exists.
-  /// Returns the row id.
+  /// Returns the row id. The final row is pushed to Firestore.
   Future<String> upsertCustomPlaceByLabel(String label,
       {String emoji = ''}) async {
     final db = await database;
@@ -546,9 +728,10 @@ class DatabaseHelper {
       limit: 1,
     );
     final now = DateTime.now().millisecondsSinceEpoch;
+    final String id;
     if (existing.isNotEmpty) {
       final row = existing.first;
-      final id = row['id'] as String;
+      id = row['id'] as String;
       final updates = <String, dynamic>{
         'usageCount': ((row['usageCount'] as num?)?.toInt() ?? 0) + 1,
         'updatedAt': now,
@@ -558,22 +741,48 @@ class DatabaseHelper {
       }
       await db.update('custom_places', updates,
           where: 'id = ?', whereArgs: [id]);
-      return id;
+    } else {
+      id = await _insertRecord('custom_places', {
+        'label': trimmed,
+        'emoji': emoji,
+        'usageCount': 1,
+      });
     }
-    return _insertRecord('custom_places', {
-      'label': trimmed,
-      'emoji': emoji,
-      'usageCount': 1,
-    });
+    await _pushRow<CustomPlace>(
+      table: 'custom_places',
+      collection: 'custom_places',
+      id: id,
+      fromMap: CustomPlace.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
   }
 
-  Future<int> deleteCustomPlace(String id) =>
-      _deleteRecord('custom_places', id);
+  Future<int> deleteCustomPlace(String id) async {
+    final count = await _deleteRecord('custom_places', id);
+    await _pushDelete('custom_places', id);
+    return count;
+  }
+
+  /// Wipes all local custom places without touching the cloud (logout).
+  Future<void> wipeLocalCustomPlaces() async {
+    final db = await database;
+    await db.delete('custom_places');
+  }
 
   // --------------------------- custom payments -----------------------
 
-  Future<String> insertCustomPayment(CustomPayment payment) =>
-      _insertRecord('custom_payment_methods', payment.toMap());
+  Future<String> insertCustomPayment(CustomPayment payment) async {
+    final id = await _insertRecord('custom_payment_methods', payment.toMap());
+    await _pushRow<CustomPayment>(
+      table: 'custom_payment_methods',
+      collection: 'custom_payments',
+      id: id,
+      fromMap: CustomPayment.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   Future<List<CustomPayment>> getAllCustomPayments() async {
     final db = await database;
@@ -594,7 +803,7 @@ class DatabaseHelper {
   }
 
   /// Inserts a new label or bumps usageCount when it already exists.
-  /// Returns the row id.
+  /// Returns the row id. The final row is pushed to Firestore.
   Future<String> upsertCustomPaymentByLabel(String label) async {
     final db = await database;
     final trimmed = label.trim();
@@ -606,9 +815,10 @@ class DatabaseHelper {
       limit: 1,
     );
     final now = DateTime.now().millisecondsSinceEpoch;
+    final String id;
     if (existing.isNotEmpty) {
       final row = existing.first;
-      final id = row['id'] as String;
+      id = row['id'] as String;
       await db.update(
         'custom_payment_methods',
         {
@@ -618,21 +828,48 @@ class DatabaseHelper {
         where: 'id = ?',
         whereArgs: [id],
       );
-      return id;
+    } else {
+      id = await _insertRecord('custom_payment_methods', {
+        'label': trimmed,
+        'usageCount': 1,
+      });
     }
-    return _insertRecord('custom_payment_methods', {
-      'label': trimmed,
-      'usageCount': 1,
-    });
+    await _pushRow<CustomPayment>(
+      table: 'custom_payment_methods',
+      collection: 'custom_payments',
+      id: id,
+      fromMap: CustomPayment.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
   }
 
-  Future<int> deleteCustomPayment(String id) =>
-      _deleteRecord('custom_payment_methods', id);
+  Future<int> deleteCustomPayment(String id) async {
+    final count = await _deleteRecord('custom_payment_methods', id);
+    await _pushDelete('custom_payments', id);
+    return count;
+  }
+
+  /// Wipes all local custom payment methods without touching the cloud
+  /// (logout).
+  Future<void> wipeLocalCustomPayments() async {
+    final db = await database;
+    await db.delete('custom_payment_methods');
+  }
 
   // ---------------------------- bill reminders -----------------------
 
-  Future<String> insertBillReminder(BillReminder reminder) =>
-      _insertRecord('bill_reminders', reminder.toMap());
+  Future<String> insertBillReminder(BillReminder reminder) async {
+    final id = await _insertRecord('bill_reminders', reminder.toMap());
+    await _pushRow<BillReminder>(
+      table: 'bill_reminders',
+      collection: 'reminders',
+      id: id,
+      fromMap: BillReminder.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return id;
+  }
 
   Future<List<BillReminder>> getAllBillReminders() async {
     final db = await database;
@@ -651,17 +888,35 @@ class DatabaseHelper {
     return rows.map(BillReminder.fromMap).toList();
   }
 
-  Future<int> updateBillReminder(BillReminder reminder) =>
-      _updateRecord('bill_reminders', reminder.id!, {
-        'title': reminder.title,
-        'amount': reminder.amount,
-        'dayOfMonth': reminder.dayOfMonth,
-        'note': reminder.note,
-        'active': reminder.active ? 1 : 0,
-      });
+  Future<int> updateBillReminder(BillReminder reminder) async {
+    final count = await _updateRecord('bill_reminders', reminder.id!, {
+      'title': reminder.title,
+      'amount': reminder.amount,
+      'dayOfMonth': reminder.dayOfMonth,
+      'note': reminder.note,
+      'active': reminder.active ? 1 : 0,
+    });
+    await _pushRow<BillReminder>(
+      table: 'bill_reminders',
+      collection: 'reminders',
+      id: reminder.id!,
+      fromMap: BillReminder.fromMap,
+      toFirestore: (item) => item.toFirestore(),
+    );
+    return count;
+  }
 
-  Future<int> deleteBillReminder(String id) =>
-      _deleteRecord('bill_reminders', id);
+  Future<int> deleteBillReminder(String id) async {
+    final count = await _deleteRecord('bill_reminders', id);
+    await _pushDelete('reminders', id);
+    return count;
+  }
+
+  /// Wipes all local bill reminders without touching the cloud (logout).
+  Future<void> wipeLocalBillReminders() async {
+    final db = await database;
+    await db.delete('bill_reminders');
+  }
 
   // ------------------------------- settings --------------------------
 
