@@ -135,7 +135,7 @@ class DriveBackupService {
       await for (final chunk in media.stream) {
         bytes.addAll(chunk);
       }
-      return BackupService.restoreFromJson(utf8.decode(bytes));
+      return await BackupService.restoreFromJson(utf8.decode(bytes));
     } catch (e) {
       if (e is DriveAuthException) rethrow;
       return -1;
