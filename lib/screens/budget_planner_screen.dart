@@ -27,6 +27,10 @@ class BudgetPlannerScreen extends StatefulWidget {
 class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
   final _incomeCtrl = TextEditingController();
   List<BudgetSuggestion> _suggestions = [];
+
+  /// Categories the user adjusted by hand — their amounts survive
+  /// income-triggered rebuilds.
+  final Set<String> _touched = {};
   bool _initialized = false;
   bool _applying = false;
 
@@ -85,12 +89,20 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
   }
 
   void _rebuild(double income) {
+    final previous = {for (final s in _suggestions) s.categoryId: s.amount};
     setState(() {
       _suggestions = BudgetPlannerService.suggest(
         monthlyIncome: income,
         categoryIds: _categoryIds(),
         avg3m: _avg3m(),
       );
+      // Keep the user's manual slider edits.
+      for (final s in _suggestions) {
+        if (_touched.contains(s.categoryId) &&
+            previous.containsKey(s.categoryId)) {
+          s.amount = previous[s.categoryId]!;
+        }
+      }
     });
   }
 
@@ -464,7 +476,10 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
           inactiveColor:
               theme.colorScheme.outline.withValues(alpha: 0.3),
           label: formatMoney(s.amount),
-          onChanged: (v) => setState(() => s.amount = (v / 10).round() * 10.0),
+          onChanged: (v) => setState(() {
+            s.amount = (v / 10).round() * 10.0;
+            _touched.add(s.categoryId);
+          }),
         ),
       ],
     );

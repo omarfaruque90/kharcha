@@ -69,10 +69,10 @@ class BudgetPlannerService {
     required Map<String, double> avg3m,
   }) {
     final income = monthlyIncome < 0 ? 0.0 : monthlyIncome;
-    final needIds =
-        categoryIds.where((id) => needs.contains(id)).toList();
-    final wantIds =
-        categoryIds.where((id) => !needs.contains(id)).toList();
+    // Dedupe: the same id must never get two budget rows.
+    final ids = categoryIds.toSet().toList();
+    final needIds = ids.where((id) => needs.contains(id)).toList();
+    final wantIds = ids.where((id) => !needs.contains(id)).toList();
 
     final perNeed =
         needIds.isEmpty ? 0.0 : income * 0.50 / needIds.length;
