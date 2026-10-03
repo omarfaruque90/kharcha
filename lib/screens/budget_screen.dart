@@ -329,16 +329,16 @@ class _WarningBanner extends StatelessWidget {
       final s = spent[b.categoryId] ?? 0;
       return b.limitAmount > 0 && s > b.limitAmount;
     });
-    // "Near limit" banner: emerald-tinted surface + emerald text, readable
+    // "Near limit" banner: gold-tinted surface + gold text, readable
     // in both themes.
     final bg = anyExceeded
         ? theme.colorScheme.errorContainer
-        : kEmerald.withValues(alpha: isDark ? 0.22 : 0.16);
+        : kGold.withValues(alpha: isDark ? 0.22 : 0.16);
     final fg = anyExceeded
         ? theme.colorScheme.onErrorContainer
         : isDark
-            ? kEmeraldLight
-            : kEmeraldDark;
+            ? kGoldLight
+            : kGoldDark;
     return Card(
       color: bg,
       child: Padding(

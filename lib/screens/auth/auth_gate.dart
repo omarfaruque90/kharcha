@@ -112,7 +112,7 @@ class _AuthLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kCharcoal,
+      backgroundColor: kDeepGreenDark,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -131,7 +131,7 @@ class _AuthLoading extends StatelessWidget {
                 width: 32,
                 height: 32,
                 child: CircularProgressIndicator(
-                  color: kEmerald,
+                  color: kGold,
                   strokeWidth: 3,
                 ),
               ),

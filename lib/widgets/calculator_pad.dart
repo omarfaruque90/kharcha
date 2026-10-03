@@ -144,14 +144,14 @@ class _CalculatorPadState extends State<CalculatorPad> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     // Brand accents that stay readable on both themes.
-    const accent = kEmerald;
-    final accentSoft = isDark ? kEmeraldLight : kEmeraldDark;
+    const accent = kGold;
+    final accentSoft = isDark ? kGoldLight : kGoldDark;
     final preview = _evaluate(_expr);
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kEmerald.withValues(alpha: 0.45)),
+        border: Border.all(color: kGold.withValues(alpha: 0.45)),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -232,16 +232,16 @@ class _CalcKey extends StatelessWidget {
         label == '+' || label == '−' || label == '×' || label == '÷';
     final isUtility = label == 'C' || label == '⌫';
     final bg = isEquals
-        ? kEmerald
+        ? kGold
         : isOperator
-            ? kEmerald.withValues(alpha: 0.22)
+            ? kGold.withValues(alpha: 0.22)
             : isUtility
                 ? theme.colorScheme.errorContainer
                 : theme.colorScheme.surfaceContainerHighest;
     final fg = isEquals
-        ? Colors.white
+        ? kDeepGreenDark
         : isOperator
-            ? (isDark ? kEmeraldLight : kEmeraldDark)
+            ? (isDark ? kGoldLight : kGoldDark)
             : isUtility
                 ? theme.colorScheme.onErrorContainer
                 : theme.colorScheme.onSurface;
@@ -253,7 +253,7 @@ class _CalcKey extends StatelessWidget {
           color: bg,
           borderRadius: BorderRadius.circular(14),
           border: isOperator
-              ? Border.all(color: kEmerald.withValues(alpha: 0.65))
+              ? Border.all(color: kGold.withValues(alpha: 0.65))
               : null,
         ),
         child: Text(

@@ -126,8 +126,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: FilledButton(
                       onPressed: _busy ? null : _signup,
                       style: FilledButton.styleFrom(
-                        backgroundColor: kEmerald,
-                        foregroundColor: Colors.white,
+                        backgroundColor: kGold,
+                        foregroundColor: kDeepGreenDark,
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),

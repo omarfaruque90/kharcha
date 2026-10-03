@@ -191,7 +191,7 @@ class UpdateService {
     final update = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
-        icon: const Icon(Icons.system_update, color: kEmerald, size: 32),
+        icon: const Icon(Icons.system_update, color: kGold, size: 32),
         title: Text('${tr(dctx, 'update_title')} v${info.version}'),
         content: SingleChildScrollView(
           child: Text(

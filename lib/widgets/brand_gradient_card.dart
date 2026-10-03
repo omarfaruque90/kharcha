@@ -25,9 +25,9 @@ class BrandGradientCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.secondaryContainer,
-            theme.colorScheme.secondaryContainer.withValues(alpha: 0.65),
-            kEmerald.withValues(alpha: dark ? 0.30 : 0.22),
+            kDeepGreen.withValues(alpha: dark ? 0.55 : 0.30),
+            kDeepGreen.withValues(alpha: dark ? 0.35 : 0.18),
+            kGold.withValues(alpha: dark ? 0.30 : 0.22),
           ],
         ),
         boxShadow: [

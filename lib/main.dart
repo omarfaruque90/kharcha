@@ -22,10 +22,14 @@ import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
 import 'services/update_service.dart';
 
-/// Brand colors: charcoal black + emerald (sleek dark).
-const Color kCharcoal = Color(0xFF121212);
-const Color kCharcoalSurface = Color(0xFF1E1E1E);
-const Color kCharcoalCard = Color(0xFF2D2D2D);
+/// Brand colors: deep green + gold (matches the 3D expense logo).
+const Color kDeepGreen = Color(0xFF0B3D2E);
+const Color kDeepGreenDark = Color(0xFF072A1F);
+const Color kDeepGreenSurface = Color(0xFF0A2B1E);
+const Color kDeepGreenCard = Color(0xFF0E3B2C);
+const Color kGold = Color(0xFFD4AF37);
+const Color kGoldLight = Color(0xFFF0D878);
+const Color kGoldDark = Color(0xFF9C7C1E);
 const Color kEmerald = Color(0xFF10B981);
 const Color kEmeraldDark = Color(0xFF059669);
 const Color kEmeraldLight = Color(0xFFA7F3D0);
@@ -90,21 +94,30 @@ Future<void> _finishBootInBackground(
 
 ColorScheme _brandScheme(Brightness brightness) {
   final base = ColorScheme.fromSeed(
-    seedColor: kEmerald,
+    seedColor: kDeepGreen,
     brightness: brightness,
   );
   if (brightness == Brightness.dark) {
-    // Sleek dark hero: true charcoal surfaces instead of seed-derived ones.
+    // Deep green hero: dark-green surfaces with gold primary accents,
+    // matching the 3D expense logo.
     return base.copyWith(
-      surface: kCharcoal,
-      surfaceContainerLowest: kCharcoal,
-      surfaceContainerLow: kCharcoalSurface,
-      surfaceContainer: kCharcoalSurface,
-      surfaceContainerHigh: kCharcoalCard,
-      surfaceContainerHighest: kCharcoalCard,
+      primary: kGold,
+      onPrimary: kDeepGreenDark,
+      secondary: kEmerald,
+      surface: kDeepGreenSurface,
+      surfaceContainerLowest: kDeepGreenDark,
+      surfaceContainerLow: kDeepGreenSurface,
+      surfaceContainer: kDeepGreenSurface,
+      surfaceContainerHigh: kDeepGreenCard,
+      surfaceContainerHighest: kDeepGreenCard,
     );
   }
-  return base;
+  // Light mode: clean white with deep green headers + gold accents.
+  return base.copyWith(
+    primary: kDeepGreen,
+    onPrimary: Colors.white,
+    secondary: kGoldDark,
+  );
 }
 
 class KharchaApp extends StatelessWidget {
@@ -156,7 +169,7 @@ class KharchaApp extends StatelessWidget {
           ),
         ),
         dividerTheme: DividerThemeData(
-          color: kEmerald.withValues(alpha: 0.25),
+          color: kGold.withValues(alpha: 0.25),
           thickness: 1,
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -191,7 +204,7 @@ class KharchaApp extends StatelessWidget {
           ),
         ),
         dividerTheme: DividerThemeData(
-          color: kEmerald.withValues(alpha: 0.25),
+          color: kGold.withValues(alpha: 0.25),
           thickness: 1,
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -272,7 +285,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kCharcoal,
+      backgroundColor: kDeepGreenDark,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -295,7 +308,7 @@ class _SplashScreenState extends State<SplashScreen>
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
-                  color: kEmerald,
+                  color: kGold,
                   letterSpacing: 1.2,
                 ),
               ),

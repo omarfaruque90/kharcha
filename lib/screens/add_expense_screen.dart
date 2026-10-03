@@ -703,6 +703,7 @@ class _IconSquare extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return PressableScale(
       onTap: onTap,
       child: Container(
@@ -710,16 +711,16 @@ class _IconSquare extends StatelessWidget {
         height: 52,
         decoration: BoxDecoration(
           color: active
-              ? kEmerald
+              ? kGold
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: active ? kEmerald : kEmerald.withValues(alpha: 0.55),
+            color: active ? kGold : kGold.withValues(alpha: 0.55),
           ),
         ),
         child: Icon(
           icon,
-          color: active ? Colors.white : kEmerald,
+          color: active ? kDeepGreenDark : (isDark ? kGoldLight : kGoldDark),
         ),
       ),
     );
