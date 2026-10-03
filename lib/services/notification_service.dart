@@ -52,7 +52,7 @@ class NotificationService {
       await android?.createNotificationChannel(channel);
       const alertsChannel = AndroidNotificationChannel(
         _alertsChannelId,
-        'Kharcha Alerts',
+        'Khorcha Alerts',
         description: 'Budget warnings and expense alerts',
         importance: Importance.high,
       );
@@ -76,13 +76,13 @@ class NotificationService {
       if (!_initialized) return;
       final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       await _plugin.show(
-        id,
-        title,
-        body,
-        const NotificationDetails(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _alertsChannelId,
-            'Kharcha Alerts',
+            'Khorcha Alerts',
             importance: Importance.high,
           ),
         ),
