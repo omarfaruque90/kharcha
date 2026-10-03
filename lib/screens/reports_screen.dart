@@ -6,6 +6,7 @@ import '../l10n/app_strings.dart';
 import '../models/category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/export_service.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
@@ -144,6 +145,56 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
           ),
+          ),
+          const SizedBox(height: 12),
+          StaggeredEntrance(
+            delayMs: 60,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr(context, 'export_title'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                ExportService.exportMonthlyPdf(
+                              context,
+                              _selectedMonth,
+                            ),
+                            icon: const Icon(
+                                Icons.picture_as_pdf_outlined),
+                            label: Text(tr(context, 'export_pdf')),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                ExportService.exportMonthlyExcel(
+                              context,
+                              _selectedMonth,
+                            ),
+                            icon:
+                                const Icon(Icons.table_chart_outlined),
+                            label: Text(tr(context, 'export_excel')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           StaggeredEntrance(

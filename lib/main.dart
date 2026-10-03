@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kharcha/providers/money_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'l10n/app_strings.dart';
@@ -9,27 +11,46 @@ import 'providers/settings_provider.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/home_screen.dart';
+import 'screens/lock_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/lock_service.dart';
+import 'services/notification_service.dart';
+import 'services/recurring_service.dart';
+import 'services/sms_service.dart';
+import 'services/update_service.dart';
 
 /// Brand colors: deep emerald + gold.
 const Color kEmerald = Color(0xFF0B3D2E);
 const Color kGold = Color(0xFFD4AF37);
 
+/// Global navigator key — lets background services (SMS listener, update
+/// checker) show dialogs/snackbars without a BuildContext.
+final GlobalKey<NavigatorState> appNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase config comes from android/app/google-services.json.
   await Firebase.initializeApp();
+  // v4 system features init (all best-effort; never crash startup).
+  await NotificationService.init();
+  await RecurringService.processDue();
+  await NotificationService().scheduleBillReminders();
+  SmsService.instance.attachNavigator(appNavigatorKey);
   await initializeDateFormatting();
   final settings = SettingsProvider();
   await settings.load();
   final expenses = ExpenseProvider();
   await expenses.load();
+  final money = MoneyProvider();
+  await money.load();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: expenses),
+        ChangeNotifierProvider.value(value: money),
       ],
       child: const KharchaApp(),
     ),
@@ -51,8 +72,20 @@ class KharchaApp extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     return MaterialApp(
       title: 'Kharcha',
+      navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       locale: Locale(settings.language),
+      // Bundled localizations: without these, Locale('bn') has no
+      // Material strings and the date picker renders a blank screen.
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('bn'),
+        Locale('en'),
+      ],
       theme: ThemeData(
         colorScheme: _brandScheme(Brightness.light),
         useMaterial3: true,
@@ -117,7 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const AuthGate(home: MainShell()),
+          builder: (_) => const LockGate(),
         ),
       );
     });
@@ -176,6 +209,66 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       ),
     );
+  }
+}
+
+/// Startup gate: shows the PIN/biometric lock screen when app lock is
+/// enabled, otherwise goes straight to the Firebase auth flow.
+///
+/// Also kicks off the SMS listener and the in-app update check once the
+/// navigator is ready (both need a BuildContext for their dialogs).
+class LockGate extends StatefulWidget {
+  const LockGate({super.key});
+
+  @override
+  State<LockGate> createState() => _LockGateState();
+}
+
+class _LockGateState extends State<LockGate> {
+  /// null = checking, false = locked, true = unlocked / no lock.
+  bool? _unlocked;
+  bool _startupTasksDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLock();
+  }
+
+  Future<void> _checkLock() async {
+    final enabled = await LockService.instance.isLockEnabled();
+    if (!mounted) return;
+    setState(() => _unlocked = !enabled);
+    _runStartupTasks();
+  }
+
+  void _runStartupTasks() {
+    if (_startupTasksDone) return;
+    _startupTasksDone = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Fire-and-forget: rationale/update dialogs handle their own errors.
+      SmsService.instance.maybeStart();
+      UpdateService.maybePromptOnStartup(appNavigatorKey);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final unlocked = _unlocked;
+    if (unlocked == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!unlocked) {
+      return LockScreen(
+        onUnlock: () {
+          setState(() => _unlocked = true);
+          _runStartupTasks();
+        },
+      );
+    }
+    return const AuthGate(home: MainShell());
   }
 }
 

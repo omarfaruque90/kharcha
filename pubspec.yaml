@@ -23,6 +23,29 @@ dependencies:
   firebase_auth: ^6.7.0
   cloud_firestore: ^6.10.0
   google_sign_in: ^7.2.0
+  # SDK-bundled localizations (v4): enables the Bangla Material calendar/date picker.
+  flutter_localizations:
+    sdk: flutter
+  # v4 system features: notifications, SMS auto-detect, app lock, export,
+  # backup/restore, in-app updates. Versions verified on pub.dev (2026-10-03)
+  # against Dart ^3.4 / current Flutter stable.
+  image_picker: ^1.2.3 # receipt photo (Agent B)
+  speech_to_text: ^7.5.0 # voice input (Agent B)
+  readsms: ^0.2.0 # incoming-SMS stream (telephony ^0.2.0 needs Dart <3.0.0 — unresolvable here)
+  permission_handler: ^13.0.2 # runtime SMS permission
+  flutter_local_notifications: ^22.3.1
+  timezone: ^0.11.1
+  flutter_timezone: ^5.1.0 # device IANA zone for tz-aware scheduling
+  local_auth: ^2.3.0 # fingerprint unlock
+  flutter_secure_storage: ^9.2.4 # PIN hash storage
+  crypto: ^3.0.7 # SHA-256 PIN hashing
+  pdf: ^3.13.1
+  excel: ^4.0.6
+  share_plus: ^13.3.1
+  file_picker: ^8.3.7
+  package_info_plus: ^10.2.2 # current version for update checks
+  open_filex: ^4.7.0 # trigger APK install (ships its own FileProvider)
+  http: ^1.6.0 # GitHub releases API + APK download
 
 dev_dependencies:
   flutter_test:
@@ -33,3 +56,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/app_logo.png
+    # Bundled for PDF export: stock PDF fonts have no Bengali glyphs.
+    - assets/fonts/NotoSansBengali.ttf
