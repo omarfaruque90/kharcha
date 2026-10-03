@@ -158,7 +158,15 @@ class LlmToolCall {
   final Map<String, dynamic> args;
   final String? id;
 
-  const LlmToolCall({required this.name, required this.args, this.id});
+  /// Gemini 3.x thought signature — must be echoed back with the
+  /// function call in conversation history, or the API rejects (400).
+  final String? thoughtSignature;
+
+  const LlmToolCall(
+      {required this.name,
+      required this.args,
+      this.id,
+      this.thoughtSignature});
 }
 
 class LlmReply {
@@ -288,6 +296,7 @@ class LlmService {
         calls.add(LlmToolCall(
           name: fc['name']?.toString() ?? '',
           args: Map<String, dynamic>.from(fc['args'] as Map? ?? {}),
+          thoughtSignature: pm['thoughtSignature']?.toString(),
         ));
       }
     }
@@ -300,9 +309,16 @@ class LlmService {
         final parts = <Map<String, dynamic>>[];
         if (m.text.isNotEmpty) parts.add({'text': m.text});
         for (final c in m.toolCalls) {
-          parts.add({
-            'functionCall': {'name': c.name, 'args': c.args}
-          });
+          final fc = <String, dynamic>{
+            'name': c.name,
+            'args': c.args
+          };
+          final part = <String, dynamic>{'functionCall': fc};
+          // Echo the thought signature or Gemini 3.x rejects the request.
+          if (c.thoughtSignature != null) {
+            part['thoughtSignature'] = c.thoughtSignature;
+          }
+          parts.add(part);
         }
         return {'role': 'model', 'parts': parts};
       case 'tool':
