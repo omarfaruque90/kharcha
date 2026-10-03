@@ -577,6 +577,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Named section header — every settings group gets one.
+  Widget _sectionHeader(BuildContext context, String key) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        tr(context, key),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -593,7 +607,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : '')));
 
     final tiles = <Widget>[
+          // ── Account ──
           if (user != null) ...[
+            _sectionHeader(context, 'account_section'),
             ListTile(
               leading: _SettingsAvatar(
                 key: _avatarKey,
@@ -618,6 +634,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
           ],
+          // ── General ──
+          _sectionHeader(context, 'general_section'),
           ListTile(
             leading: const Icon(Icons.translate),
             title: Text(tr(context, 'language')),
@@ -636,6 +654,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   builder: (_) => const CategoriesScreen()),
             ),
           ),
+          // ── Appearance ──
+          _sectionHeader(context, 'appearance_section'),
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: Text(tr(context, 'appearance')),
@@ -801,6 +821,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
+          const Divider(),
+          // ── Money ──
+          _sectionHeader(context, 'money_section'),
           ListTile(
             leading: const Icon(Icons.place_outlined),
             title: Text(tr(context, 'places_title')),
@@ -859,16 +882,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              tr(context, 'profile_section'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          _sectionHeader(context, 'profile_section'),
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: Text(tr(context, 'profile_current')),
@@ -881,16 +895,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => _showProfileSwitcher(context),
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              tr(context, 'security_section'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          _sectionHeader(context, 'security_section'),
           SwitchListTile(
             secondary: const Icon(Icons.lock_outline),
             title: Text(tr(context, 'lock_title')),
@@ -916,16 +921,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              tr(context, 'ai_settings_section'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          _sectionHeader(context, 'ai_settings_section'),
           ListTile(
             leading: const Icon(Icons.smart_toy_outlined),
             title: Text(tr(context, 'ai_settings_title')),
@@ -936,16 +932,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              tr(context, 'data_section'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          _sectionHeader(context, 'data_section'),
           ListTile(
             leading: const Icon(Icons.backup_outlined),
             title: Text(tr(context, 'backup_now')),
@@ -1042,16 +1029,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _busy ? null : _checkForUpdates,
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              tr(context, 'about'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          _sectionHeader(context, 'about'),
           ListTile(
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(10),
