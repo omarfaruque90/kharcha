@@ -257,28 +257,18 @@ class UpdateService {
     } catch (_) {}
   }
 
-  /// Shows the "new version" dialog with a changelog snippet.
+  /// Shows the "new version" dialog: version + update action only.
   /// [onLater] runs when the user dismisses without updating.
   static Future<void> showUpdateDialog(
     BuildContext context,
     UpdateInfo info, {
     Future<void> Function()? onLater,
   }) async {
-    final raw = info.changelog;
-    final snippet =
-        raw.length > 300 ? '${raw.substring(0, 300)}…' : raw;
     final update = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
         icon: const Icon(Icons.system_update, color: kGold, size: 32),
         title: Text('${tr(dctx, 'update_title')} v${info.version}'),
-        content: SingleChildScrollView(
-          child: Text(
-            snippet.isEmpty
-                ? tr(dctx, 'update_no_notes')
-                : snippet,
-          ),
-        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dctx).pop(false),

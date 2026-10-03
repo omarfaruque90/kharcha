@@ -771,12 +771,18 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Back from any tab goes to Home first (never exits the app directly).
+    return PopScope(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _index != 0) _goHome();
+      },
+      child: Scaffold(
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 420),
-        reverseDuration: const Duration(milliseconds: 280),
-        switchInCurve: Curves.easeOutQuint,
-        switchOutCurve: Curves.easeInQuint,
+        duration: const Duration(milliseconds: 220),
+        reverseDuration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
         layoutBuilder: (currentChild, previousChildren) => Stack(
           children: [
             ...previousChildren,
@@ -815,6 +821,7 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: GooeyNavBar(
         index: _index,
         onTap: _goTo,
+      ),
       ),
     );
   }

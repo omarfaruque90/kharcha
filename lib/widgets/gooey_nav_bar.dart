@@ -25,7 +25,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   late final AnimationController _ctrl;
   late Animation<double> _pos; // fractional tab position 0..4
 
-  static const _duration = Duration(milliseconds: 350);
+  static const _duration = Duration(milliseconds: 250);
 
   @override
   void initState() {
@@ -75,7 +75,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
             final barW = c.maxWidth;
             const barH = 70.0;
             const sidePad = 16.0;
-            const bubbleR = 33.0;
+            const bubbleR = 39.0; // 78px — big like the reference image.
             final tabW = (barW - sidePad * 2) / 5;
             double xFor(int i) => sidePad + tabW * (i + 0.5);
 
@@ -108,10 +108,11 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                           ),
                         ),
                       ),
-                      // Bubble carrying the selected icon, riding the dip.
+                      // Bubble carrying the selected icon, nestled in the dip
+                      // like the reference: cradled, not floating above.
                       Positioned(
                         left: dipX - bubbleR,
-                        bottom: barH - 40,
+                        bottom: barH - bubbleR - 6,
                         child: _bubble(context, widget.index,
                             bubbleR, accent, dark),
                       ),
@@ -252,9 +253,9 @@ class _BarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const r = 24.0; // corner radius
-    const dipR = 36.0; // dip half-width at the base
-    const dipD = 30.0; // dip depth
-    const s = dipR + 16; // smooth zone half-width
+    const dipR = 44.0; // dip half-width at the base (cradles the bubble)
+    const dipD = 38.0; // dip depth
+    const s = dipR + 18; // smooth zone half-width
 
     final path = Path();
     path.moveTo(r, 0);

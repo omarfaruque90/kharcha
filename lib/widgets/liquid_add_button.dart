@@ -14,7 +14,7 @@ class LiquidAddButton extends StatefulWidget {
     super.key,
     required this.onTap,
     this.active = false,
-    this.size = 62,
+    this.size = 78,
   });
 
   @override
