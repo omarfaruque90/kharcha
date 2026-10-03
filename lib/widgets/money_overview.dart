@@ -196,11 +196,12 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     if (value == null || !mounted) return;
     final diff = value - current;
     if (diff.abs() < 0.005) return;
+    final adjustNote = tr(context, 'cash_adjust');
     await DatabaseHelper.instance.insertCashEntry(CashEntry(
       id: CashEntry.newId(),
       amount: diff.abs(),
       type: diff > 0 ? 'in' : 'out',
-      note: tr(context, 'cash_adjust'),
+      note: adjustNote,
       date: DateTime.now(),
     ));
     _load();
