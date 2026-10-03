@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 class LiquidAddButton extends StatefulWidget {
   final VoidCallback onTap;
   final bool active;
+  final double size;
 
   const LiquidAddButton({
     super.key,
     required this.onTap,
     this.active = false,
+    this.size = 62,
   });
 
   @override
@@ -47,8 +49,8 @@ class _LiquidAddButtonState extends State<LiquidAddButton>
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (ctx, _) => Container(
-          width: 62,
-          height: 62,
+          width: widget.size,
+          height: widget.size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [

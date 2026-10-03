@@ -42,7 +42,7 @@ import 'services/stats_notification.dart';
 import 'services/subscription_service.dart';
 import 'services/update_check_worker.dart';
 import 'services/update_service.dart';
-import 'widgets/liquid_add_button.dart';
+import 'widgets/gooey_nav_bar.dart';
 import 'widgets/motion.dart';
 
 /// Brand colors: deep green + gold (matches the 3D expense logo).
@@ -800,7 +800,7 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
-      bottomNavigationBar: _KhorchaBottomBar(
+      bottomNavigationBar: GooeyNavBar(
         index: _index,
         onTap: _goTo,
       ),
@@ -810,140 +810,3 @@ class _MainShellState extends State<MainShell> {
 
 /// Custom 5-tab bottom bar: Home, History, big gold center Add,
 /// Reports, More. The center button is raised with a gold glow.
-class _KhorchaBottomBar extends StatelessWidget {
-  final int index;
-  final ValueChanged<int> onTap;
-
-  const _KhorchaBottomBar({required this.index, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final selected = theme.colorScheme.primary;
-    final unselected = theme.colorScheme.onSurfaceVariant;
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            _navItem(context, 0, Icons.home_outlined, Icons.home,
-                tr(context, 'nav_home'), selected, unselected),
-            _navItem(context, 1, Icons.history_outlined, Icons.history,
-                tr(context, 'nav_history'), selected, unselected),
-            // Animated liquid-marble center Add button, raised above the bar.
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Transform.translate(
-                    offset: const Offset(0, -14),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(
-                          begin: 1.0, end: index == 2 ? 1.12 : 1.0),
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.elasticOut,
-                      builder: (ctx, scale, child) =>
-                          Transform.scale(scale: scale, child: child),
-                      child: LiquidAddButton(
-                        onTap: () => onTap(2),
-                        active: index == 2,
-                      ),
-                    ),
-                  ),
-                    Transform.translate(
-                      offset: const Offset(0, -10),
-                      child: Text(
-                        tr(context, 'nav_add'),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: index == 2 ? kGoldDark : unselected,
-                          fontWeight: index == 2
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            _navItem(context, 3, Icons.bar_chart_outlined, Icons.bar_chart,
-                tr(context, 'nav_reports'), selected, unselected),
-            _navItem(context, 4, Icons.more_horiz, Icons.more_horiz,
-                tr(context, 'more'), selected, unselected),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _navItem(
-    BuildContext context,
-    int i,
-    IconData icon,
-    IconData activeIcon,
-    String label,
-    Color selected,
-    Color unselected,
-  ) {
-    final theme = Theme.of(context);
-    final isSel = index == i;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(i),
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Bouncy icon pop + soft pill glow on select.
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.85, end: isSel ? 1.15 : 1.0),
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.elasticOut,
-                builder: (ctx, scale, child) =>
-                    Transform.scale(scale: scale, child: child),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: isSel
-                        ? selected.withValues(alpha: 0.14)
-                        : Colors.transparent,
-                  ),
-                  child: Icon(
-                    isSel ? activeIcon : icon,
-                    size: 24,
-                    color: isSel ? selected : unselected,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 250),
-                style: theme.textTheme.labelSmall!.copyWith(
-                  color: isSel ? selected : unselected,
-                  fontWeight:
-                      isSel ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 11,
-                ),
-                child: Text(label),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
