@@ -8,6 +8,8 @@ import 'package:kharcha/providers/money_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'l10n/app_strings.dart';
+import 'db/database_helper.dart';
+import 'models/custom_category.dart';
 import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/add_expense_screen.dart';
@@ -17,6 +19,7 @@ import 'screens/lock_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/lock_service.dart';
+import 'services/notification_center.dart';
 import 'services/notification_service.dart';
 import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
@@ -41,14 +44,15 @@ final GlobalKey<NavigatorState> appNavigatorKey =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase config comes from android/app/google-services.json.
-  // Awaited: AuthGate reads Firebase Auth state before the first frame.
-  await Firebase.initializeApp();
-  // Awaited: home screen formats dates immediately; needs locale data.
-  await initializeDateFormatting();
-  // Awaited: fast local read; determines locale/theme before first frame.
   final settings = SettingsProvider();
-  await settings.load();
+  // Parallel init: Firebase, locale data and settings load concurrently
+  // instead of one after another, so the first frame paints ASAP.
+  // (AuthGate still reads Firebase Auth state only after init completes.)
+  await Future.wait([
+    Firebase.initializeApp(),
+    initializeDateFormatting(),
+    settings.load(),
+  ]);
   final expenses = ExpenseProvider();
   final money = MoneyProvider();
   // First frame NOW — the remaining boot work continues in the background
@@ -70,17 +74,26 @@ Future<void> main() async {
 /// best-effort; a failing service must never break startup.
 Future<void> _finishBootInBackground(
     ExpenseProvider expenses, MoneyProvider money) async {
-  // Local data first so lists populate immediately.
+  // Custom-category registry first — display code needs correct labels.
   try {
-    await expenses.load();
+    CustomCategoryRegistry.setAll(
+      await DatabaseHelper.instance.getCustomCategories(),
+    );
   } catch (_) {}
+  // Local data in parallel so lists populate immediately.
   try {
-    await money.load();
+    await Future.wait([expenses.load(), money.load()]);
   } catch (_) {}
   // System services — notifications, recurring expenses, SMS.
   try {
     await NotificationService.init();
   } catch (_) {}
+  // Wire tray notifications for the in-app notification center.
+  NotificationCenter.systemNotify = ({
+    required String title,
+    required String body,
+  }) =>
+      NotificationService.showNow(title: title, body: body);
   try {
     await RecurringService.processDue();
     // Recurring may have inserted expenses; refresh the list.
@@ -90,6 +103,8 @@ Future<void> _finishBootInBackground(
     await NotificationService.scheduleBillReminders();
   } catch (_) {}
   SmsService.instance.attachNavigator(appNavigatorKey);
+  // Prime the notification bell badge.
+  await NotificationCenter.refreshUnread();
 }
 
 ColorScheme _brandScheme(Brightness brightness) {
@@ -296,7 +311,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 700),
     );
     // Logo bounces in first...
     _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -323,7 +338,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _controller.forward();
     // Brief brand flash only — navigate as soon as the animation completes.
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

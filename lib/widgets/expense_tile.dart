@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
@@ -42,6 +43,7 @@ class ExpenseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = context.watch<SettingsProvider>().language;
     final cat = categoryById(expense.categoryId);
+    final custom = CustomCategoryRegistry.byId(expense.categoryId);
     final theme = Theme.of(context);
     final dateLabel =
         DateFormat.yMMMd(lang == 'bn' ? 'bn' : 'en').format(expense.date);
@@ -73,9 +75,12 @@ class ExpenseTile extends StatelessWidget {
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: cat.color.withValues(alpha: 0.15),
-            child: Icon(cat.icon, color: cat.color, size: 20),
+            child: custom != null && custom.emoji.isNotEmpty
+                ? Text(custom.emoji, style: const TextStyle(fontSize: 20))
+                : Icon(cat.icon, color: cat.color, size: 20),
           ),
-          title: Text(AppStrings.categoryName(expense.categoryId, lang)),
+          title: Text(
+              CustomCategoryRegistry.displayName(expense.categoryId, lang)),
           subtitle: Text(subtitle.toString()),
           trailing: Text(
             formatMoney(expense.amount),

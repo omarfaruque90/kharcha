@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/export_service.dart';
@@ -331,7 +332,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  AppStrings.categoryName(
+                                  CustomCategoryRegistry.displayName(
                                       sortedCats[li].key, lang),
                                 ),
                               ),

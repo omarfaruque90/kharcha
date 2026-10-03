@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../models/recurring_expense.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
@@ -88,7 +89,7 @@ class RecurringScreen extends StatelessWidget {
                       ),
                       title: Text(
                         r.label.trim().isEmpty
-                            ? AppStrings.categoryName(r.categoryId, lang)
+                            ? CustomCategoryRegistry.displayName(r.categoryId, lang)
                             : r.label,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -253,7 +254,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                         children: [
                           Icon(c.icon, size: 18, color: c.color),
                           const SizedBox(width: 8),
-                          Text(AppStrings.categoryName(c.id, lang)),
+                          Text(CustomCategoryRegistry.displayName(c.id, lang)),
                         ],
                       ),
                     ),

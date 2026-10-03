@@ -244,6 +244,22 @@ class AppStrings {
       'about_version': 'Version',
       'about_developer': 'Developer',
       'close': 'Close',
+      // v5 — custom categories + notification center
+      'add_new_category': 'Add new category',
+      'new_category_title': 'New category',
+      'category_name': 'Category name',
+      'category_name_hint': 'e.g. Pet, Gifts',
+      'err_name_empty': 'Please enter a name',
+      'delete_category_title': 'Delete category?',
+      'delete_category_msg':
+          'It will be removed from the list. Existing expenses keep their data.',
+      'notifications': 'Notifications',
+      'no_notifications': 'No notifications yet',
+      'clear_all': 'Clear all',
+      'notif_budget_near_body': '{category}: ৳{spent} of ৳{limit} spent',
+      'notif_budget_over_body': '{category}: budget exceeded by ৳{over}',
+      'notif_recurring_title': 'Recurring expense added 🔁',
+      'notif_recurring_body': '{label} — ৳{amount} added automatically',
     },
     'bn': {
       'tagline': 'দৈনিক খরচের হিসাব',
@@ -476,6 +492,22 @@ class AppStrings {
       'about_version': 'সংস্করণ',
       'about_developer': 'ডেভেলপার',
       'close': 'বন্ধ করুন',
+      // v5 — কাস্টম ক্যাটাগরি + নোটিফিকেশন সেন্টার
+      'add_new_category': 'নতুন ক্যাটাগরি',
+      'new_category_title': 'নতুন ক্যাটাগরি',
+      'category_name': 'ক্যাটাগরির নাম',
+      'category_name_hint': 'যেমন: পোষা প্রাণী, উপহার',
+      'err_name_empty': 'নাম লিখুন',
+      'delete_category_title': 'ক্যাটাগরি মুছবেন?',
+      'delete_category_msg':
+          'এটি তালিকা থেকে মুছে যাবে। আগের খরচের তথ্য থেকে যাবে।',
+      'notifications': 'নোটিফিকেশন',
+      'no_notifications': 'এখনো কোনো নোটিফিকেশন নেই',
+      'clear_all': 'সব মুছুন',
+      'notif_budget_near_body': '{category}: ৳{limit}-এর মধ্যে ৳{spent} খরচ হয়েছে',
+      'notif_budget_over_body': '{category}: বাজেট ৳{over} ছাড়িয়ে গেছে',
+      'notif_recurring_title': 'পুনরাবৃত্ত খরচ যোগ হয়েছে 🔁',
+      'notif_recurring_body': '{label} — ৳{amount} স্বয়ংক্রিয়ভাবে যোগ হয়েছে',
     },
   };
 

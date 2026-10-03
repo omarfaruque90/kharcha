@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,15 +11,17 @@ import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
+import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/notification_center.dart';
 import '../services/ocr_service.dart';
 import '../widgets/calculator_pad.dart';
 import '../widgets/branded_date_picker.dart';
 import '../widgets/motion.dart';
 import '../widgets/payment_selector.dart';
-import '../widgets/place_input.dart';
 
 /// Add a new expense, or edit [expense] when provided.
 /// Used both as the "Add" bottom-nav tab and as a pushed edit page.
@@ -36,8 +39,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _amountCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
-  final TextEditingController _placeCtrl = TextEditingController();
-  final TextEditingController _placeEmojiCtrl = TextEditingController();
   final SpeechToText _speech = SpeechToText();
 
   String _categoryId = 'food';
@@ -48,6 +49,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _listening = false;
   bool _showSuccess = false;
   bool _scanning = false;
+  List<CustomCategory> _customCats = [];
 
   bool get _isEdit => widget.expense != null;
 
@@ -63,9 +65,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _categoryId = e.categoryId;
       _date = e.date;
       _payment = e.paymentMethod;
-      _placeCtrl.text = e.place ?? '';
       _receiptPath = e.receiptPath;
     }
+    _loadCustomCategories();
+  }
+
+  Future<void> _loadCustomCategories() async {
+    try {
+      final cats = await DatabaseHelper.instance.getCustomCategories();
+      CustomCategoryRegistry.setAll(cats);
+      if (mounted) setState(() => _customCats = cats);
+    } catch (_) {}
   }
 
   @override
@@ -73,8 +83,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _speech.stop();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
-    _placeCtrl.dispose();
-    _placeEmojiCtrl.dispose();
     super.dispose();
   }
 
@@ -97,20 +105,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (!_formKey.currentState!.validate()) return;
     final amount = double.parse(_amountCtrl.text.trim());
     final provider = context.read<ExpenseProvider>();
+    final money = context.read<MoneyProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final db = DatabaseHelper.instance;
 
-    // Remember custom place / payment labels for reuse suggestions.
-    String? place;
-    if (_categoryId == 'others') {
-      final label = _placeCtrl.text.trim();
-      if (label.isNotEmpty) {
-        final emoji = _placeEmojiCtrl.text.trim();
-        place = emoji.isEmpty ? label : '$label $emoji';
-        await db.upsertCustomPlaceByLabel(label, emoji: emoji);
-      }
-    }
+    // Remember custom payment labels for reuse suggestions.
     if (_payment.startsWith('other:')) {
       final customLabel = _payment.substring('other:'.length).trim();
       if (customLabel.isNotEmpty) {
@@ -128,7 +128,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         date: _date,
         note: _noteCtrl.text.trim(),
         paymentMethod: _payment,
-        place: place,
+        place: null,
         receiptPath: _receiptPath,
       );
       await provider.update(updated);
@@ -145,11 +145,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           date: _date,
           note: _noteCtrl.text.trim(),
           paymentMethod: _payment,
-          place: place,
+          place: null,
           receiptPath: _receiptPath,
         ),
       );
       if (!mounted) return;
+      // Fire-and-forget: budget near-limit / exceeded alerts.
+      unawaited(_checkBudgetAlerts(
+        money: money,
+        categoryId: _categoryId,
+        date: _date,
+        lang: lang,
+      ));
       // Animated success check, then reset and go home.
       setState(() => _showSuccess = true);
       await Future.delayed(const Duration(milliseconds: 950));
@@ -157,8 +164,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       setState(() => _showSuccess = false);
       _amountCtrl.clear();
       _noteCtrl.clear();
-      _placeCtrl.clear();
-      _placeEmojiCtrl.clear();
       setState(() {
         _categoryId = 'food';
         _date = DateTime.now();
@@ -168,6 +173,82 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       });
       widget.onSaved?.call();
     }
+  }
+
+  /// Pushes budget near-limit / exceeded notifications after an expense is
+  /// saved. Deduped per budget per day so it never spams.
+  Future<void> _checkBudgetAlerts({
+    required MoneyProvider money,
+    required String categoryId,
+    required DateTime date,
+    required String lang,
+  }) async {
+    try {
+      if (!money.isLoaded) await money.load();
+      final key = monthKeyOf(date);
+      final spentByCat = await money.expenseForMonth(key);
+      final catName = CustomCategoryRegistry.displayName(categoryId, lang);
+
+      final catBudget = money.budgetFor(categoryId, key);
+      if (catBudget != null && catBudget.limitAmount > 0) {
+        final spent = spentByCat[categoryId] ?? 0;
+        final limit = catBudget.limitAmount;
+        if (spent >= limit) {
+          await NotificationCenter.push(
+            title: AppStrings.get('budget_exceeded', lang),
+            body: AppStrings.get('notif_budget_over_body', lang)
+                .replaceAll('{category}', catName)
+                .replaceAll('{over}', _fmtNum(spent - limit)),
+            type: 'budget',
+            dedupeKey: 'cat:$categoryId:$key:over',
+          );
+        } else if (spent >= limit * 0.8) {
+          await NotificationCenter.push(
+            title: AppStrings.get('budget_near_limit', lang),
+            body: AppStrings.get('notif_budget_near_body', lang)
+                .replaceAll('{category}', catName)
+                .replaceAll('{spent}', _fmtNum(spent))
+                .replaceAll('{limit}', _fmtNum(limit)),
+            type: 'budget',
+            dedupeKey: 'cat:$categoryId:$key:near',
+          );
+        }
+      }
+
+      final monthBudget = money.monthlyBudgetFor(key);
+      if (monthBudget != null && monthBudget.limitAmount > 0) {
+        final total = spentByCat.values.fold(0.0, (a, b) => a + b);
+        final limit = monthBudget.limitAmount;
+        final name = AppStrings.get('monthly_budget', lang);
+        if (total >= limit) {
+          await NotificationCenter.push(
+            title: AppStrings.get('budget_exceeded', lang),
+            body: AppStrings.get('notif_budget_over_body', lang)
+                .replaceAll('{category}', name)
+                .replaceAll('{over}', _fmtNum(total - limit)),
+            type: 'budget',
+            dedupeKey: 'month:$key:over',
+          );
+        } else if (total >= limit * 0.8) {
+          await NotificationCenter.push(
+            title: AppStrings.get('budget_near_limit', lang),
+            body: AppStrings.get('notif_budget_near_body', lang)
+                .replaceAll('{category}', name)
+                .replaceAll('{spent}', _fmtNum(total))
+                .replaceAll('{limit}', _fmtNum(limit)),
+            type: 'budget',
+            dedupeKey: 'month:$key:near',
+          );
+        }
+      }
+    } catch (_) {
+      // Alerts are best-effort; never break the save flow.
+    }
+  }
+
+  String _fmtNum(double value) {
+    final whole = value.truncateToDouble() == value;
+    return whole ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
   }
 
   Future<void> _pickReceipt(ImageSource source) async {
@@ -439,68 +520,39 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.85,
               ),
-              itemCount: kCategories.length,
+              // Built-ins + user-created categories + the "add" tile.
+              itemCount: kCategories.length + _customCats.length + 1,
               itemBuilder: (ctx, i) {
-                final c = kCategories[i];
-                final selected = _categoryId == c.id;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => setState(() => _categoryId = c.id),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeInOut,
-                    transform: Matrix4.diagonal3Values(
-                      selected ? 1.06 : 1.0,
-                      selected ? 1.06 : 1.0,
-                      1.0,
-                    ),
-                    transformAlignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: selected
-                          ? c.color.withValues(alpha: 0.18)
-                          : theme.colorScheme.surfaceContainerHighest,
-                      border: Border.all(
-                        color: selected
-                            ? c.color
-                            : theme.colorScheme.outlineVariant,
-                        width: selected ? 2 : 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: selected
-                              ? c.color.withValues(alpha: 0.35)
-                              : Colors.transparent,
-                          blurRadius: selected ? 10 : 0,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(c.icon, color: c.color, size: 26),
-                        const SizedBox(height: 6),
-                        Text(
-                          AppStrings.categoryName(c.id, lang),
-                          style: const TextStyle(fontSize: 11),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                if (i < kCategories.length) {
+                  final c = kCategories[i];
+                  return _categoryTile(
+                    label: AppStrings.categoryName(c.id, lang),
+                    color: c.color,
+                    selected: _categoryId == c.id,
+                    iconChild: Icon(c.icon, color: c.color, size: 26),
+                    onTap: () => setState(() => _categoryId = c.id),
+                  );
+                }
+                final ci = i - kCategories.length;
+                if (ci < _customCats.length) {
+                  final cc = _customCats[ci];
+                  return _categoryTile(
+                    label: cc.name,
+                    color: kCustomCategoryColor,
+                    selected: _categoryId == cc.id,
+                    iconChild: cc.emoji.isNotEmpty
+                        ? Text(cc.emoji,
+                            style: const TextStyle(fontSize: 26))
+                        : const Icon(Icons.label_rounded,
+                            color: kCustomCategoryColor, size: 26),
+                    onTap: () => setState(() => _categoryId = cc.id),
+                    onLongPress: () =>
+                        _confirmDeleteCategory(cc, lang),
+                  );
+                }
+                return _addCategoryTile();
               },
             ),
-            if (_categoryId == 'others') ...[
-              const SizedBox(height: 16),
-              PlaceInput(
-                labelController: _placeCtrl,
-                emojiController: _placeEmojiCtrl,
-              ),
-            ],
             const SizedBox(height: 16),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -712,6 +764,216 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  /// One category tile in the grid (built-in or user-created).
+  Widget _categoryTile({
+    required String label,
+    required Color color,
+    required bool selected,
+    required Widget iconChild,
+    required VoidCallback onTap,
+    VoidCallback? onLongPress,
+  }) {
+    final theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+        transform: Matrix4.diagonal3Values(
+          selected ? 1.06 : 1.0,
+          selected ? 1.06 : 1.0,
+          1.0,
+        ),
+        transformAlignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: selected
+              ? color.withValues(alpha: 0.18)
+              : theme.colorScheme.surfaceContainerHighest,
+          border: Border.all(
+            color: selected ? color : theme.colorScheme.outlineVariant,
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  selected ? color.withValues(alpha: 0.35) : Colors.transparent,
+              blurRadius: selected ? 10 : 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            iconChild,
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 11),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Dashed "+ Add new category" tile at the end of the grid.
+  Widget _addCategoryTile() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _showAddCategoryDialog(),
+      child: CustomPaint(
+        painter: _DashedRectPainter(kGold.withValues(alpha: 0.7)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: kGold.withValues(alpha: 0.06),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add_circle_outline,
+                  color: kGold, size: 26),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  tr(context, 'add_new_category'),
+                  style: const TextStyle(fontSize: 11, color: kGold),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dialog to create a custom category: name + manually typed emoji.
+  Future<void> _showAddCategoryDialog() async {
+    final lang = context.read<SettingsProvider>().language;
+    final nameCtrl = TextEditingController();
+    final emojiCtrl = TextEditingController();
+    var confirmed = false;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(ctx, 'new_category_title')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: tr(ctx, 'category_name'),
+                hintText: tr(ctx, 'category_name_hint'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emojiCtrl,
+              decoration: InputDecoration(
+                labelText: tr(ctx, 'goal_emoji'),
+                hintText: '🎮',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr(ctx, 'cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (nameCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text(AppStrings.get('err_name_empty', lang))),
+                );
+                return;
+              }
+              confirmed = true;
+              Navigator.pop(ctx);
+            },
+            child: Text(tr(ctx, 'save')),
+          ),
+        ],
+      ),
+    );
+    final name = nameCtrl.text.trim();
+    final emoji = emojiCtrl.text.trim();
+    nameCtrl.dispose();
+    emojiCtrl.dispose();
+    if (!confirmed || name.isEmpty || !mounted) return;
+    try {
+      final id =
+          await DatabaseHelper.instance.insertCustomCategory(name, emoji);
+      final cats = await DatabaseHelper.instance.getCustomCategories();
+      CustomCategoryRegistry.setAll(cats);
+      if (mounted) {
+        setState(() {
+          _customCats = cats;
+          _categoryId = id;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.get('err_name_empty', lang))),
+        );
+      }
+    }
+  }
+
+  /// Long-press a custom category tile → confirm → delete it.
+  Future<void> _confirmDeleteCategory(CustomCategory cat, String lang) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(ctx, 'delete_category_title')),
+        content: Text(AppStrings.get('delete_category_msg', lang)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr(ctx, 'cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr(ctx, 'delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DatabaseHelper.instance.deleteCustomCategory(cat.id);
+    final cats = await DatabaseHelper.instance.getCustomCategories();
+    CustomCategoryRegistry.setAll(cats);
+    if (mounted) {
+      setState(() {
+        _customCats = cats;
+        if (_categoryId == cat.id) _categoryId = 'food';
+      });
+    }
+  }
+
   /// Premium section header: small caps gold, letterspaced.
   Widget _sectionLabel(BuildContext context, String text) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -725,6 +987,42 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
     );
   }
+}
+
+/// Dashed rounded-rectangle painter for the "+ Add new category" tile.
+class _DashedRectPainter extends CustomPainter {
+  final Color color;
+
+  _DashedRectPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(16),
+        ),
+      );
+    const dash = 6.0;
+    const gap = 4.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + dash).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRectPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Small square icon button used next to the amount field (calculator

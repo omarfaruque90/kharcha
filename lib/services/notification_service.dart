@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import 'notification_center.dart';
 
 /// Bill-reminder notifications (v4 system features).
 ///
@@ -19,6 +20,7 @@ class NotificationService {
   static bool _initialized = false;
 
   static const String _channelId = 'bill_reminders';
+  static const String _alertsChannelId = 'kharcha_alerts';
 
   /// Must be called once at startup, before scheduling.
   static Future<void> init() async {
@@ -48,12 +50,44 @@ class NotificationService {
         importance: Importance.high,
       );
       await android?.createNotificationChannel(channel);
+      const alertsChannel = AndroidNotificationChannel(
+        _alertsChannelId,
+        'Kharcha Alerts',
+        description: 'Budget warnings and expense alerts',
+        importance: Importance.high,
+      );
+      await android?.createNotificationChannel(alertsChannel);
       // Runtime permission on Android 13+. Best-effort: denied means the
       // feature silently stays off.
       await android?.requestNotificationsPermission();
     } catch (_) {
       // Notifications must never crash startup.
     }
+  }
+
+  /// Fires an immediate high-priority notification. Used by the
+  /// in-app notification center for budget warnings, recurring-expense
+  /// alerts, etc. Best-effort: no-op before [init] or on failure.
+  static Future<void> showNow({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      if (!_initialized) return;
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await _plugin.show(
+        id,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _alertsChannelId,
+            'Kharcha Alerts',
+            importance: Importance.high,
+          ),
+        ),
+      );
+    } catch (_) {}
   }
 
   /// Re-schedules every active bill reminder for its next monthly fire
@@ -79,6 +113,20 @@ class NotificationService {
         final body = AppStrings.get('notif_bill_body', lang)
             .replaceAll('{title}', r.title)
             .replaceAll('{amount}', r.amount.toStringAsFixed(0));
+        // A reminder due today also lands in the in-app notification
+        // center (deduped per day) so the user sees it inside the app.
+        final today = DateTime(now.year, now.month, now.day);
+        if (scheduled.year == today.year &&
+            scheduled.month == today.month &&
+            scheduled.day == today.day) {
+          await NotificationCenter.push(
+            title: AppStrings.get('notif_bill_title', lang),
+            body: body,
+            type: 'bill_reminder',
+            dedupeKey:
+                '${r.id ?? r.title}:${today.toIso8601String().substring(0, 10)}',
+          );
+        }
         await _plugin.zonedSchedule(
           id: id,
           title: AppStrings.get('notif_bill_title', lang),

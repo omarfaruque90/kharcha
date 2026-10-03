@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'custom_category.dart';
+
 /// Expense category with its icon and brand color.
 class ExpenseCategory {
   final String id;
@@ -13,6 +15,9 @@ class ExpenseCategory {
   });
 }
 
+/// Built-in categories shown in the add-expense grid and filters.
+/// ('others' was removed — users now create their own categories via
+/// the "+ Add new category" tile.)
 const List<ExpenseCategory> kCategories = [
   ExpenseCategory(id: 'food', icon: Icons.restaurant, color: Color(0xFFEF6C00)),
   ExpenseCategory(
@@ -23,13 +28,32 @@ const List<ExpenseCategory> kCategories = [
   ExpenseCategory(id: 'health', icon: Icons.favorite, color: Color(0xFFC2185B)),
   ExpenseCategory(id: 'entertainment', icon: Icons.movie, color: Color(0xFF5D4037)),
   ExpenseCategory(id: 'education', icon: Icons.school, color: Color(0xFF388E3C)),
-  ExpenseCategory(id: 'others', icon: Icons.category, color: Color(0xFF616161)),
 ];
 
-/// Returns the category for [id], falling back to "others".
+/// Legacy fallback for expenses saved with the old 'others' id.
+const ExpenseCategory _othersFallback = ExpenseCategory(
+  id: 'others',
+  icon: Icons.category,
+  color: Color(0xFF616161),
+);
+
+/// Gold tile used for user-created categories.
+const Color kCustomCategoryColor = Color(0xFFD4AF37);
+
+/// Returns the category for [id]:
+/// - built-in → its entry,
+/// - user-created (in [CustomCategoryRegistry]) → a gold tile,
+/// - anything else (e.g. legacy 'others') → the legacy fallback.
 ExpenseCategory categoryById(String id) {
+  if (CustomCategoryRegistry.byId(id) != null) {
+    return ExpenseCategory(
+      id: id,
+      icon: Icons.label_rounded,
+      color: kCustomCategoryColor,
+    );
+  }
   return kCategories.firstWhere(
     (c) => c.id == id,
-    orElse: () => kCategories.last,
+    orElse: () => _othersFallback,
   );
 }

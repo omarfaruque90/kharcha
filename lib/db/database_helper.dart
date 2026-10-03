@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/bill_reminder.dart';
 import '../models/budget.dart';
+import '../models/app_notification.dart';
+import '../models/custom_category.dart';
 import '../models/custom_payment.dart';
 import '../models/custom_place.dart';
 import '../models/expense.dart';
@@ -28,6 +30,9 @@ import '../services/sync_service.dart';
 ///
 /// v4 schema: adds `expenses.place TEXT` — the custom "where" label for the
 /// Others category (e.g. "Dhanmondi Lake 🎮").
+///
+/// v5 schema: adds `custom_categories` (user-created expense categories,
+/// local-only) and `notifications` (in-app notification center entries).
 class DatabaseHelper {
   DatabaseHelper._private();
 
@@ -48,11 +53,12 @@ class DatabaseHelper {
     final path = p.join(dir.path, 'kharcha.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
         await _createV3Tables(db);
+        await _createV5Tables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -63,6 +69,9 @@ class DatabaseHelper {
         }
         if (oldVersion < 4) {
           await _migrateV3ToV4(db);
+        }
+        if (oldVersion < 5) {
+          await _createV5Tables(db);
         }
       },
     );
@@ -179,6 +188,30 @@ class DatabaseHelper {
     } catch (_) {
       // Column already exists (e.g. partial upgrade) — safe to ignore.
     }
+  }
+
+  /// v5 tables: user-created categories and notification-center entries.
+  /// Called from onCreate (fresh installs) and onUpgrade (v4->v5).
+  /// CREATE TABLE IF NOT EXISTS keeps it idempotent.
+  Future<void> _createV5Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS custom_categories(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        emoji TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notifications(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        time INTEGER NOT NULL,
+        read INTEGER NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'info',
+        dedupe TEXT
+      )
+    ''');
   }
 
   /// v3 -> v4: add `expenses.place` (custom "where" for Others).
@@ -940,5 +973,104 @@ class DatabaseHelper {
       {'key': key, 'value': value},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // --------------------------- custom categories ----------------------
+  // User-created expense categories. Local-only: never synced to
+  // Firestore.
+
+  Future<List<CustomCategory>> getCustomCategories() async {
+    final db = await database;
+    final rows = await db.query('custom_categories', orderBy: 'name ASC');
+    return rows.map(CustomCategory.fromMap).toList();
+  }
+
+  /// Inserts a user-created category. Returns the new id.
+  Future<String> insertCustomCategory(String name, String emoji) async {
+    return _insertRecord('custom_categories', {
+      'name': name.trim(),
+      'emoji': emoji.trim(),
+    });
+  }
+
+  Future<int> deleteCustomCategory(String id) async {
+    return _deleteRecord('custom_categories', id);
+  }
+
+  // --------------------------- notification center --------------------
+
+  /// Inserts a notification-center entry. Returns the row id.
+  Future<int> insertNotification({
+    required String title,
+    required String body,
+    String type = 'info',
+    String? dedupe,
+  }) async {
+    final db = await database;
+    return db.insert('notifications', {
+      'title': title,
+      'body': body,
+      'time': DateTime.now().millisecondsSinceEpoch,
+      'read': 0,
+      'type': type,
+      'dedupe': dedupe,
+    });
+  }
+
+  /// Newest first.
+  Future<List<AppNotification>> getNotifications({int limit = 100}) async {
+    final db = await database;
+    final rows = await db.query(
+      'notifications',
+      orderBy: 'time DESC',
+      limit: limit,
+    );
+    return rows.map(AppNotification.fromMap).toList();
+  }
+
+  Future<int> unreadNotificationCount() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM notifications WHERE read = 0',
+    );
+    return ((rows.first['c'] as num?)?.toInt() ?? 0);
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final db = await database;
+    await db.update(
+      'notifications',
+      {'read': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final db = await database;
+    await db.update('notifications', {'read': 1});
+  }
+
+  Future<void> clearNotifications() async {
+    final db = await database;
+    await db.delete('notifications');
+  }
+
+  /// True when a notification with the same (type, dedupe) key already
+  /// exists today — used to avoid spamming repeat alerts (budget warnings,
+  /// recurring additions, due-today bill reminders).
+  Future<bool> hasNotificationToday(String type, String dedupe) async {
+    final db = await database;
+    final now = DateTime.now();
+    final startOfDay =
+        DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+    final rows = await db.query(
+      'notifications',
+      columns: ['id'],
+      where: 'type = ? AND dedupe = ? AND time >= ?',
+      whereArgs: [type, dedupe, startOfDay],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
   }
 }

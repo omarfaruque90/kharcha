@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/notification_center.dart';
 import '../utils/formatters.dart';
 import '../widgets/brand_gradient_card.dart';
 import '../widgets/expense_tile.dart';
@@ -17,6 +19,7 @@ import '../widgets/summary_card.dart';
 import 'budget_screen.dart';
 import 'goals_screen.dart';
 import 'income_screen.dart';
+import 'notifications_screen.dart';
 import 'recurring_screen.dart';
 import 'reminder_screen.dart';
 
@@ -33,6 +36,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
   String? _categoryId; // null = all categories
+
+  @override
+  void initState() {
+    super.initState();
+    // Prime the notification bell badge.
+    NotificationCenter.refreshUnread();
+  }
 
   @override
   void dispose() {
@@ -76,6 +86,28 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          ValueListenableBuilder<int>(
+            valueListenable: NotificationCenter.unreadCount,
+            builder: (context, count, _) {
+              return IconButton(
+                tooltip: tr(context, 'notifications'),
+                icon: Badge(
+                  isLabelVisible: count > 0,
+                  label: Text(count > 99 ? '99+' : '$count'),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                  await NotificationCenter.refreshUnread();
+                },
+              );
+            },
+          ),
           IconButton(
             tooltip: lang == 'bn' ? 'English' : 'বাংলা',
             icon: const Icon(Icons.translate),
@@ -170,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            height: 104,
+            height: 112,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding:
@@ -272,6 +304,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       selected: _categoryId == c.id,
                       onSelected: (_) => setState(
                         () => _categoryId = _categoryId == c.id ? null : c.id,
+                      ),
+                    ),
+                  ),
+                for (final cc in CustomCategoryRegistry.all)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(cc.name),
+                      avatar: cc.emoji.isNotEmpty
+                          ? Text(cc.emoji,
+                              style: const TextStyle(fontSize: 16))
+                          : const Icon(Icons.label_rounded, size: 16),
+                      selected: _categoryId == cc.id,
+                      onSelected: (_) => setState(
+                        () =>
+                            _categoryId = _categoryId == cc.id ? null : cc.id,
                       ),
                     ),
                   ),
@@ -537,30 +585,37 @@ class _MoneyShortcut extends StatelessWidget {
       child: Card(
         child: Container(
           width: 108,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color:
                       theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                    icon, color: theme.colorScheme.primary, size: 24),
+                    icon, color: theme.colorScheme.primary, size: 22),
               ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.2,
+              const SizedBox(height: 6),
+              // Flexible keeps long labels (e.g. "পুনরাবৃত্ত খরচ")
+              // inside the tile instead of overflowing it.
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.2,
+                    fontSize: 10.5,
+                    height: 1.25,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

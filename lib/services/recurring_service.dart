@@ -1,6 +1,8 @@
 import '../db/database_helper.dart';
+import '../l10n/app_strings.dart';
 import '../models/expense.dart';
 import '../providers/money_provider.dart';
+import 'notification_center.dart';
 
 /// Auto-generates real expenses from active recurring templates, once per
 /// calendar month.
@@ -12,11 +14,15 @@ class RecurringService {
   /// For every active template whose [lastAddedMonth] is not the current
   /// month and whose day-of-month has arrived (or passed): inserts a real
   /// expense and stamps the template with the current month key.
+  ///
+  /// Each auto-added expense also pushes a notification-center entry
+  /// (deduped per template per month) so the user sees what was added.
   static Future<void> processDue() async {
     final db = DatabaseHelper.instance;
     final now = DateTime.now();
     final currentKey = monthKeyOf(now);
     final active = await db.getActiveRecurringExpenses();
+    final lang = await db.getSetting('language') ?? 'bn';
     for (final template in active) {
       if (template.lastAddedMonth == currentKey) continue;
       if (template.dayOfMonth > now.day) continue;
@@ -42,6 +48,28 @@ class RecurringService {
       await db.updateRecurringExpense(
         template.copyWith(lastAddedMonth: currentKey),
       );
+
+      // Notify (best-effort; never break the loop).
+      try {
+        final whole =
+            template.amount.truncateToDouble() == template.amount;
+        final amountStr = whole
+            ? template.amount.toStringAsFixed(0)
+            : template.amount.toString();
+        await NotificationCenter.push(
+          title: AppStrings.get('notif_recurring_title', lang),
+          body: AppStrings.get('notif_recurring_body', lang)
+              .replaceAll(
+                '{label}',
+                label.isEmpty
+                    ? AppStrings.get('recurring_title', lang)
+                    : label,
+              )
+              .replaceAll('{amount}', amountStr),
+          type: 'recurring',
+          dedupeKey: '${template.id}:$currentKey',
+        );
+      } catch (_) {}
     }
   }
 }

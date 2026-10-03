@@ -5,6 +5,7 @@ import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/budget.dart';
 import '../models/category.dart';
+import '../models/custom_category.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -366,7 +367,7 @@ class _WarningBanner extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Text(
-                  '• ${AppStrings.categoryName(b.categoryId, lang)} — '
+                  '• ${CustomCategoryRegistry.displayName(b.categoryId, lang)} — '
                   '${formatMoney(spent[b.categoryId] ?? 0)} / '
                   '${formatMoney(b.limitAmount)}',
                   style: theme.textTheme.bodyMedium?.copyWith(color: fg),
@@ -422,7 +423,7 @@ class _BudgetCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          AppStrings.categoryName(budget.categoryId, lang),
+                          CustomCategoryRegistry.displayName(budget.categoryId, lang),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -584,7 +585,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
                       children: [
                         Icon(c.icon, size: 18, color: c.color),
                         const SizedBox(width: 8),
-                        Text(AppStrings.categoryName(c.id, lang)),
+                        Text(CustomCategoryRegistry.displayName(c.id, lang)),
                       ],
                     ),
                   ),

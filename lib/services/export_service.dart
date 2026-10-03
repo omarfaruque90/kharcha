@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -90,7 +91,7 @@ class ExportService {
               for (final e in rows)
                 [
                   _dateStr(e.date),
-                  AppStrings.categoryName(e.categoryId, lang),
+                  CustomCategoryRegistry.displayName(e.categoryId, lang),
                   e.amount.toStringAsFixed(0),
                   AppStrings.paymentName(e.paymentMethod, lang),
                   e.note,
@@ -149,7 +150,7 @@ class ExportService {
           .value = TextCellValue(_dateStr(e.date));
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r))
-          .value = TextCellValue(AppStrings.categoryName(e.categoryId, lang));
+          .value = TextCellValue(CustomCategoryRegistry.displayName(e.categoryId, lang));
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r))
           .value = DoubleCellValue(e.amount);
