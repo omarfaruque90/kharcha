@@ -40,10 +40,47 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
   double get _income => double.tryParse(_incomeCtrl.text) ?? 0;
   double get _planned => _items.fold(0.0, (a, s) => a + s.amount);
 
+  /// Fixed slider max from income only — never shifts while dragging,
+  /// so the slider stays fully manual and predictable.
   double _sliderMax(_PlanItem s) {
-    final base = _income * 0.6;
-    final m = s.amount * 1.6 > base ? s.amount * 1.6 : base;
-    return m <= 0 ? 10000.0 : m;
+    final m = _income > 0 ? _income : 10000.0;
+    // Always allow at least the current amount.
+    return s.amount > m ? s.amount * 1.2 : m;
+  }
+
+  /// Tap the amount to type an exact value.
+  Future<void> _editAmount(_PlanItem s) async {
+    final lang = context.read<SettingsProvider>().language;
+    final ctrl = TextEditingController(
+        text: s.amount > 0 ? s.amount.toStringAsFixed(0) : '');
+    final result = await showDialog<double>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(CustomCategoryRegistry.displayName(
+            s.categoryId, lang)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(prefixText: '৳ '),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppStrings.get('cancel', lang)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+                c, double.tryParse(ctrl.text.trim()) ?? 0),
+            child: Text(AppStrings.get('save', lang)),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result >= 0 && mounted) {
+      setState(() => s.amount = result);
+    }
   }
 
   List<String> _availableCategories() {
@@ -348,11 +385,14 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
                 ),
               ),
             ),
-            Text(
-              formatMoney(s.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: kGold,
+            GestureDetector(
+              onTap: () => _editAmount(s),
+              child: Text(
+                formatMoney(s.amount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: kGold,
+                ),
               ),
             ),
             IconButton(
