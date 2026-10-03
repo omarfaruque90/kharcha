@@ -277,7 +277,6 @@ class AppStrings {
       'update_downloading': 'Downloading update…',
       'update_failed': 'Download failed — try again later',
       'about_version': 'Version',
-      'about_developer': 'Developer',
       'close': 'Close',
       // v5 — custom categories + notification center
       'add_new_category': 'Add new category',
@@ -1082,7 +1081,6 @@ class AppStrings {
       'update_downloading': 'আপডেট ডাউনলোড হচ্ছে…',
       'update_failed': 'ডাউনলোড ব্যর্থ — পরে আবার চেষ্টা করুন',
       'about_version': 'সংস্করণ',
-      'about_developer': 'ডেভেলপার',
       'close': 'বন্ধ করুন',
       // v5 — কাস্টম ক্যাটাগরি + নোটিফিকেশন সেন্টার
       'add_new_category': 'নতুন ক্যাটাগরি',

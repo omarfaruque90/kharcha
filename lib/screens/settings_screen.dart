@@ -1051,11 +1051,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.favorite, color: Colors.amber),
-            title: const Text('Niczzxo 💛'),
-            subtitle: Text(tr(context, 'about_developer')),
-          ),
     ];
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'nav_settings'))),
