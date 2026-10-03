@@ -16,7 +16,6 @@ import '../screens/subscriptions_screen.dart';
 import '../screens/templates_screen.dart';
 import '../screens/wishlist_screen.dart';
 import '../screens/salary_screen.dart';
-import '../screens/voice_report_screen.dart';
 import '../screens/achievements_screen.dart';
 import '../screens/challenge_screen.dart';
 import '../screens/cash_screen.dart';
@@ -108,8 +107,6 @@ List<ToolSection> toolSections() => [
         [
           ToolDef(Icons.chat_bubble_outline, 'ai_title',
               () => const AiChatScreen()),
-          ToolDef(Icons.mic_outlined, 'voice_title',
-              () => const VoiceReportScreen()),
           ToolDef(Icons.bar_chart_outlined, 'nav_reports',
               () => const ReportsScreen()),
         ],

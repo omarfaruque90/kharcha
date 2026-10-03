@@ -337,7 +337,7 @@ class AiAssistant {
 
   // ------------------------------------------------------------------
   // Fallback: reuse ExpenseQueryParser for balance / period / category
-  // totals (mirrors voice_report_screen's logic).
+  // totals from the parsed query.
   // ------------------------------------------------------------------
   static Future<String> _generic(String input, String lang) async {
     final q = ExpenseQueryParser.parse(input, lang);

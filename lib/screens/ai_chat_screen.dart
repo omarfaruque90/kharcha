@@ -436,7 +436,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                                   ? theme.colorScheme.error
                                   : theme.colorScheme.onSurfaceVariant,
                             ),
-                            tooltip: tr(context, 'voice_title'),
+                            tooltip: tr(context, 'voice_input_tip'),
                             onPressed: _toggleMic,
                           ),
                         ),
