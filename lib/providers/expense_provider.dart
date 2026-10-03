@@ -211,4 +211,55 @@ class ExpenseProvider extends ChangeNotifier {
     }
     return map;
   }
+
+  /// Category totals for an arbitrary [start]..[end] range (inclusive).
+  Map<String, double> totalsByCategoryRange(DateTime start, DateTime end) {
+    final map = <String, double>{};
+    for (final e in _expenses) {
+      if (!e.date.isBefore(start) && !e.date.isAfter(end)) {
+        map[e.categoryId] = (map[e.categoryId] ?? 0) + (e.bdtAmount ?? e.amount);
+      }
+    }
+    return map;
+  }
+
+  /// Deletes all expenses in [start]..[end]. Returns the count removed.
+  Future<int> removeForRange(DateTime start, DateTime end) async {
+    final ids = _expenses
+        .where((e) => !e.date.isBefore(start) && !e.date.isAfter(end))
+        .map((e) => e.id)
+        .toList();
+    for (final id in ids) {
+      try {
+        await DatabaseHelper.instance.deleteExpense(id);
+      } catch (_) {}
+    }
+    _expenses.removeWhere(
+        (e) => !e.date.isBefore(start) && !e.date.isAfter(end));
+    notifyListeners();
+    return ids.length;
+  }
+
+  /// Deletes all expenses of [categoryId] in [start]..[end]. Returns count.
+  Future<int> removeForCategoryRange(
+      String categoryId, DateTime start, DateTime end) async {
+    final ids = _expenses
+        .where((e) =>
+            e.categoryId == categoryId &&
+            !e.date.isBefore(start) &&
+            !e.date.isAfter(end))
+        .map((e) => e.id)
+        .toList();
+    for (final id in ids) {
+      try {
+        await DatabaseHelper.instance.deleteExpense(id);
+      } catch (_) {}
+    }
+    _expenses.removeWhere((e) =>
+        e.categoryId == categoryId &&
+        !e.date.isBefore(start) &&
+        !e.date.isAfter(end));
+    notifyListeners();
+    return ids.length;
+  }
 }

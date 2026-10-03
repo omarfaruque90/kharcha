@@ -29,11 +29,75 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
+/// Report period presets for the spending-by-category chart.
+enum _ReportPeriod { w1, w2, w3, m1, m2, m3, m6 }
+
+extension _ReportPeriodX on _ReportPeriod {
+  String get chipLabel {
+    switch (this) {
+      case _ReportPeriod.w1:
+        return '1W';
+      case _ReportPeriod.w2:
+        return '2W';
+      case _ReportPeriod.w3:
+        return '3W';
+      case _ReportPeriod.m1:
+        return '1M';
+      case _ReportPeriod.m2:
+        return '2M';
+      case _ReportPeriod.m3:
+        return '3M';
+      case _ReportPeriod.m6:
+        return '6M';
+    }
+  }
+}
+
 class _ReportsScreenState extends State<ReportsScreen> {
   late DateTime _selectedMonth;
 
   /// Package AK: expense comparison — this month vs last month.
   bool _compareMode = false;
+
+  /// Period preset for the spending-by-category section.
+  _ReportPeriod _period = _ReportPeriod.m1;
+
+  /// Inclusive [start, end] of the currently selected period.
+  (DateTime, DateTime) get _periodRange {
+    final now = DateTime.now();
+    switch (_period) {
+      case _ReportPeriod.w1:
+      case _ReportPeriod.w2:
+      case _ReportPeriod.w3:
+        final days = _period == _ReportPeriod.w1
+            ? 7
+            : _period == _ReportPeriod.w2
+                ? 14
+                : 21;
+        final start = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: days - 1));
+        return (start, now);
+      case _ReportPeriod.m1:
+        final start = DateTime(_selectedMonth.year, _selectedMonth.month);
+        final end =
+            DateTime(_selectedMonth.year, _selectedMonth.month + 1)
+                .subtract(const Duration(milliseconds: 1));
+        return (start, end);
+      case _ReportPeriod.m2:
+      case _ReportPeriod.m3:
+      case _ReportPeriod.m6:
+        final n = _period == _ReportPeriod.m2
+            ? 2
+            : _period == _ReportPeriod.m3
+                ? 3
+                : 6;
+        final start = DateTime(now.year, now.month - n + 1);
+        return (start, now);
+    }
+  }
+
+  String get _periodKey =>
+      '${_period.name}-${_selectedMonth.millisecondsSinceEpoch}';
 
   @override
   void initState() {
@@ -101,17 +165,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  /// Deletes one category's expenses of the selected month after confirm.
+  /// Deletes one category's expenses of the selected period after confirm.
   Future<void> _confirmClearCategory(
       BuildContext context, String categoryId) async {
     final provider = context.read<ExpenseProvider>();
     final name =
         CustomCategoryRegistry.displayName(categoryId, context.read<SettingsProvider>().language);
+    final (rs, re) = _periodRange;
     final count = provider.expenses
         .where((e) =>
             e.categoryId == categoryId &&
-            e.date.year == _selectedMonth.year &&
-            e.date.month == _selectedMonth.month)
+            !e.date.isBefore(rs) &&
+            !e.date.isAfter(re))
         .length;
     if (count == 0 || !context.mounted) return;
     final ok = await showDialog<bool>(
@@ -138,8 +203,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
     );
     if (ok != true || !context.mounted) return;
+    final (rs2, re2) = _periodRange;
     final removed =
-        await provider.removeForCategoryMonth(categoryId, _selectedMonth);
+        await provider.removeForCategoryRange(categoryId, rs2, re2);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -258,7 +324,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
     final maxY = maxBar <= 0 ? 100.0 : maxBar * 1.2;
 
-    final catTotals = provider.totalsByCategory(_selectedMonth);
+    final (rangeStart, rangeEnd) = _periodRange;
+    final catTotals =
+        provider.totalsByCategoryRange(rangeStart, rangeEnd);
     final sortedCats = catTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final monthTotal = catTotals.values.fold(0.0, (a, b) => a + b);
@@ -519,7 +587,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                           ),
                         ),
-                        DropdownButton<DateTime>(
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Period presets: 1W 2W 3W 1M 2M 3M 6M.
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final p in _ReportPeriod.values)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: Text(p.chipLabel),
+                                selected: _period == p,
+                                onSelected: (_) =>
+                                    setState(() => _period = p),
+                                selectedColor: kGold,
+                                labelStyle: TextStyle(
+                                  color: _period == p
+                                      ? kDeepGreenDark
+                                      : null,
+                                  fontWeight: _period == p
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  fontSize: 12,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (_period == _ReportPeriod.m1)
+                          DropdownButton<DateTime>(
                           value: _selectedMonth,
                           underline: const SizedBox.shrink(),
                           items: [
@@ -534,7 +639,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               setState(() => _selectedMonth = m);
                             }
                           },
-                        ),
+                        )
+                        else
+                          Expanded(
+                            child: Text(
+                              '${DateFormat('d MMM', lang == 'bn' ? 'bn' : null).format(rangeStart)} – ${DateFormat('d MMM y', lang == 'bn' ? 'bn' : null).format(rangeEnd)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -556,7 +670,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       },
                       child: Text(
                         '${tr(context, 'month_total')}: ${formatMoney(monthTotal)}',
-                        key: ValueKey(_selectedMonth),
+                        key: ValueKey(_periodKey),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: scheme.primary,
                           fontWeight: FontWeight.bold,
@@ -583,7 +697,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     )
                   else ...[
                     TweenAnimationBuilder<double>(
-                      key: ValueKey(_selectedMonth),
+                      key: ValueKey(_periodKey),
                       tween: Tween(begin: 0.94, end: 1.0),
                       duration: const Duration(milliseconds: 550),
                       curve: Curves.easeOutBack,
@@ -622,7 +736,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     for (var li = 0; li < sortedCats.length; li++)
                       StaggeredEntrance(
                         key: ValueKey(
-                            '${_selectedMonth.millisecondsSinceEpoch}-${sortedCats[li].key}'),
+                            '$_periodKey-${sortedCats[li].key}'),
                         delayMs: (li * 40).clamp(0, 200).toInt(),
                         child: Padding(
                           padding:
