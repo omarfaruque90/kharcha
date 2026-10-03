@@ -52,6 +52,12 @@ class BudgetScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(12),
             children: [
+              StaggeredEntrance(
+                child: _MonthlyBudgetCard(
+                  monthKey: key,
+                  totalSpent: spent.values.fold(0.0, (a, b) => a + b),
+                ),
+              ),
               if (warnings.isNotEmpty)
                 StaggeredEntrance(
                   child: _WarningBanner(
@@ -95,6 +101,210 @@ class BudgetScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => _BudgetDialog(monthKey: monthKey, existing: existing),
+    );
+  }
+}
+
+/// Overall monthly spending-limit card shown at the top of the budget
+/// screen. Tapping opens the set/edit dialog.
+class _MonthlyBudgetCard extends StatelessWidget {
+  final String monthKey;
+  final double totalSpent;
+
+  const _MonthlyBudgetCard({
+    required this.monthKey,
+    required this.totalSpent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final money = context.watch<MoneyProvider>();
+    final budget = money.monthlyBudgetFor(monthKey);
+    final limit = budget?.limitAmount ?? 0;
+    final ratio = limit > 0 ? (totalSpent / limit).clamp(0.0, 1.0) : 0.0;
+    final over = limit > 0 && totalSpent > limit;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => _MonthlyBudgetDialog(
+            monthKey: monthKey,
+            existing: budget,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.savings_outlined,
+                      color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr(context, 'monthly_budget'),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          tr(context, 'monthly_budget_sub'),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (limit <= 0)
+                    FilledButton.tonal(
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) => _MonthlyBudgetDialog(
+                          monthKey: monthKey,
+                          existing: budget,
+                        ),
+                      ),
+                      child: Text(tr(context, 'monthly_budget_set')),
+                    )
+                  else
+                    IconButton(
+                      tooltip: tr(context, 'budget_edit'),
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) => _MonthlyBudgetDialog(
+                          monthKey: monthKey,
+                          existing: budget,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (limit > 0) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 8,
+                    backgroundColor:
+                        theme.colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      over
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${formatMoney(totalSpent)} / ${formatMoney(limit)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: over ? theme.colorScheme.error : null,
+                      ),
+                    ),
+                    Text(
+                      '${(ratio * 100).toStringAsFixed(0)}%',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog for setting/editing/removing the overall monthly budget.
+class _MonthlyBudgetDialog extends StatefulWidget {
+  final String monthKey;
+  final Budget? existing;
+
+  const _MonthlyBudgetDialog({required this.monthKey, this.existing});
+
+  @override
+  State<_MonthlyBudgetDialog> createState() => _MonthlyBudgetDialogState();
+}
+
+class _MonthlyBudgetDialogState extends State<_MonthlyBudgetDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(
+      text: widget.existing != null && widget.existing!.limitAmount > 0
+          ? widget.existing!.limitAmount.toStringAsFixed(0)
+          : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(tr(context, 'monthly_budget')),
+      content: TextField(
+        controller: _ctrl,
+        keyboardType:
+            const TextInputType.numberWithOptions(decimal: true),
+        autofocus: true,
+        decoration: InputDecoration(
+          hintText: tr(context, 'monthly_budget_hint'),
+          prefixText: '৳ ',
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        if (widget.existing != null)
+          TextButton(
+            onPressed: () async {
+              await context
+                  .read<MoneyProvider>()
+                  .setMonthlyBudget(widget.monthKey, 0);
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: Text(
+              tr(context, 'monthly_budget_remove'),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr(context, 'cancel')),
+        ),
+        FilledButton(
+          onPressed: () async {
+            final v = double.tryParse(_ctrl.text.trim());
+            if (v == null || v <= 0) return;
+            await context
+                .read<MoneyProvider>()
+                .setMonthlyBudget(widget.monthKey, v);
+            if (context.mounted) Navigator.of(context).pop();
+          },
+          child: Text(tr(context, 'save')),
+        ),
+      ],
     );
   }
 }

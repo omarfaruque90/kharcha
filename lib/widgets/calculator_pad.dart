@@ -144,7 +144,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     // Brand accents that stay readable on both themes.
-    final accent = kEmerald;
+    const accent = kEmerald;
     final accentSoft = isDark ? kEmeraldLight : kEmeraldDark;
     final preview = _evaluate(_expr);
     return Container(

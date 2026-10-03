@@ -131,6 +131,25 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          Builder(
+            builder: (context) {
+              final key = monthKeyOf(DateTime.now());
+              final budget = money.monthlyBudgetFor(key);
+              if (budget == null || budget.limitAmount <= 0) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: StaggeredEntrance(
+                  delayMs: 300,
+                  child: _MonthlyBudgetProgress(
+                    spent: expenses.totalThisMonth(),
+                    limit: budget.limitAmount,
+                  ),
+                ),
+              );
+            },
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: Row(
@@ -375,6 +394,69 @@ class _BalanceCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Monthly budget progress bar on the home screen.
+/// Only rendered when the user has set an overall monthly budget.
+class _MonthlyBudgetProgress extends StatelessWidget {
+  final double spent;
+  final double limit;
+
+  const _MonthlyBudgetProgress({
+    required this.spent,
+    required this.limit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ratio = (spent / limit).clamp(0.0, 1.0);
+    final over = spent > limit;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.savings_outlined,
+                    size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    tr(context, 'monthly_budget'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${formatMoney(spent)} / ${formatMoney(limit)}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: over ? theme.colorScheme.error : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 8,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  over ? theme.colorScheme.error : theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

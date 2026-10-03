@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../models/category.dart';
 import '../models/recurring_expense.dart';
@@ -8,6 +9,7 @@ import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
+import '../widgets/payment_selector.dart';
 
 /// Recurring expense templates: CRUD + active toggle. Due templates are
 /// auto-added as real expenses by RecurringService on app start.
@@ -175,13 +177,6 @@ class _RecurringDialogState extends State<_RecurringDialog> {
   late String _paymentMethod;
   late bool _active;
 
-  static const List<String> _paymentMethods = [
-    'cash',
-    'bkash',
-    'card',
-    'other',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -267,48 +262,35 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                     setState(() => _categoryId = v ?? _categoryId),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: _day,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'recurring_day'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        for (var d = 1; d <= 31; d++)
-                          DropdownMenuItem(
-                            value: d,
-                            child: Text('$d'),
-                          ),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _day = v ?? _day),
+              DropdownButtonFormField<int>(
+                initialValue: _day,
+                decoration: InputDecoration(
+                  labelText: tr(context, 'recurring_day'),
+                  border: const OutlineInputBorder(),
+                ),
+                items: [
+                  for (var d = 1; d <= 31; d++)
+                    DropdownMenuItem(
+                      value: d,
+                      child: Text('$d'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _paymentMethod,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'payment_method'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        for (final m in _paymentMethods)
-                          DropdownMenuItem(
-                            value: m,
-                            child: Text(
-                                AppStrings.paymentName(m, lang)),
-                          ),
-                      ],
-                      onChanged: (v) => setState(
-                        () => _paymentMethod = v ?? _paymentMethod,
-                      ),
-                    ),
-                  ),
                 ],
+                onChanged: (v) =>
+                    setState(() => _day = v ?? _day),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  tr(context, 'payment_method'),
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              const SizedBox(height: 8),
+              PaymentSelector(
+                value: _paymentMethod,
+                onChanged: (v) =>
+                    setState(() => _paymentMethod = v),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -330,6 +312,16 @@ class _RecurringDialogState extends State<_RecurringDialog> {
             if (!_formKey.currentState!.validate()) return;
             final amount = double.parse(_amountCtrl.text.trim());
             final money = context.read<MoneyProvider>();
+            // Persist a custom "Other" payment label for reuse, mirroring
+            // the add-expense screen.
+            if (_paymentMethod.startsWith('other:')) {
+              final label =
+                  _paymentMethod.substring('other:'.length).trim();
+              if (label.isNotEmpty) {
+                await DatabaseHelper.instance
+                    .upsertCustomPaymentByLabel(label);
+              }
+            }
             final existing = widget.existing;
             if (existing == null) {
               await money.addRecurring(RecurringExpense(
