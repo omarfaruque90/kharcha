@@ -116,6 +116,7 @@ class ExpenseProvider extends ChangeNotifier {
     final ids = _expenses
         .where((e) => e.date.year == month.year && e.date.month == month.month)
         .map((e) => e.id)
+        .whereType<String>()
         .toList();
     for (final id in ids) {
       try {
@@ -136,6 +137,7 @@ class ExpenseProvider extends ChangeNotifier {
             e.date.year == month.year &&
             e.date.month == month.month)
         .map((e) => e.id)
+        .whereType<String>()
         .toList();
     for (final id in ids) {
       try {

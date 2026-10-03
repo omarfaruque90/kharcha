@@ -825,7 +825,7 @@ class AppStrings {
       'clear_cat_title': 'ক্যাটাগরি মুছবেন?',
       'clear_cat_msg': '"{c}"-এর {n}টি খরচ মুছে যাবে। ফিরিয়ে আনা যাবে না।',
       'clear_done': '{n}টি মুছে ফেলা হয়েছে।',
-      'clear_nothing': 'মোছার মতো কিছু নেই।'
+      'clear_nothing': 'মোছার মতো কিছু নেই।',
       'confirm': 'হ্যাঁ',
       'delete_title': 'খরচ মুছে ফেলবেন?',
       'delete_message': 'এই খরচটি স্থায়ীভাবে মুছে যাবে।',
