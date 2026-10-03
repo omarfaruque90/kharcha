@@ -110,6 +110,46 @@ class ExpenseProvider extends ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
   }
 
+  /// Deletes all expenses in [month]. Returns the count removed.
+  /// Used to clean up test/try entries from Reports.
+  Future<int> removeForMonth(DateTime month) async {
+    final ids = _expenses
+        .where((e) => e.date.year == month.year && e.date.month == month.month)
+        .map((e) => e.id)
+        .toList();
+    for (final id in ids) {
+      try {
+        await DatabaseHelper.instance.deleteExpense(id);
+      } catch (_) {}
+    }
+    _expenses.removeWhere((e) =>
+        e.date.year == month.year && e.date.month == month.month);
+    notifyListeners();
+    return ids.length;
+  }
+
+  /// Deletes all expenses of [categoryId] in [month]. Returns count removed.
+  Future<int> removeForCategoryMonth(String categoryId, DateTime month) async {
+    final ids = _expenses
+        .where((e) =>
+            e.categoryId == categoryId &&
+            e.date.year == month.year &&
+            e.date.month == month.month)
+        .map((e) => e.id)
+        .toList();
+    for (final id in ids) {
+      try {
+        await DatabaseHelper.instance.deleteExpense(id);
+      } catch (_) {}
+    }
+    _expenses.removeWhere((e) =>
+        e.categoryId == categoryId &&
+        e.date.year == month.year &&
+        e.date.month == month.month);
+    notifyListeners();
+    return ids.length;
+  }
+
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   double totalOn(DateTime day) {

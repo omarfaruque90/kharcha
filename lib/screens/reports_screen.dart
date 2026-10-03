@@ -41,6 +41,114 @@ class _ReportsScreenState extends State<ReportsScreen> {
     _selectedMonth = DateTime(now.year, now.month);
   }
 
+  /// Deletes all expenses of the selected month after double confirm.
+  /// For cleaning up test/try entries.
+  Future<void> _confirmClearMonth(BuildContext context) async {
+    final lang = context.read<SettingsProvider>().language;
+    final provider = context.read<ExpenseProvider>();
+    final count = provider.expenses
+        .where((e) =>
+            e.date.year == _selectedMonth.year &&
+            e.date.month == _selectedMonth.month)
+        .length;
+    if (count == 0) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'clear_nothing'))),
+        );
+      }
+      return;
+    }
+    final monthName = DateFormat.yMMM(lang == 'bn' ? 'bn' : 'en')
+        .format(_selectedMonth);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded,
+            color: Theme.of(dctx).colorScheme.error, size: 32),
+        title: Text(tr(dctx, 'clear_month_title')),
+        content: Text(
+          tr(dctx, 'clear_month_msg')
+              .replaceAll('{n}', '$count')
+              .replaceAll('{m}', monthName),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: Text(tr(dctx, 'cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dctx).colorScheme.error,
+              foregroundColor: Theme.of(dctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: Text(tr(dctx, 'delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final removed = await provider.removeForMonth(_selectedMonth);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr(context, 'clear_done')
+              .replaceAll('{n}', '$removed')),
+        ),
+      );
+    }
+  }
+
+  /// Deletes one category's expenses of the selected month after confirm.
+  Future<void> _confirmClearCategory(
+      BuildContext context, String categoryId) async {
+    final provider = context.read<ExpenseProvider>();
+    final name =
+        CustomCategoryRegistry.displayName(categoryId, context.read<SettingsProvider>().language);
+    final count = provider.expenses
+        .where((e) =>
+            e.categoryId == categoryId &&
+            e.date.year == _selectedMonth.year &&
+            e.date.month == _selectedMonth.month)
+        .length;
+    if (count == 0 || !context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'clear_cat_title')),
+        content: Text(tr(dctx, 'clear_cat_msg')
+            .replaceAll('{n}', '$count')
+            .replaceAll('{c}', name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: Text(tr(dctx, 'cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dctx).colorScheme.error,
+              foregroundColor: Theme.of(dctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: Text(tr(dctx, 'delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final removed =
+        await provider.removeForCategoryMonth(categoryId, _selectedMonth);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              tr(context, 'clear_done').replaceAll('{n}', '$removed')),
+        ),
+      );
+    }
+  }
+
   /// Package U: build year aggregates and open the shareable review card.
   void _showYearReview() {
     final expenses = context.read<ExpenseProvider>();
@@ -169,6 +277,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
               context,
               _selectedMonth,
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: tr(context, 'clear_data'),
+            onSelected: (v) {
+              if (v == 'clear_month') _confirmClearMonth(context);
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'clear_month',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_outlined,
+                        color: theme.colorScheme.error, size: 20),
+                    const SizedBox(width: 10),
+                    Text(tr(context, 'clear_month_data')),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -498,7 +626,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         child: Padding(
                           padding:
                               const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onLongPress: () => _confirmClearCategory(
+                                context, sortedCats[li].key),
+                            child: Row(
                             children: [
                               Container(
                                 width: 12,
@@ -528,6 +660,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 ),
                               ),
                             ],
+                          ),
                           ),
                         ),
                       ),
