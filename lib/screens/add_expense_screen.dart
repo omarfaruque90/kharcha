@@ -1086,14 +1086,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  /// 10.50 → "10.5", 10.05 stays "10.05".
-  String _trimDecimals(double value) {
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
-  }
-
   /// One category tile in the grid (built-in or user-created).
   Widget _categoryTile({
     required String label,

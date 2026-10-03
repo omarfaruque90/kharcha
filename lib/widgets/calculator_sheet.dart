@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../screens/add_expense_screen.dart';
 import '../widgets/calculator_pad.dart';
-import 'add_expense_screen.dart';
 
 /// Calculator as a bottom sheet (opened from home). The result can be
 /// sent straight to Add Expense.

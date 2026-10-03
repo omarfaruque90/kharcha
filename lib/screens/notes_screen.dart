@@ -66,7 +66,6 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _delete(Note note) async {
-    final lang = context.read<SettingsProvider>().language;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
@@ -92,7 +91,6 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<SettingsProvider>().language;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final filtered = _filtered;
     return Scaffold(
