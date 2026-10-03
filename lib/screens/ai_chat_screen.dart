@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/total_balance_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -33,6 +35,22 @@ class _Msg {
   const _Msg.ai(this.text)
       : isUser = false,
         imagePath = null;
+
+  /// Private on-device persistence: chat history stays exactly as texted
+  /// until the user manually clears it.
+  Map<String, dynamic> toJson() => {
+        't': text,
+        'u': isUser,
+        'i': imagePath,
+      };
+
+  factory _Msg.fromJson(Map<String, dynamic> j) => _Msg._(
+        j['t'] as String? ?? '',
+        j['u'] as bool? ?? false,
+        j['i'] as String?,
+      );
+
+  const _Msg._(this.text, this.isUser, this.imagePath);
 }
 
 /// On-device AI assistant chat (Package BD).
@@ -46,6 +64,9 @@ class AiChatScreen extends StatefulWidget {
 }
 
 class _AiChatScreenState extends State<AiChatScreen> {
+  /// Private on-device chat history key.
+  static const _kHistoryKey = 'ai_chat_history_v1';
+
   final TextEditingController _ctrl = TextEditingController();
   final ScrollController _scroll = ScrollController();
   final List<_Msg> _messages = [];
@@ -68,8 +89,49 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.add(_Msg.ai(AppStrings.get('ai_greeting', _lang)));
+    _loadHistory();
     _initLlm();
+  }
+
+  /// Loads saved chat history (private, on-device). Only the greeting is
+  /// added when there is no saved history.
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kHistoryKey);
+    if (!mounted) return;
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = (jsonDecode(raw) as List)
+            .map((e) => _Msg.fromJson(e as Map<String, dynamic>))
+            .toList();
+        setState(() {
+          _messages.addAll(list);
+          // Rebuild LLM context from saved text messages (no images).
+          for (final m in list) {
+            _llmHistory.add(m.isUser
+                ? LlmMessage.user(m.text)
+                : LlmMessage.assistant(m.text));
+          }
+        });
+        return;
+      } catch (_) {
+        // Corrupt history: fall through to fresh greeting.
+      }
+    }
+    setState(() {
+      _messages.add(_Msg.ai(AppStrings.get('ai_greeting', _lang)));
+    });
+  }
+
+  /// Persists chat history privately on-device after every change.
+  Future<void> _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Cap at 200 messages to keep storage light.
+    final keep = _messages.length > 200
+        ? _messages.sublist(_messages.length - 200)
+        : _messages;
+    await prefs.setString(
+        _kHistoryKey, jsonEncode(keep.map((m) => m.toJson()).toList()));
   }
 
   /// Checks for a configured LLM key; enables LLM mode when present.
@@ -170,6 +232,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _typing = false;
       _messages.add(_Msg.ai(reply));
     });
+    _saveHistory();
     _scrollToEnd();
   }
 
@@ -291,6 +354,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _typing = false;
       _messages.add(_Msg.ai(displayText));
     });
+    _saveHistory();
     _scrollToEnd();
   }
 
@@ -405,6 +469,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _messages.add(_Msg.user('', imagePath: file!.path));
       _typing = true;
     });
+    _saveHistory();
     _scrollToEnd();
 
     final addedTpl = tr(context, 'ai_bill_added');
@@ -455,13 +520,46 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _typing = false;
       _messages.add(_Msg.ai(reply));
     });
+    _saveHistory();
     _scrollToEnd();
+  }
+
+  /// Manual clear only: asks for confirmation, then wipes saved history.
+  Future<void> _confirmClearChat(BuildContext context) async {
+    final lang = _lang;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(AppStrings.get('ai_clear_title', lang)),
+        content: Text(AppStrings.get('ai_clear_msg', lang)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(AppStrings.get('cancel', lang)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(
+              AppStrings.get('clear', lang),
+              style: TextStyle(color: Theme.of(c).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kHistoryKey);
+    setState(() {
+      _messages.clear();
+      _llmHistory.clear();
+      _messages.add(_Msg.ai(AppStrings.get('ai_greeting', lang)));
+    });
   }
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients || !mounted) return;
-      _scroll.animateTo(
+      if (!_scroll.hasClients || !mounted) return;      _scroll.animateTo(
         _scroll.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
@@ -504,6 +602,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
           ],
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 22),
+            tooltip: 'Clear chat',
+            onPressed: () => _confirmClearChat(context),
+          ),
+        ],
       ),
       body: StaggeredEntrance(
         child: Column(
