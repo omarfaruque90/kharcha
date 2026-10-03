@@ -92,7 +92,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 icon: Icons.card_travel_outlined,
                 title: tr(context, 'project_empty'),
                 subtitle: tr(context, 'project_empty_sub'),
-                onAdd: () => _showProjectDialog(context, null),
               ),
             );
           }
@@ -660,15 +659,11 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final String? ctaLabel;
-  final VoidCallback onAdd;
 
   const _EmptyState({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.ctaLabel,
-    required this.onAdd,
   });
 
   @override
@@ -696,14 +691,7 @@ class _EmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            if (ctaLabel != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add),
-                label: Text(ctaLabel!),
-              ),
-            ],
+
           ],
         ),
       ),
