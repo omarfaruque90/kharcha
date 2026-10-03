@@ -79,6 +79,102 @@ class _CashScreenState extends State<CashScreen> {
     }
   }
 
+  /// Sets the wallet balance directly: inserts an adjustment entry
+  /// for the difference between the current and the entered balance.
+  Future<void> _openSetBalance() async {
+    final ctrl = TextEditingController(
+      text: _balance.truncateToDouble() == _balance
+          ? _balance.toStringAsFixed(0)
+          : _balance.toString(),
+    );
+    final formKey = GlobalKey<FormState>();
+    final newBalance = await showDialog<double>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'cash_set_balance')),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr(dctx, 'cash_current')
+                    .replaceAll('{amount}', formatMoney(_balance)),
+                style: Theme.of(dctx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(dctx).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: ctrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true),
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: tr(dctx, 'cash_new_balance'),
+                  border: const OutlineInputBorder(),
+                  prefixText: '৳ ',
+                ),
+                validator: (v) {
+                  final d = double.tryParse((v ?? '').trim());
+                  if (d == null || d < 0) {
+                    return tr(dctx, 'cash_invalid');
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            child: Text(tr(dctx, 'cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(dctx)
+                    .pop(double.parse(ctrl.text.trim()));
+              }
+            },
+            child: Text(tr(dctx, 'save')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (newBalance == null || !mounted) return;
+    final diff = newBalance - _balance;
+    if (diff.abs() < 0.005) return; // No change.
+    try {
+      await DatabaseHelper.instance.insertCashEntry(CashEntry(
+        id: CashEntry.newId(),
+        amount: diff.abs(),
+        type: diff > 0 ? 'in' : 'out',
+        date: DateTime.now(),
+        note: tr(context, 'cash_adjust_note'),
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'tpl_failed'))),
+        );
+      }
+      return;
+    }
+    await _reload();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr(context, 'cash_balance_set')
+              .replaceAll('{amount}', formatMoney(newBalance))),
+        ),
+      );
+    }
+  }
+
   void _confirmDelete(CashEntry entry) {
     showDialog(
       context: context,
@@ -184,15 +280,38 @@ class _CashScreenState extends State<CashScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 PressableScale(
-                                  child: FilledButton.icon(
-                                    onPressed: _openAddCash,
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: kGold,
-                                      foregroundColor: kDeepGreenDark,
-                                    ),
-                                    icon: const Icon(Icons.add),
-                                    label:
-                                        Text(tr(context, 'cash_add')),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: FilledButton.icon(
+                                          onPressed: _openAddCash,
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: kGold,
+                                            foregroundColor:
+                                                kDeepGreenDark,
+                                          ),
+                                          icon: const Icon(Icons.add),
+                                          label: Text(
+                                              tr(context, 'cash_add')),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: _openSetBalance,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: kGold,
+                                            side: const BorderSide(
+                                                color: kGold),
+                                          ),
+                                          icon: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 18),
+                                          label: Text(tr(context,
+                                              'cash_set_balance')),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
