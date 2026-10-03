@@ -439,7 +439,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             await DriveBackupService.setAutoEnabled(true);
             _driveAuto = true;
             _driveLast = await DriveBackupService.lastBackup();
-            if (mounted) setState(() {});
+            if (!mounted) return;
+            setState(() {});
             _snack(tr(context, 'drive_done'));
           } else {
             _snack(tr(context, 'drive_failed'));
@@ -461,12 +462,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final ok = await DriveBackupService.backupNow(interactive: true);
           if (!mounted) return;
           _driveLast = await DriveBackupService.lastBackup();
-          if (mounted) setState(() {});
+          if (!mounted) return;
+          setState(() {});
           _snack(tr(context, ok ? 'drive_done' : 'drive_failed'));
         } on DriveAuthException {
           if (!mounted) return;
           await DriveBackupService.setAutoEnabled(false);
-          if (mounted) setState(() => _driveAuto = false);
+          if (!mounted) return;
+          setState(() => _driveAuto = false);
           _snack(tr(context, 'drive_auth_failed'));
         }
       });
@@ -480,12 +483,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             return;
           }
           _driveLast = await DriveBackupService.lastBackup();
-          if (mounted) setState(() {});
+          if (!mounted) return;
+          setState(() {});
           _snack(tr(context, 'drive_restored').replaceAll('{n}', '$count'));
         } on DriveAuthException {
           if (!mounted) return;
           await DriveBackupService.setAutoEnabled(false);
-          if (mounted) setState(() => _driveAuto = false);
+          if (!mounted) return;
+          setState(() => _driveAuto = false);
           _snack(tr(context, 'drive_auth_failed'));
         }
       });

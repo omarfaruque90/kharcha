@@ -103,17 +103,6 @@ class _SalaryScreenState extends State<SalaryScreen> {
     }
   }
 
-  IconData _targetIcon(String type) {
-    switch (type) {
-      case 'savings':
-        return Icons.savings_outlined;
-      case 'wishlist':
-        return Icons.card_giftcard_outlined;
-      default:
-        return Icons.account_balance_wallet_outlined;
-    }
-  }
-
   Future<void> _openDialog([SalaryRule? existing]) async {
     final otherTotal = _rules
         .where((r) => r.id != existing?.id)
@@ -289,7 +278,8 @@ class _SettingsCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: day,
+              key: ValueKey(day),
+              initialValue: day,
               decoration: InputDecoration(
                 labelText: tr(context, 'salary_day'),
                 border: const OutlineInputBorder(),
@@ -516,12 +506,11 @@ class _SalaryRuleDialogState extends State<_SalaryRuleDialog> {
         updatedAt: DateTime.now(),
       ));
     }
-    if (context.mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr(context, 'msg_saved'))),
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(tr(context, 'msg_saved'))),
+    );
   }
 
   @override
@@ -567,7 +556,8 @@ class _SalaryRuleDialogState extends State<_SalaryRuleDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _type,
+                key: ValueKey(_type),
+                initialValue: _type,
                 decoration: InputDecoration(
                   labelText: tr(context, 'salary_target_type'),
                   border: const OutlineInputBorder(),
@@ -598,7 +588,10 @@ class _SalaryRuleDialogState extends State<_SalaryRuleDialog> {
                   )
                 else
                   DropdownButtonFormField<String>(
-                    value: goals.any((g) => g.id == _targetId)
+                    key: ValueKey(goals.any((g) => g.id == _targetId)
+                        ? _targetId
+                        : null),
+                    initialValue: goals.any((g) => g.id == _targetId)
                         ? _targetId
                         : null,
                     decoration: InputDecoration(
@@ -626,7 +619,11 @@ class _SalaryRuleDialogState extends State<_SalaryRuleDialog> {
                   )
                 else
                   DropdownButtonFormField<String>(
-                    value: widget.wishlistItems
+                    key: ValueKey(widget.wishlistItems
+                            .any((w) => w.id == _targetId)
+                        ? _targetId
+                        : null),
+                    initialValue: widget.wishlistItems
                             .any((w) => w.id == _targetId)
                         ? _targetId
                         : null,

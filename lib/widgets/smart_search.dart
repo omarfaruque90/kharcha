@@ -477,11 +477,10 @@ class _SmartSearchState extends State<SmartSearch> {
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
-
 /// Splits [text] into spans, wrapping every case-insensitive occurrence of
 /// [needle] in gold bold. Returns a single plain span when [needle] is empty
 /// or not found.

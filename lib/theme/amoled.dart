@@ -11,7 +11,6 @@ import 'package:kharcha/widgets/motion.dart';
 /// drives primary/filled-button/focused-input/selected-chip colors.
 ThemeData buildAmoledTheme(Color accent) {
   const deepGreenDark = Color(0xFF072A1F); // kDeepGreenDark in main.dart
-  final accentLight = Color.lerp(accent, Colors.white, 0.55)!;
   // Text/icon color on top of the accent: dark green on light accents
   // (gold), white on saturated ones. Matches the original gold behavior.
   final onAccent =
@@ -41,7 +40,6 @@ ThemeData buildAmoledTheme(Color accent) {
     scaffoldBackgroundColor: Colors.black,
     canvasColor: Colors.black,
     cardColor: Colors.black,
-    dialogBackgroundColor: Colors.black,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: FastPageTransitionsBuilder(),

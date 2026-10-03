@@ -78,6 +78,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
     nameCtrl.dispose();
     if (name == null || name.isEmpty) return;
+    if (!mounted) return;
 
     _snack(tr(context, 'lb_creating'));
     final code = await LeaderboardService.createBoard(name);
@@ -178,6 +179,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
     codeCtrl.dispose();
     if (code == null || code.trim().isEmpty) return;
+    if (!mounted) return;
 
     _snack(tr(context, 'lb_joining'));
     final ok = await LeaderboardService.joinBoard(code);

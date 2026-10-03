@@ -861,6 +861,7 @@ class _VoiceBudgetDialogState extends State<VoiceBudgetDialog> {
       }
       return;
     }
+    if (!mounted) return;
     final lang = context.read<SettingsProvider>().language;
     setState(() {
       _listening = true;
@@ -869,9 +870,11 @@ class _VoiceBudgetDialogState extends State<VoiceBudgetDialog> {
       _pickedCategoryId = null;
     });
     await _speech.listen(
-      localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
-      listenFor: const Duration(seconds: 12),
-      partialResults: true,
+      listenOptions: SpeechListenOptions(
+        localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
+        listenFor: const Duration(seconds: 12),
+        partialResults: true,
+      ),
       onResult: (r) {
         final words = r.recognizedWords.trim();
         if (!mounted || words.isEmpty) return;

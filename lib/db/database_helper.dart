@@ -1587,7 +1587,7 @@ class DatabaseHelper {
   }
 
   Future<int> updateChallenge(Challenge c) async {
-    return _updateRecord('challenges', c.toMap());
+    return _updateRecord('challenges', c.id ?? '', c.toMap());
   }
 
   Future<int> deleteChallenge(String id) async {
@@ -1673,7 +1673,7 @@ class DatabaseHelper {
       _insertRecord('shopping_items', i.toMap());
 
   Future<int> updateShoppingItem(ShoppingItem i) async =>
-      _updateRecord('shopping_items', i.toMap());
+      _updateRecord('shopping_items', i.id ?? '', i.toMap());
 
   Future<int> deleteShoppingItem(String id) async =>
       _deleteRecord('shopping_items', id);

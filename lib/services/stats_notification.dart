@@ -116,10 +116,10 @@ class StatsNotification {
           .replaceAll('{month}', formatMoney(month));
 
       await _plugin.show(
-        notifId,
-        title,
-        body,
-        const NotificationDetails(
+        id: notifId,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             channelId,
             'Khorcha Stats',

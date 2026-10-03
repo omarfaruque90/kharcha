@@ -31,7 +31,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   double get _amount => double.tryParse(_amountCtrl.text.trim()) ?? 0;
 
   double get _converted {
-    final rates = CurrencyService.rates;
+    const rates = CurrencyService.rates;
     final fromRate = rates[_from] ?? 1.0;
     final toRate = rates[_to] ?? 1.0;
     if (fromRate <= 0) return 0;
@@ -152,7 +152,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     String value,
     ValueChanged<String?> onChanged,
   ) {
-    final codes = CurrencyService.supported;
+    const codes = CurrencyService.supported;
     return DropdownButtonFormField<String>(
       initialValue: value,
       decoration: InputDecoration(

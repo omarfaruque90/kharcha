@@ -43,8 +43,9 @@ class ChallengeService {
   static Future<void> checkDaily() async {
     try {
       final db = DatabaseHelper.instance;
-      final Challenge? challenge = await db.getActiveChallenge();
-      if (challenge == null || !challenge.active) return;
+      final Challenge? fetched = await db.getActiveChallenge();
+      if (fetched == null || !fetched.active) return;
+      var challenge = fetched;
 
       final today = _dayOnly(DateTime.now());
       final startDay = _dayOnly(challenge.start);
@@ -52,7 +53,7 @@ class ChallengeService {
 
       // Window passed without reaching 7 → the challenge simply ends.
       if (today.isAfter(endDay)) {
-        challenge.active = false;
+        challenge = challenge.copyWith(active: false);
         await db.updateChallenge(challenge);
         await _saveLastResult(won: false, streak: challenge.streak);
         return;
@@ -99,13 +100,12 @@ class ChallengeService {
       await prefs.setString(_lastCheckKey, _key(today));
 
       if (streak >= 7) {
-        challenge.streak = 7;
-        challenge.active = false;
+        challenge = challenge.copyWith(streak: 7, active: false);
         await db.updateChallenge(challenge);
         await _saveLastResult(won: true, streak: 7);
         await _notifySuccess(today);
       } else if (streak != challenge.streak) {
-        challenge.streak = streak;
+        challenge = challenge.copyWith(streak: streak);
         await db.updateChallenge(challenge);
       }
     } catch (_) {

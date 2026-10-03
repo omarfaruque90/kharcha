@@ -38,6 +38,7 @@ import 'services/quick_add_notification.dart';
 import 'services/recurring_detect_service.dart';
 import 'services/recurring_service.dart';
 import 'services/salary_service.dart';
+import 'services/scheduled_export_service.dart';
 import 'services/sms_service.dart';
 import 'services/stats_notification.dart';
 import 'services/subscription_service.dart';
@@ -96,7 +97,7 @@ Future<void> _undoSmsExpense(String expenseId) async {
   try {
     await DatabaseHelper.instance.deleteExpense(expenseId);
     final ctx = appNavigatorKey.currentContext;
-    if (ctx != null) {
+    if (ctx != null && ctx.mounted) {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
             content:
@@ -119,7 +120,7 @@ Future<void> _showBillReminder(String reminderId) async {
       }
     }
     final ctx = appNavigatorKey.currentContext;
-    if (found == null || ctx == null) return;
+    if (found == null || ctx == null || !ctx.mounted) return;
     final r = found;
     showDialog(
       context: ctx,
@@ -163,7 +164,7 @@ Future<void> _maybeSuggestRecurring() async {
     if (candidates.isEmpty) return;
     await RecurringDetectService.markShown();
     final ctx = appNavigatorKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null || !ctx.mounted) return;
     final c = candidates.first;
     final create = await showDialog<bool>(
       context: ctx,

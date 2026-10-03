@@ -65,16 +65,13 @@ class QuickAddNotification {
       }
 
       await _plugin.show(
-        _notifId,
-        title,
-        body,
-        NotificationDetails(
+        id: _notifId,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             'Quick add',
-            description: bn
-                ? 'টেমপ্লেট থেকে এক ট্যাপে খরচ যোগ'
-                : 'One-tap expense entry from templates',
             importance: Importance.high,
             ongoing: true,
             showWhen: false,
@@ -188,10 +185,10 @@ class QuickAddNotification {
           await DatabaseHelper.instance.getSetting('language') ?? 'bn';
       final bn = lang == 'bn';
       await _plugin.show(
-        _confirmId,
-        bn ? 'যোগ হয়েছে ✓' : 'Added ✓',
-        '${_label(t)} — ৳${_amt(t.amount)}',
-        NotificationDetails(
+        id: _confirmId,
+        title: bn ? 'যোগ হয়েছে ✓' : 'Added ✓',
+        body: '${_label(t)} — ৳${_amt(t.amount)}',
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             'Quick add',

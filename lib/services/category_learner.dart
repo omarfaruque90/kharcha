@@ -36,7 +36,7 @@ class CategoryLearner {
     try {
       final tokens = tokenize(note);
       if (tokens.isEmpty) return null;
-      return DatabaseHelper.instance.suggestCategoryForWords(tokens);
+      return await DatabaseHelper.instance.suggestCategoryForWords(tokens);
     } catch (_) {
       return null;
     }

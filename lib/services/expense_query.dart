@@ -1,6 +1,6 @@
 import '../l10n/app_strings.dart';
-import 'category.dart';
-import 'custom_category.dart';
+import '../models/category.dart';
+import '../models/custom_category.dart';
 
 /// The structured meaning of a natural-language expense query.
 class ParsedQuery {

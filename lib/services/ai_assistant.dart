@@ -23,12 +23,12 @@ class AiAssistant {
     final q = input.toLowerCase().trim();
     if (q.isEmpty) return _t('ai_fallback', lang);
     try {
-      if (_isAdvice(q)) return _advice(lang);
-      if (_isSavings(q)) return _savings(lang);
-      if (_isBreakdown(q)) return _breakdown(lang);
-      if (_isComparison(q)) return _comparison(lang);
-      if (_isTop(q)) return _topExpenses(lang);
-      return _generic(input, lang);
+      if (_isAdvice(q)) return await _advice(lang);
+      if (_isSavings(q)) return await _savings(lang);
+      if (_isBreakdown(q)) return await _breakdown(lang);
+      if (_isComparison(q)) return await _comparison(lang);
+      if (_isTop(q)) return await _topExpenses(lang);
+      return await _generic(input, lang);
     } catch (_) {
       return _t('ai_fallback', lang);
     }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
@@ -31,8 +30,6 @@ class _Pin {
 }
 
 class _ExpenseMapScreenState extends State<ExpenseMapScreen> {
-  static const _dhaka = LatLng(23.8103, 90.4125);
-
   late final Future<List<_Pin>> _future = _loadPins();
 
   Future<List<_Pin>> _loadPins() async {

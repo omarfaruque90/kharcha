@@ -176,8 +176,8 @@ class _TemplateCard extends StatelessWidget {
     final total = budgets.fold<double>(
       0,
       (sum, item) =>
-          sum + ((item is Map ? item['amount'] : null) as num?)?.toDouble() ??
-          0,
+          sum + (((item is Map ? item['amount'] : null) as num?)?.toDouble() ??
+              0),
     );
 
     return PressableScale(

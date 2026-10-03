@@ -96,7 +96,7 @@ class _FuelScreenState extends State<FuelScreen> {
   }
 
   Future<void> _showAddDialog() async {
-    final dateCtrl = _DateField(initial: DateTime.now());
+    final dateCtrl = _DateField(date: DateTime.now());
     final litersCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final totalCtrl = TextEditingController();

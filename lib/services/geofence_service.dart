@@ -88,8 +88,10 @@ class GeofenceService {
       if (places.isEmpty) return;
       final prefs = await SharedPreferences.getInstance();
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low,
-        timeLimit: const Duration(seconds: 20),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 20),
+        ),
       );
       final lang =
           await DatabaseHelper.instance.getSetting('language') ?? 'bn';

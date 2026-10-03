@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../l10n/app_strings.dart';
@@ -94,8 +95,11 @@ class _VoiceReportScreenState extends State<VoiceReportScreen> {
     setState(() => _listening = true);
     try {
       await _speech.listen(
-        localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
-        listenFor: const Duration(seconds: 10),
+        listenOptions: SpeechListenOptions(
+          localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
+          listenFor: const Duration(seconds: 10),
+          partialResults: true,
+        ),
         onResult: _onSpeechResult,
       );
     } catch (_) {
@@ -277,9 +281,9 @@ class _VoiceReportScreenState extends State<VoiceReportScreen> {
                                     left: 48, bottom: 8, top: 4),
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   color: kGold,
-                                  borderRadius: const BorderRadius.only(
+                                  borderRadius: BorderRadius.only(
                                     topLeft: Radius.circular(18),
                                     topRight: Radius.circular(18),
                                     bottomLeft: Radius.circular(18),

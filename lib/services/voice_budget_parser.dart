@@ -99,7 +99,7 @@ class VoiceBudgetParser {
       found = true;
       if (v >= 100) {
         // Multiplier: "পাঁচ হাজার" -> (5 or 1) * 1000.
-        current = (current == 0 ? 1 : current) * v;
+        current = ((current == 0 ? 1 : current) * v).toDouble();
         total += current;
         current = 0;
       } else {

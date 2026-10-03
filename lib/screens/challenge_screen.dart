@@ -91,8 +91,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
         streak: 0,
         active: true,
       );
-      final id = await DatabaseHelper.instance.insertChallenge(challenge);
-      challenge.id = id;
+      await DatabaseHelper.instance.insertChallenge(challenge);
       await ChallengeService.checkDaily();
       await _load();
     } catch (_) {
@@ -126,8 +125,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            StaggeredEntrance(
-              child: const Text('🏆', style: TextStyle(fontSize: 72)),
+            const StaggeredEntrance(
+              child: Text('🏆', style: TextStyle(fontSize: 72)),
             ),
             const SizedBox(height: 16),
             StaggeredEntrance(

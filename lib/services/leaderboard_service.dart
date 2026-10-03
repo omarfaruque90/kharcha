@@ -45,9 +45,6 @@ class LeaderboardService {
         ),
       );
 
-  CollectionReference<Map<String, dynamic>> _boards() =>
-      _db.collection('leaderboards');
-
   /// Creates a board owned by the current user. Returns the 6-char code,
   /// or `''` when not signed in / on failure.
   static Future<String> createBoard(String name) async {

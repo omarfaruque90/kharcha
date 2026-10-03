@@ -224,11 +224,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pop(dctx);
                   if (p == current) return;
                   await DatabaseHelper.instance.setProfile(p);
-                  if (context.mounted) {
-                    await context.read<ExpenseProvider>().load();
-                    await context.read<MoneyProvider>().load();
-                    setState(() {});
-                  }
+                  if (!context.mounted) return;
+                  await context.read<ExpenseProvider>().load();
+                  if (!context.mounted) return;
+                  await context.read<MoneyProvider>().load();
+                  if (!context.mounted) return;
+                  setState(() {});
                 },
               ),
           ],

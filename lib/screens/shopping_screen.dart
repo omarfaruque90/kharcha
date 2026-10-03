@@ -82,10 +82,12 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       await DatabaseHelper.instance
           .updateShoppingItem(item.copyWith(done: true));
       await _reload();
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'shop_bought_toast'))),
       );
     } catch (_) {
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'tpl_failed'))),
       );

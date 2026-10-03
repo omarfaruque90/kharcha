@@ -390,7 +390,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         throw StateError('location permission denied');
       }
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.medium),
       );
       if (!mounted) return;
       setState(() {
@@ -465,10 +466,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       // Camera permission denied or picker unavailable.
       return;
     }
-    if (file == null || !mounted) return;
+    // Bind to a final so the null-promotion survives the setState closure.
+    final picked = file;
+    if (picked == null || !mounted) return;
     setState(() => _scanning = true);
     // Keep the photo as the receipt attachment too.
-    setState(() => _receiptPath = file.path);
+    setState(() => _receiptPath = picked.path);
     try {
       final result = await OcrService.scanBillAmount(file);
       if (!mounted) return;
@@ -787,7 +790,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             StaggeredEntrance(
               delayMs: 285,
               child: DropdownButtonFormField<String>(
-                value: _projectId,
+                key: ValueKey(_projectId),
+                initialValue: _projectId,
                 decoration: InputDecoration(
                   labelText: tr(context, 'project_label'),
                   border: const OutlineInputBorder(),

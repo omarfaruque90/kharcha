@@ -115,7 +115,7 @@ class SmsParser {
     final isDebit = debitWords.any(lower.contains);
     if (!isDebit) return null;
 
-    final has = (String s) => senderLower.contains(s) || lower.contains(s);
+    bool has(String s) => senderLower.contains(s) || lower.contains(s);
     String source;
     if (has('bkash') || RegExp(r'trx\s?id').hasMatch(lower)) {
       source = srcBkash;
