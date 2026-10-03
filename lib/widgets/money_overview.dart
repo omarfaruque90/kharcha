@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
+import '../models/cash_entry.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -145,6 +146,66 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     _load();
   }
 
+  Future<void> _editCash(BuildContext context, double current) async {
+    final ctrl = TextEditingController(
+      text: current.truncateToDouble() == current
+          ? current.toStringAsFixed(0)
+          : current.toString(),
+    );
+    final formKey = GlobalKey<FormState>();
+    final value = await showDialog<double>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'cash_set_balance')),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: ctrl,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: tr(dctx, 'cash_new_balance'),
+              border: const OutlineInputBorder(),
+              prefixText: '৳ ',
+            ),
+            validator: (v) {
+              final d = double.tryParse((v ?? '').trim());
+              if (d == null || d < 0) return tr(dctx, 'cash_invalid');
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            child: Text(tr(dctx, 'cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(dctx).pop(double.parse(ctrl.text.trim()));
+              }
+            },
+            child: Text(tr(dctx, 'save')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (value == null || !mounted) return;
+    final diff = value - current;
+    if (diff.abs() < 0.005) return;
+    await DatabaseHelper.instance.insertCashEntry(CashEntry(
+      id: CashEntry.newId(),
+      amount: diff.abs(),
+      type: diff > 0 ? 'in' : 'out',
+      note: tr(context, 'cash_adjust'),
+      date: DateTime.now(),
+    ));
+    _load();
+  }
+
   String _walletLabel(String id, String lang) {
     switch (id) {
       case 'bkash':
@@ -171,8 +232,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     final expenses = context.watch<ExpenseProvider>();
 
     final now = DateTime.now();
-    final dailyAvg =
-        now.day > 0 ? expenses.totalThisMonth() / now.day : 0.0;
 
     final mobileTotal = ['bkash', 'nagad', 'rocket', 'upay']
         .fold<double>(0, (s, id) => s + (_wallets[id] ?? 0));
@@ -211,7 +270,22 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   child: CircularProgressIndicator(),
                 ))
               else ...[
-                // Hand cash.
+                // Total assets at top.
+                Text(
+                  tr(context, 'money_total'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  formatMoney(total),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const Divider(height: 20),
+                // Hand cash (editable).
                 _row(
                   context,
                   icon: Icons.wallet_outlined,
@@ -219,6 +293,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   label: tr(context, 'cash_wallet'),
                   value: _cash,
                   theme: theme,
+                  onEdit: () => _editCash(context, _cash),
                 ),
                 // Mobile banking group (expandable).
                 InkWell(
@@ -308,58 +383,28 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   theme: theme,
                 ),
                 const Divider(height: 20),
+                // Today / this week / this month spending.
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        tr(context, 'money_total'),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
+                    _spentStat(
+                      context,
+                      theme: theme,
+                      label: tr(context, 'money_today'),
+                      value: expenses.totalOn(now),
                     ),
-                    Text(
-                      formatMoney(total),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
+                    _spentStat(
+                      context,
+                      theme: theme,
+                      label: tr(context, 'money_week'),
+                      value: expenses.totalThisWeek(),
+                    ),
+                    _spentStat(
+                      context,
+                      theme: theme,
+                      label: tr(context, 'money_month'),
+                      value: expenses.totalThisMonth(),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary
-                        .withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.today_outlined,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          tr(context, 'money_daily_avg'),
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      Text(
-                        '${formatMoney(dailyAvg)}${tr(context, 'per_day')}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ],
@@ -407,6 +452,35 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _spentStat(
+    BuildContext context, {
+    required ThemeData theme,
+    required String label,
+    required double value,
+  }) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            formatMoney(value),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.error,
+            ),
+          ),
         ],
       ),
     );
