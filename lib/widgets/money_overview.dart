@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
-import '../main.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -70,7 +69,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
   Future<void> _load() async {
     try {
       final db = DatabaseHelper.instance;
-      final cash = await db.getCashBalance();
       final wallets = await _readWallets();
       final debts = await db.getDebts();
       final lent = debts
