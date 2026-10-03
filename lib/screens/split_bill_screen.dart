@@ -525,8 +525,8 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
                   decoration: const InputDecoration(
                     labelText: '৳',
                     isDense: true,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),

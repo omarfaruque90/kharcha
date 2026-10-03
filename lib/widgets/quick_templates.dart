@@ -72,7 +72,7 @@ class _QuickTemplatesState extends State<QuickTemplates> {
           paymentMethod: t.payment.isEmpty ? 'cash' : t.payment,
         ),
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'tpl_added'))),
       );
