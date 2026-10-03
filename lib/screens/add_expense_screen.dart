@@ -163,6 +163,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final amount = double.parse(_amountCtrl.text.trim());
     final provider = context.read<ExpenseProvider>();
     final money = context.read<MoneyProvider>();
+    final totalBalance = context.read<TotalBalanceProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final db = DatabaseHelper.instance;
@@ -198,12 +199,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (!mounted) return;
       // Adjust wallets for the edit: refund the old, deduct the new.
       try {
-        final tb = context.read<TotalBalanceProvider>();
         final oldE = widget.expense;
         if (oldE != null) {
-          await tb.refundForExpense(
+          await totalBalance.refundForExpense(
               oldE.paymentMethod, oldE.bdtAmount ?? oldE.amount);
-          await tb.deductForExpense(
+          await totalBalance.deductForExpense(
               _payment,
               CurrencyService.toBdt(amount, _currency));
         }
@@ -234,9 +234,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       // Deduct from the matching wallet so total balance drops.
       try {
-        await context
-            .read<TotalBalanceProvider>()
-            .deductForExpense(_payment, bdt);
+        await totalBalance.deductForExpense(_payment, bdt);
       } catch (_) {}
       if (!mounted) return;
       // Fire-and-forget: budget near-limit / exceeded alerts.

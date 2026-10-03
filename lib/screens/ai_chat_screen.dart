@@ -159,6 +159,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final deletedTpl = tr(context, 'ai_deleted');
     final nothingTpl = tr(context, 'ai_nothing_to_delete');
     final failedTpl = tr(context, 'ai_action_failed');
+    final totalBalance = context.read<TotalBalanceProvider>();
     try {
       final expenses = context.read<ExpenseProvider>();
       final money = context.read<MoneyProvider>();
@@ -174,9 +175,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             bdtAmount: action.amount!,
           ));
           try {
-            await context
-                .read<TotalBalanceProvider>()
-                .deductForExpense('cash', action.amount!);
+            await totalBalance.deductForExpense('cash', action.amount!);
           } catch (_) {}
           return addedExpenseTpl
               .replaceAll('{amount}', formatMoney(action.amount!))
@@ -260,6 +259,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final noAmountTpl = tr(context, 'ai_bill_no_amount');
     final failedTpl = tr(context, 'ai_bill_failed');
     final expenses = context.read<ExpenseProvider>();
+    final totalBalance = context.read<TotalBalanceProvider>();
     String reply;
     try {
       final result = await OcrService.scanBillAmount(file);
@@ -286,9 +286,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
           receiptPath: file.path,
         ));
         try {
-          await context
-              .read<TotalBalanceProvider>()
-              .deductForExpense('cash', amount);
+          await totalBalance.deductForExpense('cash', amount);
         } catch (_) {}
         reply = addedTpl
             .replaceAll('{amount}', formatMoney(amount))
