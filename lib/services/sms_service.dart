@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
-import 'package:readsms/readsms.dart';
+import 'package:receive_sms/receive_sms.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
@@ -114,9 +114,9 @@ class SmsService {
   SmsService._();
   static final SmsService instance = SmsService._();
 
-  final Readsms _reader = Readsms();
+  final ReceiveSms _receiver = ReceiveSms();
   GlobalKey<NavigatorState>? _navKey;
-  StreamSubscription<SMS>? _sub;
+  StreamSubscription<SmsMessage>? _sub;
   bool _started = false;
   final Set<String> _seen = <String>{};
 
@@ -167,21 +167,21 @@ class SmsService {
     if (_started) return;
     _started = true;
     try {
-      _reader.read();
-      _sub = _reader.smsStream.listen(_onSms, onError: (_) {});
+      _sub = _receiver.incomingSmsStream.listen(_onSms, onError: (_) {});
     } catch (_) {
       _started = false;
     }
   }
 
-  Future<void> _onSms(SMS sms) async {
+  Future<void> _onSms(SmsMessage sms) async {
     try {
-      final fingerprint =
-          '${sms.sender}|${sms.body}|${sms.timeReceived.millisecondsSinceEpoch}';
+      final sender = sms.address ?? '';
+      final body = sms.body ?? '';
+      final fingerprint = '$sender|$body|${sms.timestamp}';
       if (!_seen.add(fingerprint)) return; // de-dupe double delivery
       if (_seen.length > 200) _seen.clear();
 
-      final parsed = SmsParser.parse(sms.sender, sms.body);
+      final parsed = SmsParser.parse(sender, body);
       if (parsed == null) return;
       final ctx = _navKey?.currentContext;
       if (ctx == null) return;
@@ -239,7 +239,7 @@ class SmsService {
 
   void dispose() {
     _sub?.cancel();
-    _reader.dispose();
+    _sub = null;
     _started = false;
   }
 }
