@@ -53,6 +53,8 @@ class AiAssistant {
       // Action intents first — the bot manages data like an assistant.
       final action = _parseAction(input, q, lang);
       if (action != null) return AiResponse('', action);
+      if (_isGreeting(q)) return AiResponse(_t('ai_greeting_reply', lang));
+      if (_isThanks(q)) return AiResponse(_t('ai_thanks_reply', lang));
       if (_isAdvice(q)) return AiResponse(await _advice(lang));
       if (_isSavings(q)) return AiResponse(await _savings(lang));
       if (_isBreakdown(q)) return AiResponse(await _breakdown(lang));
@@ -108,6 +110,15 @@ class AiAssistant {
   static bool _isTop(String q) => _has(q, const [
         'boro khoroch', 'বড় খরচ', 'বড়ো খরচ', 'সবচেয়ে বড়', 'biggest',
         'largest', 'top expense', 'top khoroch', 'সবচাইতে বড়',
+      ]);
+
+  static bool _isGreeting(String q) => _has(q, const [
+        'hello', 'hi', 'hey', 'সালাম', 'আসসালামু', 'আদাব', 'নমস্কার',
+        'good morning', 'good evening', 'শুভ',
+      ]) && q.length < 30;
+
+  static bool _isThanks(String q) => _has(q, const [
+        'thank', 'ধন্যবাদ', 'শুকরিয়া', 'thanks a lot',
       ]);
 
   // ------------------------------------------------------------------

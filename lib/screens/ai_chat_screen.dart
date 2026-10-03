@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -12,16 +15,21 @@ import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_assistant.dart';
+import '../services/ocr_service.dart';
+import '../services/voice_budget_parser.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
-/// One chat message.
+/// One chat message. [imagePath] is set for user-sent bill photos.
 class _Msg {
   final String text;
   final bool isUser;
+  final String? imagePath;
 
-  const _Msg.user(this.text) : isUser = true;
-  const _Msg.ai(this.text) : isUser = false;
+  const _Msg.user(this.text, {this.imagePath}) : isUser = true;
+  const _Msg.ai(this.text)
+      : isUser = false,
+        imagePath = null;
 }
 
 /// On-device AI assistant chat (Package BD).
@@ -141,7 +149,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   /// Runs a bot action and returns the confirmation message.
+  /// Localized templates are captured before any await so the context
+  /// is never used across an async gap.
   Future<String> _runAction(AiAction action, String lang) async {
+    final addedExpenseTpl = tr(context, 'ai_added_expense');
+    final addedIncomeTpl = tr(context, 'ai_added_income');
+    final budgetSetTpl = tr(context, 'ai_budget_set');
+    final deletedTpl = tr(context, 'ai_deleted');
+    final nothingTpl = tr(context, 'ai_nothing_to_delete');
+    final failedTpl = tr(context, 'ai_action_failed');
     try {
       final expenses = context.read<ExpenseProvider>();
       final money = context.read<MoneyProvider>();
@@ -156,7 +172,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             currency: 'BDT',
             bdtAmount: action.amount!,
           ));
-          return tr(context, 'ai_added_expense')
+          return addedExpenseTpl
               .replaceAll('{amount}', formatMoney(action.amount!))
               .replaceAll('{cat}', CustomCategoryRegistry.displayName(
                   action.categoryId ?? 'others', lang));
@@ -167,7 +183,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             date: DateTime.now(),
             note: action.note ?? '',
           ));
-          return tr(context, 'ai_added_income')
+          return addedIncomeTpl
               .replaceAll('{amount}', formatMoney(action.amount!));
         case 'set_budget':
           await money.upsertBudget(Budget(
@@ -175,20 +191,109 @@ class _AiChatScreenState extends State<AiChatScreen> {
             monthKey: monthKeyOf(DateTime.now()),
             limitAmount: action.amount!,
           ));
-          return tr(context, 'ai_budget_set')
+          return budgetSetTpl
               .replaceAll('{cat}', CustomCategoryRegistry.displayName(
                   action.categoryId ?? 'others', lang))
               .replaceAll('{amount}', formatMoney(action.amount!));
         case 'delete_last':
           final all = expenses.expenses;
-          if (all.isEmpty) return tr(context, 'ai_nothing_to_delete');
+          if (all.isEmpty) return nothingTpl;
           final last = all.first;
           await expenses.remove(last.id!);
-          return tr(context, 'ai_deleted')
+          return deletedTpl
               .replaceAll('{amount}', formatMoney(last.bdtAmount ?? last.amount));
       }
     } catch (_) {}
-    return tr(context, 'ai_action_failed');
+    return failedTpl;
+  }
+
+  /// Bill scan: camera/gallery → OCR → auto-add expense.
+  /// The bot talks through it like an assistant would.
+  Future<void> _pickBill() async {
+    final lang = _lang;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(tr(sheetCtx, 'bill_camera')),
+              onTap: () => Navigator.pop(sheetCtx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(tr(sheetCtx, 'bill_gallery')),
+              onTap: () => Navigator.pop(sheetCtx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    XFile? file;
+    try {
+      file = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+    } catch (_) {}
+    if (file == null || !mounted) return;
+
+    // Show the bill in chat, then "think" while scanning.
+    setState(() {
+      _messages.add(_Msg.user('', imagePath: file!.path));
+      _typing = true;
+    });
+    _scrollToEnd();
+
+    final addedTpl = tr(context, 'ai_bill_added');
+    final noAmountTpl = tr(context, 'ai_bill_no_amount');
+    final failedTpl = tr(context, 'ai_bill_failed');
+    String reply;
+    try {
+      final result = await OcrService.scanBillAmount(file);
+      final amount = result?['amount'] as double?;
+      final rawText = (result?['rawText'] as String?) ?? '';
+      if (amount != null && amount > 0) {
+        // Guess category from the bill text.
+        final parsed =
+            VoiceBudgetParser.parse(rawText, lang);
+        final categoryId = parsed.categoryId ?? 'others';
+        // Merchant: first non-empty line, trimmed to something readable.
+        final merchant = rawText
+            .split('\n')
+            .map((l) => l.trim())
+            .firstWhere((l) => l.length >= 3, orElse: () => '');
+        await context.read<ExpenseProvider>().add(Expense(
+          amount: amount,
+          categoryId: categoryId,
+          date: DateTime.now(),
+          note: merchant.isEmpty ? 'Bill scan' : 'Bill: $merchant',
+          paymentMethod: 'cash',
+          currency: 'BDT',
+          bdtAmount: amount,
+          receiptPath: file.path,
+        ));
+        reply = addedTpl
+            .replaceAll('{amount}', formatMoney(amount))
+            .replaceAll('{cat}', CustomCategoryRegistry.displayName(
+                categoryId, lang));
+      } else {
+        reply = noAmountTpl;
+      }
+    } catch (_) {
+      reply = failedTpl;
+    }
+    if (!mounted) return;
+    setState(() {
+      _typing = false;
+      _messages.add(_Msg.ai(reply));
+    });
+    _scrollToEnd();
   }
 
   void _scrollToEnd() {
@@ -249,15 +354,24 @@ class _AiChatScreenState extends State<AiChatScreen> {
                           bottomRight: Radius.circular(m.isUser ? 4 : 18),
                         ),
                       ),
-                      child: Text(
-                        m.text,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: m.isUser
-                              ? const Color(0xFF072A1F)
-                              : theme.colorScheme.onSurface,
-                          height: 1.4,
-                        ),
-                      ),
+                      child: m.imagePath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                File(m.imagePath!),
+                                width: 200,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Text(
+                              m.text,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: m.isUser
+                                    ? const Color(0xFF072A1F)
+                                    : theme.colorScheme.onSurface,
+                                height: 1.4,
+                              ),
+                            ),
                     ),
                   );
                 },
@@ -288,6 +402,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Row(
                   children: [
+                    // Bill scan: camera / gallery.
+                    IconButton(
+                      icon: Icon(
+                        Icons.photo_camera_outlined,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      tooltip: tr(context, 'bill_scan'),
+                      onPressed: _pickBill,
+                    ),
                     Expanded(
                       child: TextField(
                         controller: _ctrl,
