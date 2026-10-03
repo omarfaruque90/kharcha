@@ -29,13 +29,24 @@ class ExpenseProvider extends ChangeNotifier {
     _expenses
       ..clear()
       ..addAll(items);
+    _dedupeById();
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Safety net: the same id must never appear twice in memory.
+  /// If it does, totals would double-count and a single delete would
+  /// wipe both rows from the UI. Keeps the first occurrence.
+  void _dedupeById() {
+    final seen = <String?>{};
+    _expenses.retainWhere((e) => seen.add(e.id));
   }
 
   Future<void> add(Expense expense) async {
     final id = await DatabaseHelper.instance.insertExpense(expense);
     final saved = expense.copyWith(id: id);
+    // Never hold the same id twice (double-tap / race safety).
+    _expenses.removeWhere((e) => e.id == id);
     _expenses.add(saved);
     _sort();
     notifyListeners();
@@ -75,6 +86,7 @@ class ExpenseProvider extends ChangeNotifier {
     _expenses
       ..clear()
       ..addAll(expenses);
+    _dedupeById();
     _sort();
     _loaded = true;
     notifyListeners();
