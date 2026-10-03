@@ -60,7 +60,7 @@ class _QuickTemplatesState extends State<QuickTemplates> {
   void _notifyChanged() => widget.onChanged?.call();
 
   /// Guards against double-tap creating duplicate expenses.
-  final Set<String> _applying = {};
+  final Set<String?> _applying = {};
 
   /// One-tap add: logs the expense instantly, no form.
   Future<void> _applyTemplate(ExpenseTemplate t) async {
