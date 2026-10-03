@@ -253,6 +253,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final addedTpl = tr(context, 'ai_bill_added');
     final noAmountTpl = tr(context, 'ai_bill_no_amount');
     final failedTpl = tr(context, 'ai_bill_failed');
+    final expenses = context.read<ExpenseProvider>();
     String reply;
     try {
       final result = await OcrService.scanBillAmount(file);
@@ -268,7 +269,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             .split('\n')
             .map((l) => l.trim())
             .firstWhere((l) => l.length >= 3, orElse: () => '');
-        await context.read<ExpenseProvider>().add(Expense(
+        await expenses.add(Expense(
           amount: amount,
           categoryId: categoryId,
           date: DateTime.now(),
