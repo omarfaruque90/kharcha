@@ -16,6 +16,7 @@ import '../models/expense.dart';
 import '../models/project.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
+import '../providers/total_balance_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/category_learner.dart';
 import '../services/currency_service.dart';
@@ -195,11 +196,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       await provider.update(updated);
       if (!mounted) return;
+      // Adjust wallets for the edit: refund the old, deduct the new.
+      try {
+        final tb = context.read<TotalBalanceProvider>();
+        final oldE = widget.expense;
+        if (oldE != null) {
+          await tb.refundForExpense(
+              oldE.paymentMethod, oldE.bdtAmount ?? oldE.amount);
+          await tb.deductForExpense(
+              _payment,
+              CurrencyService.toBdt(amount, _currency));
+        }
+      } catch (_) {}
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(AppStrings.get('msg_updated', lang))),
       );
       navigator.pop();
     } else {
+      final bdt = CurrencyService.toBdt(amount, _currency);
       await provider.add(
         Expense(
           amount: amount,
@@ -210,13 +225,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           place: null,
           receiptPath: _receiptPath,
           currency: _currency,
-          bdtAmount: CurrencyService.toBdt(amount, _currency),
+          bdtAmount: bdt,
           mood: _mood,
           projectId: _projectId,
           lat: _lat,
           lng: _lng,
         ),
       );
+      // Deduct from the matching wallet so total balance drops.
+      try {
+        await context
+            .read<TotalBalanceProvider>()
+            .deductForExpense(_payment, bdt);
+      } catch (_) {}
       if (!mounted) return;
       // Fire-and-forget: budget near-limit / exceeded alerts.
       unawaited(_checkBudgetAlerts(

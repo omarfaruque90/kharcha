@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../providers/total_balance_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../l10n/app_strings.dart';
@@ -172,6 +173,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
             currency: 'BDT',
             bdtAmount: action.amount!,
           ));
+          try {
+            await context
+                .read<TotalBalanceProvider>()
+                .deductForExpense('cash', action.amount!);
+          } catch (_) {}
           return addedExpenseTpl
               .replaceAll('{amount}', formatMoney(action.amount!))
               .replaceAll('{cat}', CustomCategoryRegistry.displayName(
@@ -279,6 +285,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
           bdtAmount: amount,
           receiptPath: file.path,
         ));
+        try {
+          await context
+              .read<TotalBalanceProvider>()
+              .deductForExpense('cash', amount);
+        } catch (_) {}
         reply = addedTpl
             .replaceAll('{amount}', formatMoney(amount))
             .replaceAll('{cat}', CustomCategoryRegistry.displayName(

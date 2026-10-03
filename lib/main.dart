@@ -196,6 +196,7 @@ Future<void> main() async {
   final expenses = ExpenseProvider();
   final money = MoneyProvider();
   final totalBalance = TotalBalanceProvider();
+  expenses.totalBalance = totalBalance;
   // First frame NOW — the remaining boot work continues in the background
   // so the app opens instantly instead of blocking on services.
   runApp(

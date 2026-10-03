@@ -105,4 +105,75 @@ class TotalBalanceProvider extends ChangeNotifier {
   }
 
   Future<void> refresh() => load();
+
+  /// Maps an expense payment method to a wallet id.
+  /// Returns 'cash' for hand cash, a wallet id, or null if unmapped.
+  static String? walletForPayment(String pm) {
+    if (pm == 'cash') return 'cash';
+    if (pm == 'bkash') return 'bkash';
+    if (pm.startsWith('mobile_banking:')) {
+      switch (pm.split(':').last.toLowerCase()) {
+        case 'bkash':
+          return 'bkash';
+        case 'nagad':
+          return 'nagad';
+        case 'rocket':
+          return 'rocket';
+        case 'upay':
+          return 'upay';
+      }
+      return null;
+    }
+    if (pm == 'card') return 'card';
+    if (pm == 'other' || pm.startsWith('other:')) return 'bank';
+    return null;
+  }
+
+  /// Deducts an expense amount from the matching wallet.
+  Future<void> deductForExpense(
+      String paymentMethod, double amount) async {
+    final w = walletForPayment(paymentMethod);
+    if (w == null || amount <= 0) return;
+    try {
+      if (w == 'cash') {
+        await DatabaseHelper.instance.insertCashEntry(CashEntry(
+          id: CashEntry.newId(),
+          amount: amount,
+          type: 'out',
+          note: 'expense',
+          date: DateTime.now(),
+        ));
+        _cash = await DatabaseHelper.instance.getCashBalance();
+      } else {
+        _wallets[w] = (_wallets[w] ?? 0) - amount;
+        await DatabaseHelper.instance
+            .setSetting('wallet_balances', jsonEncode(_wallets));
+      }
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Refunds a deleted expense amount back to the matching wallet.
+  Future<void> refundForExpense(
+      String paymentMethod, double amount) async {
+    final w = walletForPayment(paymentMethod);
+    if (w == null || amount <= 0) return;
+    try {
+      if (w == 'cash') {
+        await DatabaseHelper.instance.insertCashEntry(CashEntry(
+          id: CashEntry.newId(),
+          amount: amount,
+          type: 'in',
+          note: 'refund',
+          date: DateTime.now(),
+        ));
+        _cash = await DatabaseHelper.instance.getCashBalance();
+      } else {
+        _wallets[w] = (_wallets[w] ?? 0) + amount;
+        await DatabaseHelper.instance
+            .setSetting('wallet_balances', jsonEncode(_wallets));
+      }
+    } catch (_) {}
+    notifyListeners();
+  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../db/database_helper.dart';
 import '../models/cash_entry.dart';
 import '../models/expense.dart';
+import 'total_balance_provider.dart';
 import '../services/anomaly_service.dart';
 import '../services/category_learner.dart';
 import '../services/daily_limit_service.dart';
@@ -20,6 +21,9 @@ class MonthlyTotal {
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
   bool _loaded = false;
+
+  /// Set by main.dart so wallet refunds stay in sync on delete.
+  TotalBalanceProvider? totalBalance;
 
   List<Expense> get expenses => List.unmodifiable(_expenses);
   bool get isLoaded => _loaded;
@@ -104,16 +108,14 @@ class ExpenseProvider extends ChangeNotifier {
     await DatabaseHelper.instance.deleteExpense(id);
     _expenses.removeWhere((e) => e.id == id);
     notifyListeners();
-    // Package AL: refund a removed cash expense back into the cash ledger.
-    if (removed != null && removed.paymentMethod == 'cash') {
+    // Refund the removed expense back to its wallet so the total
+    // balance stays correct (add deducts, delete refunds).
+    if (removed != null) {
       try {
-        await DatabaseHelper.instance.insertCashEntry(CashEntry(
-          id: CashEntry.newId(),
-          amount: removed.bdtAmount ?? removed.amount,
-          type: 'in',
-          date: DateTime.now(),
-          note: removed.note,
-        ));
+        await totalBalance?.refundForExpense(
+          removed.paymentMethod,
+          removed.bdtAmount ?? removed.amount,
+        );
       } catch (_) {}
     }
   }
