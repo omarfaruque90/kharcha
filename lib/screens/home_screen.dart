@@ -6,6 +6,7 @@ import '../main.dart';
 import '../db/database_helper.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
+import '../providers/total_balance_provider.dart';
 import '../services/notification_center.dart';
 import '../utils/formatters.dart';
 import '../widgets/hero_balance_card.dart';
@@ -97,8 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
 
     final monthKey = monthKeyOf(DateTime.now());
-    final balance =
-        money.incomeForMonth(monthKey) - expenses.totalThisMonth();
+    final balance = context.watch<TotalBalanceProvider>().total;
     final budget = money.monthlyBudgetFor(monthKey);
 
     return Scaffold(

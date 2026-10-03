@@ -16,6 +16,7 @@ import 'theme/amoled.dart';
 import 'utils/formatters.dart';
 import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/total_balance_provider.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/history_screen.dart';
@@ -194,6 +195,7 @@ Future<void> main() async {
   ]);
   final expenses = ExpenseProvider();
   final money = MoneyProvider();
+  final totalBalance = TotalBalanceProvider();
   // First frame NOW — the remaining boot work continues in the background
   // so the app opens instantly instead of blocking on services.
   runApp(
@@ -202,11 +204,13 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: expenses),
         ChangeNotifierProvider.value(value: money),
+        ChangeNotifierProvider.value(value: totalBalance),
       ],
       child: const KharchaApp(),
     ),
   );
   unawaited(_finishBootInBackground(expenses, money));
+  unawaited(totalBalance.load());
 }
 
 /// Completes startup work without blocking the UI. Everything is

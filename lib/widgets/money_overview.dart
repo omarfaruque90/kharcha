@@ -1,19 +1,13 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
-import '../models/cash_entry.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/total_balance_provider.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
-
-/// Wallet ids for the money overview (besides hand cash + lent).
-const _walletIds = ['bkash', 'nagad', 'rocket', 'upay', 'card', 'bank'];
 
 /// Brand-ish colors for mobile banking wallets.
 const _walletColors = {
@@ -26,8 +20,8 @@ const _walletColors = {
 };
 
 /// "My Money" overview: hand cash + mobile banking (bKash/Nagad/Rocket/Upay)
-/// + card + other bank + lent out = total assets, plus daily average.
-/// Shown on home.
+/// + card + other bank + lent out = total assets, plus today/week/month
+/// spending. Reads from [TotalBalanceProvider] so the home hero agrees.
 class MoneyOverviewCard extends StatefulWidget {
   const MoneyOverviewCard({super.key});
 
@@ -36,63 +30,10 @@ class MoneyOverviewCard extends StatefulWidget {
 }
 
 class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
-  double _cash = 0;
-  Map<String, double> _wallets = {};
-  double _lent = 0;
-  bool _loading = true;
   bool _mobileExpanded = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<Map<String, double>> _readWallets() async {
-    final db = DatabaseHelper.instance;
-    final out = {for (final id in _walletIds) id: 0.0};
-    try {
-      final raw = await db.getSetting('wallet_balances');
-      if (raw != null && raw.isNotEmpty) {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        for (final id in _walletIds) {
-          final v = map[id];
-          if (v is num) out[id] = v.toDouble();
-        }
-      } else {
-        // Migrate the old single bank_balance value.
-        final old = await db.getSetting('bank_balance');
-        final v = double.tryParse(old ?? '');
-        if (v != null) out['bank'] = v;
-      }
-    } catch (_) {}
-    return out;
-  }
-
-  Future<void> _load() async {
-    try {
-      final db = DatabaseHelper.instance;
-      final cash = await db.getCashBalance();
-      final wallets = await _readWallets();
-      final debts = await db.getDebts();
-      final lent = debts
-          .where((d) => d.kind == 'lent' && !d.settled)
-          .fold<double>(0, (s, d) => s + d.amount);
-      if (mounted) {
-        setState(() {
-          _cash = cash;
-          _wallets = wallets;
-          _lent = lent;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _editWallet(String id, String label) async {
-    final current = _wallets[id] ?? 0;
+  Future<double?> _askAmount(
+      BuildContext context, String title, String hint, double current) async {
     final ctrl = TextEditingController(
       text: current.truncateToDouble() == current
           ? current.toStringAsFixed(0)
@@ -102,7 +43,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     final value = await showDialog<double>(
       context: context,
       builder: (dctx) => AlertDialog(
-        title: Text(label),
+        title: Text(title),
         content: Form(
           key: formKey,
           child: TextFormField(
@@ -111,7 +52,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                 const TextInputType.numberWithOptions(decimal: true),
             autofocus: true,
             decoration: InputDecoration(
-              labelText: tr(dctx, 'wallet_balance_hint'),
+              labelText: hint,
               border: const OutlineInputBorder(),
               prefixText: '৳ ',
             ),
@@ -139,76 +80,10 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
       ),
     );
     ctrl.dispose();
-    if (value == null || !mounted) return;
-    final updated = Map<String, double>.from(_wallets)..[id] = value;
-    await DatabaseHelper.instance
-        .setSetting('wallet_balances', jsonEncode(updated));
-    _load();
+    return value;
   }
 
-  /// Sets hand-cash via a ledger adjustment entry.
-  Future<void> _editCash(BuildContext context, double current) async {
-    final adjustNote = tr(context, 'cash_adjust');
-    final ctrl = TextEditingController(
-      text: current.truncateToDouble() == current
-          ? current.toStringAsFixed(0)
-          : current.toString(),
-    );
-    final formKey = GlobalKey<FormState>();
-    final value = await showDialog<double>(
-      context: context,
-      builder: (dctx) => AlertDialog(
-        title: Text(tr(dctx, 'cash_set_balance')),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: ctrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: tr(dctx, 'cash_new_balance'),
-              border: const OutlineInputBorder(),
-              prefixText: '৳ ',
-            ),
-            validator: (v) {
-              final d = double.tryParse((v ?? '').trim());
-              if (d == null || d < 0) return tr(dctx, 'cash_invalid');
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: Text(tr(dctx, 'cancel')),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.of(dctx).pop(double.parse(ctrl.text.trim()));
-              }
-            },
-            child: Text(tr(dctx, 'save')),
-          ),
-        ],
-      ),
-    );
-    ctrl.dispose();
-    if (value == null || !mounted) return;
-    final diff = value - current;
-    if (diff.abs() < 0.005) return;
-    await DatabaseHelper.instance.insertCashEntry(CashEntry(
-      id: CashEntry.newId(),
-      amount: diff.abs(),
-      type: diff > 0 ? 'in' : 'out',
-      note: adjustNote,
-      date: DateTime.now(),
-    ));
-    _load();
-  }
-
-  String _walletLabel(String id, String lang) {
+  String _walletLabel(BuildContext context, String id) {
     switch (id) {
       case 'bkash':
         return 'bKash';
@@ -229,16 +104,13 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<SettingsProvider>().language;
     final theme = Theme.of(context);
     final expenses = context.watch<ExpenseProvider>();
+    final tb = context.watch<TotalBalanceProvider>();
 
     final now = DateTime.now();
-
     final mobileTotal = ['bkash', 'nagad', 'rocket', 'upay']
-        .fold<double>(0, (s, id) => s + (_wallets[id] ?? 0));
-    final total = _cash +
-        mobileTotal + (_wallets['card'] ?? 0) + (_wallets['bank'] ?? 0) + _lent;
+        .fold<double>(0, (s, id) => s + tb.walletOf(id));
 
     return StaggeredEntrance(
       child: Card(
@@ -260,12 +132,13 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   IconButton(
                     icon: const Icon(Icons.refresh_outlined, size: 20),
                     tooltip: tr(context, 'refresh'),
-                    onPressed: _load,
+                    onPressed: () =>
+                        context.read<TotalBalanceProvider>().refresh(),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              if (_loading)
+              if (!tb.isLoaded)
                 const Center(
                     child: Padding(
                   padding: EdgeInsets.all(16),
@@ -280,7 +153,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   ),
                 ),
                 Text(
-                  formatMoney(total),
+                  formatMoney(tb.total),
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
@@ -293,11 +166,20 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   icon: Icons.wallet_outlined,
                   iconColor: kGold,
                   label: tr(context, 'cash_wallet'),
-                  value: _cash,
+                  value: tb.cash,
                   theme: theme,
-                  onEdit: () => _editCash(context, _cash),
+                  onEdit: () async {
+                    final v = await _askAmount(
+                      context,
+                      tr(context, 'cash_set_balance'),
+                      tr(context, 'cash_new_balance'),
+                      tb.cash,
+                    );
+                    if (v != null && context.mounted) {
+                      await context.read<TotalBalanceProvider>().setCash(v);
+                    }
+                  },
                 ),
-                // Mobile banking group (expandable).
                 // Mobile banking group (expandable).
                 InkWell(
                   onTap: () =>
@@ -346,11 +228,22 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                             icon: Icons.circle,
                             iconColor: _walletColors[id],
                             iconSize: 10,
-                            label: _walletLabel(id, lang),
-                            value: _wallets[id] ?? 0,
+                            label: _walletLabel(context, id),
+                            value: tb.walletOf(id),
                             theme: theme,
-                            onEdit: () =>
-                                _editWallet(id, _walletLabel(id, lang)),
+                            onEdit: () async {
+                              final v = await _askAmount(
+                                context,
+                                _walletLabel(context, id),
+                                tr(context, 'wallet_balance_hint'),
+                                tb.walletOf(id),
+                              );
+                              if (v != null && context.mounted) {
+                                await context
+                                    .read<TotalBalanceProvider>()
+                                    .setWallet(id, v);
+                              }
+                            },
                           ),
                       ],
                     ),
@@ -360,29 +253,51 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   context,
                   icon: Icons.credit_card_outlined,
                   iconColor: _walletColors['card'],
-                  label: _walletLabel('card', lang),
-                  value: _wallets['card'] ?? 0,
+                  label: _walletLabel(context, 'card'),
+                  value: tb.walletOf('card'),
                   theme: theme,
-                  onEdit: () =>
-                      _editWallet('card', _walletLabel('card', lang)),
+                  onEdit: () async {
+                    final v = await _askAmount(
+                      context,
+                      _walletLabel(context, 'card'),
+                      tr(context, 'wallet_balance_hint'),
+                      tb.walletOf('card'),
+                    );
+                    if (v != null && context.mounted) {
+                      await context
+                          .read<TotalBalanceProvider>()
+                          .setWallet('card', v);
+                    }
+                  },
                 ),
                 // Other bank.
                 _row(
                   context,
                   icon: Icons.account_balance_outlined,
                   iconColor: _walletColors['bank'],
-                  label: _walletLabel('bank', lang),
-                  value: _wallets['bank'] ?? 0,
+                  label: _walletLabel(context, 'bank'),
+                  value: tb.walletOf('bank'),
                   theme: theme,
-                  onEdit: () =>
-                      _editWallet('bank', _walletLabel('bank', lang)),
+                  onEdit: () async {
+                    final v = await _askAmount(
+                      context,
+                      _walletLabel(context, 'bank'),
+                      tr(context, 'wallet_balance_hint'),
+                      tb.walletOf('bank'),
+                    );
+                    if (v != null && context.mounted) {
+                      await context
+                          .read<TotalBalanceProvider>()
+                          .setWallet('bank', v);
+                    }
+                  },
                 ),
-                // Lent out.
+                // Lent out (auto from debts).
                 _row(
                   context,
                   icon: Icons.handshake_outlined,
                   label: tr(context, 'money_lent_out'),
-                  value: _lent,
+                  value: tb.lentOut,
                   theme: theme,
                 ),
                 const Divider(height: 20),

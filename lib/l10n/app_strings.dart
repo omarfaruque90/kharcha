@@ -227,7 +227,7 @@ class AppStrings {
       'delete_reminder_title': 'Delete reminder?',
       'delete_confirm_msg': 'This will be permanently deleted.',
       'err_title_empty': 'Please enter a title',
-      'balance_title': 'Balance',
+      'balance_title': 'Total Balance',
       'money_tools': 'Money tools',
       // v4 — system features (notifications, SMS, lock, export, backup, updates)
       'notif_bill_title': 'Bill Reminder ⏰',
@@ -1042,7 +1042,7 @@ class AppStrings {
       'delete_reminder_title': 'রিমাইন্ডার মুছবেন?',
       'delete_confirm_msg': 'এটি স্থায়ীভাবে মুছে যাবে।',
       'err_title_empty': 'শিরোনাম লিখুন',
-      'balance_title': 'ব্যালেন্স',
+      'balance_title': 'মোট ব্যালেন্স',
       'money_tools': 'মানি টুলস',
       // v4 — সিস্টেম ফিচার (নোটিফিকেশন, SMS, লক, এক্সপোর্ট, ব্যাকআপ, আপডেট)
       'notif_bill_title': 'বিল রিমাইন্ডার ⏰',
