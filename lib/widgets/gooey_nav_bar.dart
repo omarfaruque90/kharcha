@@ -283,7 +283,7 @@ class _BarPainter extends CustomPainter {
     path.close();
 
     canvas.drawShadow(
-        path, Colors.black.withValues(alpha: 0.4), 14, 0, false);
+        path, Colors.black.withValues(alpha: 0.4), 14, false);
     canvas.drawPath(path, Paint()..color = color);
 
     // Accent glow tracing the dip's rim.
