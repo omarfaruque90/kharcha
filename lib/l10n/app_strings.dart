@@ -352,6 +352,12 @@ class AppStrings {
       'debts_log_income_msg': 'Add this received money as income too?',
       'debts_settle_expense_note': 'Debt repaid',
       'debts_settle_income_source': 'Debt received',
+      'receipts_title': 'Receipts',
+      'receipts_empty': 'No receipts yet',
+      'receipts_empty_sub': 'Receipts you attach to expenses will appear here.',
+      'receipts_delete_title': 'Delete receipt?',
+      'receipts_delete_msg': 'The photo will be removed from this expense.',
+      'receipts_deleted': 'Receipt deleted',
     },
     'bn': {
       'tagline': 'দৈনিক খরচের হিসাব',
@@ -692,6 +698,12 @@ class AppStrings {
       'debts_log_income_msg': 'পাওয়া টাকা আয় হিসেবেও যোগ করবো?',
       'debts_settle_expense_note': 'ধার পরিশোধ',
       'debts_settle_income_source': 'ধার ফেরত পেলাম',
+      'receipts_title': 'রসিদ',
+      'receipts_empty': 'এখনো কোনো রসিদ নেই',
+      'receipts_empty_sub': 'খরচের সাথে যোগ করা রসিদ এখানে দেখা যাবে।',
+      'receipts_delete_title': 'রসিদ মুছবেন?',
+      'receipts_delete_msg': 'এই খরচ থেকে ছবি মুছে যাবে।',
+      'receipts_deleted': 'রসিদ মুছে ফেলা হয়েছে',
     },
   };
 

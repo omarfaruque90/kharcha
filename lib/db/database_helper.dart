@@ -16,6 +16,7 @@ import '../models/income.dart';
 import '../models/recurring_expense.dart';
 import '../models/savings_goal.dart';
 import '../models/subscription.dart';
+import '../models/wishlist_item.dart';
 import '../services/sync_service.dart';
 
 /// SQLite storage for expenses, incomes, budgets, recurring templates,
@@ -38,8 +39,9 @@ import '../services/sync_service.dart';
 /// local-only) and `notifications` (in-app notification center entries).
 ///
 /// v6 schema: adds `debts` (money lent/borrowed tracking), `subscriptions`
-/// (recurring subscription reminders) and `templates` (quick-add expense
-/// presets). All UUID ids + updatedAt, following the v3 table pattern.
+/// (recurring subscription reminders), `templates` (quick-add expense
+/// presets) and `wishlist` (items the user is saving up for). All UUID ids
+/// + updatedAt, following the v3 table pattern.
 class DatabaseHelper {
   DatabaseHelper._private();
 
@@ -273,6 +275,18 @@ class DatabaseHelper {
         category_id TEXT NOT NULL DEFAULT '',
         payment TEXT NOT NULL DEFAULT 'cash',
         emoji TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS wishlist(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        target_price REAL NOT NULL,
+        saved REAL NOT NULL DEFAULT 0,
+        emoji TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        done INTEGER NOT NULL DEFAULT 0,
         updatedAt INTEGER NOT NULL DEFAULT 0
       )
     ''');
@@ -1213,5 +1227,44 @@ class DatabaseHelper {
 
   Future<int> deleteTemplate(String id) async {
     return _deleteRecord('templates', id);
+  }
+
+  // ------------------------------- wishlist --------------------------
+  // Items the user is saving up for (Package M). Follows the v3 table
+  // pattern: UUID ids + updatedAt; local-only for now (sync wiring is
+  // owned by the sync package).
+
+  /// Open items first, then bought ones; alphabetical within each group.
+  Future<List<WishlistItem>> getWishlist() async {
+    final db = await database;
+    final rows = await db.query('wishlist', orderBy: 'done ASC, name ASC');
+    return rows.map(WishlistItem.fromMap).toList();
+  }
+
+  /// Inserts a wishlist item. Returns the new id.
+  Future<String> insertWishlist(WishlistItem w) async {
+    return _insertRecord('wishlist', w.toMap());
+  }
+
+  /// Full row update by id.
+  Future<int> updateWishlist(WishlistItem w) async {
+    return _updateRecord('wishlist', w.id!, {
+      'name': w.name,
+      'target_price': w.targetPrice,
+      'saved': w.saved,
+      'emoji': w.emoji,
+      'note': w.note,
+      'done': w.done ? 1 : 0,
+    });
+  }
+
+  Future<int> deleteWishlist(String id) async {
+    return _deleteRecord('wishlist', id);
+  }
+
+  /// Wipes all local wishlist items without touching the cloud (logout).
+  Future<void> wipeLocalWishlist() async {
+    final db = await database;
+    await db.delete('wishlist');
   }
 }

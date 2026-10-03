@@ -39,22 +39,12 @@ class BackupService {
   static Future<bool> backup(BuildContext context) async {
     final doneText = tr(context, 'backup_done');
     try {
-      final db = await DatabaseHelper.instance.database;
-      final tables = <String, dynamic>{};
-      for (final t in _tables) {
-        tables[t] = await db.query(t);
-      }
-      final payload = {
-        'app': 'kharcha',
-        'format': 1,
-        'exportedAt': DateTime.now().toIso8601String(),
-        'tables': tables,
-      };
+      final json = await generateBackupJson();
       final dir = await getTemporaryDirectory();
       final stamp = DateTime.now().toIso8601String().substring(0, 10);
       final file =
           File(p.join(dir.path, 'kharcha-backup-$stamp.json'));
-      await file.writeAsString(jsonEncode(payload));
+      await file.writeAsString(json);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
@@ -65,6 +55,23 @@ class BackupService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Builds the full backup JSON string (all tables). Reused by the
+  /// Google Drive auto-backup so both paths export identical data.
+  static Future<String> generateBackupJson() async {
+    final db = await DatabaseHelper.instance.database;
+    final tables = <String, dynamic>{};
+    for (final t in _tables) {
+      tables[t] = await db.query(t);
+    }
+    final payload = {
+      'app': 'kharcha',
+      'format': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'tables': tables,
+    };
+    return jsonEncode(payload);
   }
 
   /// Picks a backup JSON file and merges it in. Returns the number of
@@ -78,6 +85,30 @@ class BackupService {
       if (result == null || result.files.single.path == null) return -1;
       final file = File(result.files.single.path!);
       final raw = await file.readAsString();
+      final written = await restoreFromJson(raw);
+
+      // Refresh in-memory providers so the UI reflects restored data.
+      if (context.mounted) {
+        final expenses = Provider.of<ExpenseProvider>(context, listen: false);
+        final money = Provider.of<MoneyProvider>(context, listen: false);
+        try {
+          await expenses.load();
+        } catch (_) {}
+        if (!context.mounted) return written;
+        try {
+          await money.load();
+        } catch (_) {}
+      }
+      return written;
+    } catch (_) {
+      return -1;
+    }
+  }
+
+  /// Merges a backup JSON string into the database (no UI).
+  /// Returns rows written, or -1 when the payload is invalid.
+  static Future<int> restoreFromJson(String raw) async {
+    try {
       final data = jsonDecode(raw);
       if (data is! Map<String, dynamic>) return -1;
       if (data['app'] != 'kharcha') return -1;
@@ -131,18 +162,6 @@ class BackupService {
         }
       });
 
-      // Refresh in-memory providers so the UI reflects restored data.
-      if (context.mounted) {
-        final expenses = Provider.of<ExpenseProvider>(context, listen: false);
-        final money = Provider.of<MoneyProvider>(context, listen: false);
-        try {
-          await expenses.load();
-        } catch (_) {}
-        if (!context.mounted) return written;
-        try {
-          await money.load();
-        } catch (_) {}
-      }
       return written;
     } catch (_) {
       return -1;

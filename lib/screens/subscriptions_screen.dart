@@ -66,9 +66,10 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   }
 
   Future<void> _toggle(AppSubscription s, bool v) async {
-    s.active = v;
-    s.updatedAt = DateTime.now();
-    await DatabaseHelper.instance.updateSubscription(s);
+    final updated = s.copyWith(active: v, updatedAt: DateTime.now());
+    await DatabaseHelper.instance.updateSubscription(updated);
+    final i = _subs.indexWhere((e) => e.id == s.id);
+    if (i >= 0) _subs[i] = updated;
     if (mounted) setState(() {});
   }
 
@@ -83,8 +84,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             paymentMethod: 'cash',
           ),
         );
-    s.nextDue = _advance(s.nextDue, s.cycle);
-    s.updatedAt = now;
+    s = s.copyWith(nextDue: _advance(s.nextDue, s.cycle), updatedAt: now);
     await DatabaseHelper.instance.updateSubscription(s);
     await _reload();
     if (mounted) {
