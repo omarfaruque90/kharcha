@@ -59,8 +59,12 @@ class _QuickTemplatesState extends State<QuickTemplates> {
 
   void _notifyChanged() => widget.onChanged?.call();
 
+  /// Guards against double-tap creating duplicate expenses.
+  final Set<String> _applying = {};
+
   /// One-tap add: logs the expense instantly, no form.
   Future<void> _applyTemplate(ExpenseTemplate t) async {
+    if (!_applying.add(t.id)) return;
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<ExpenseProvider>();
     try {
@@ -81,6 +85,8 @@ class _QuickTemplatesState extends State<QuickTemplates> {
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'tpl_failed'))),
       );
+    } finally {
+      _applying.remove(t.id);
     }
   }
 

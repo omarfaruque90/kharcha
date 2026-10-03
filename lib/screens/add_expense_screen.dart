@@ -52,6 +52,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _payment = 'cash';
   String? _receiptPath;
   bool _showSuccess = false;
+
+  /// Guards against double-tap creating duplicate expenses.
+  bool _saving = false;
   bool _scanning = false;
   // Package V/AB: currency picker and mood tag.
   String _currency = 'BDT';
@@ -152,7 +155,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _save(String lang) async {
+    if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _saving = true);
+    try {
     final amount = double.parse(_amountCtrl.text.trim());
     final provider = context.read<ExpenseProvider>();
     final money = context.read<MoneyProvider>();
@@ -245,6 +251,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _suggestedCategoryId = null;
       });
       widget.onSaved?.call();
+    }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -1020,8 +1029,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ],
                 ),
                 child: FilledButton.icon(
-                  onPressed: () => _save(lang),
-                  icon: const Icon(Icons.check),
+                  onPressed: _saving ? null : () => _save(lang),
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check),
                   label: Text(tr(context, 'save')),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.transparent,
