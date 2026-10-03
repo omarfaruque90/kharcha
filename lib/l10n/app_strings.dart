@@ -31,6 +31,7 @@ class AppStrings {
     'en': {
       'tagline': 'Daily Expense Tracker',
       'nav_home': 'Home',
+      'nav_history': 'History',
       'nav_add': 'Add',
       'nav_reports': 'Reports',
       'nav_settings': 'Settings',
@@ -845,6 +846,7 @@ class AppStrings {
     'bn': {
       'tagline': 'দৈনিক খরচের হিসাব',
       'nav_home': 'হোম',
+      'nav_history': 'ইতিহাস',
       'nav_add': 'যোগ করুন',
       'nav_reports': 'রিপোর্ট',
       'nav_settings': 'সেটিংস',

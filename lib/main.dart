@@ -18,6 +18,7 @@ import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/auth/auth_gate.dart';
+import 'screens/history_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -466,9 +467,6 @@ ThemeData _buildTheme(Brightness brightness, String accent) {
         borderRadius: BorderRadius.all(Radius.circular(14)),
       ),
     ),
-    navigationBarTheme: NavigationBarThemeData(
-      indicatorColor: accentColor.withValues(alpha: dark ? 0.28 : 0.35),
-    ),
     dialogTheme: const DialogThemeData(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -751,7 +749,7 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   void _goHome() => setState(() => _index = 0);
-  void _goAdd() => setState(() => _index = 1);
+  void _goAdd() => setState(() => _index = 2);
 
   @override
   Widget build(BuildContext context) {
@@ -774,38 +772,157 @@ class _MainShellState extends State<MainShell> {
           key: ValueKey<int>(_index),
           index: _index,
           children: [
-            HomeScreen(onAddPressed: _goAdd),
+            const HomeScreen(),
+            HistoryScreen(onAddPressed: _goAdd),
             AddExpenseScreen(onSaved: _goHome),
             const ReportsScreen(),
             const MoreScreen(),
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: tr(context, 'nav_home'),
+      bottomNavigationBar: _KhorchaBottomBar(
+        index: _index,
+        onTap: (i) => setState(() => _index = i),
+      ),
+    );
+  }
+}
+
+/// Custom 5-tab bottom bar: Home, History, big gold center Add,
+/// Reports, More. The center button is raised with a gold glow.
+class _KhorchaBottomBar extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onTap;
+
+  const _KhorchaBottomBar({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = theme.colorScheme.primary;
+    final unselected = theme.colorScheme.onSurfaceVariant;
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.add_circle_outline),
-            selectedIcon: const Icon(Icons.add_circle),
-            label: tr(context, 'nav_add'),
+        ),
+        child: Row(
+          children: [
+            _navItem(context, 0, Icons.home_outlined, Icons.home,
+                tr(context, 'nav_home'), selected, unselected),
+            _navItem(context, 1, Icons.history_outlined, Icons.history,
+                tr(context, 'nav_history'), selected, unselected),
+            // Big gold center Add button, raised above the bar.
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onTap(2),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Transform.translate(
+                      offset: const Offset(0, -14),
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFE8C547), kGold],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kGold.withValues(alpha: 0.45),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.add,
+                          size: 32,
+                          color: kDeepGreenDark,
+                        ),
+                      ),
+                    ),
+                    Transform.translate(
+                      offset: const Offset(0, -10),
+                      child: Text(
+                        tr(context, 'nav_add'),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: index == 2 ? kGoldDark : unselected,
+                          fontWeight: index == 2
+                              ? FontWeight.bold
+                              : FontWeight.w500,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _navItem(context, 3, Icons.bar_chart_outlined, Icons.bar_chart,
+                tr(context, 'nav_reports'), selected, unselected),
+            _navItem(context, 4, Icons.more_horiz, Icons.more_horiz,
+                tr(context, 'more'), selected, unselected),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(
+    BuildContext context,
+    int i,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    Color selected,
+    Color unselected,
+  ) {
+    final theme = Theme.of(context);
+    final isSel = index == i;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(i),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSel ? activeIcon : icon,
+                size: 24,
+                color: isSel ? selected : unselected,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: isSel ? selected : unselected,
+                  fontWeight:
+                      isSel ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.bar_chart_outlined),
-            selectedIcon: const Icon(Icons.bar_chart),
-            label: tr(context, 'nav_reports'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.more_horiz),
-            selectedIcon: const Icon(Icons.more_horiz),
-            label: tr(context, 'more'),
-          ),
-        ],
+        ),
       ),
     );
   }
