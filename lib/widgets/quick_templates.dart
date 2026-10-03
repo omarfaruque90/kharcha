@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
@@ -45,7 +46,17 @@ class _QuickTemplatesState extends State<QuickTemplates> {
 
   Future<void> _load() async {
     try {
-      final items = await DatabaseHelper.instance.getTemplates();
+      var items = await DatabaseHelper.instance.getTemplates();
+      // First run: seed 2 demo templates so the user sees how it works.
+      // Everything else in the app stays manual — no other defaults.
+      if (items.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        if (!(prefs.getBool('demo_templates_seeded') ?? false)) {
+          await _seedDemoTemplates();
+          await prefs.setBool('demo_templates_seeded', true);
+          items = await DatabaseHelper.instance.getTemplates();
+        }
+      }
       if (!mounted) return;
       setState(() {
         _templates = items;
@@ -54,6 +65,36 @@ class _QuickTemplatesState extends State<QuickTemplates> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
+    }
+  }
+
+  /// 2 demo templates — the only pre-set content in the app.
+  Future<void> _seedDemoTemplates() async {
+    final lang =
+        context.read<SettingsProvider>().language;
+    final bn = lang == 'bn';
+    final demos = [
+      ExpenseTemplate(
+        id: ExpenseTemplate.newId(),
+        name: bn ? 'দুপুরের খাবার' : 'Lunch',
+        amount: 150,
+        categoryId: 'food',
+        payment: 'cash',
+        emoji: '🍽️',
+        updatedAt: DateTime.now(),
+      ),
+      ExpenseTemplate(
+        id: ExpenseTemplate.newId(),
+        name: bn ? 'যাতায়াত' : 'Transport',
+        amount: 100,
+        categoryId: 'transport',
+        payment: 'cash',
+        emoji: '🚌',
+        updatedAt: DateTime.now(),
+      ),
+    ];
+    for (final t in demos) {
+      await DatabaseHelper.instance.insertTemplate(t);
     }
   }
 
