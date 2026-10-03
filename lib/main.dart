@@ -42,6 +42,7 @@ import 'services/stats_notification.dart';
 import 'services/subscription_service.dart';
 import 'services/update_check_worker.dart';
 import 'services/update_service.dart';
+import 'widgets/liquid_add_button.dart';
 import 'widgets/motion.dart';
 
 /// Brand colors: deep green + gold (matches the 3D expense logo).
@@ -837,55 +838,26 @@ class _KhorchaBottomBar extends StatelessWidget {
                 tr(context, 'nav_home'), selected, unselected),
             _navItem(context, 1, Icons.history_outlined, Icons.history,
                 tr(context, 'nav_history'), selected, unselected),
-            // Big gold center Add button, raised above the bar.
-            // Pops with a spring when its tab becomes active.
+            // Animated liquid-marble center Add button, raised above the bar.
             Expanded(
-              child: GestureDetector(
-                onTap: () => onTap(2),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Transform.translate(
-                      offset: const Offset(0, -14),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(
-                            begin: 1.0, end: index == 2 ? 1.12 : 1.0),
-                        duration: const Duration(milliseconds: 320),
-                        curve: Curves.elasticOut,
-                        builder: (ctx, scale, child) =>
-                            Transform.scale(scale: scale, child: child),
-                        child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFE8C547), kGold],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kGold.withValues(alpha: 0.45),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            width: 2,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          size: 32,
-                          color: kDeepGreenDark,
-                        ),
-                        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Transform.translate(
+                    offset: const Offset(0, -14),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(
+                          begin: 1.0, end: index == 2 ? 1.12 : 1.0),
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.elasticOut,
+                      builder: (ctx, scale, child) =>
+                          Transform.scale(scale: scale, child: child),
+                      child: LiquidAddButton(
+                        onTap: () => onTap(2),
+                        active: index == 2,
                       ),
                     ),
+                  ),
                     Transform.translate(
                       offset: const Offset(0, -10),
                       child: Text(
@@ -902,7 +874,6 @@ class _KhorchaBottomBar extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
             _navItem(context, 3, Icons.bar_chart_outlined, Icons.bar_chart,
                 tr(context, 'nav_reports'), selected, unselected),
             _navItem(context, 4, Icons.more_horiz, Icons.more_horiz,
