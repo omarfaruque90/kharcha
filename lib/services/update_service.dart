@@ -203,6 +203,11 @@ class UpdateService {
     try {
       final request = http.Request('GET', Uri.parse(apkUrl));
       final response = await client.send(request);
+      if (response.statusCode != 200) {
+        // Don't stream an error page into the installer: the caller shows
+        // the "update failed" state on any throw.
+        throw Exception('APK download failed: HTTP ${response.statusCode}');
+      }
       final total = response.contentLength ?? 0;
       var received = 0;
       final sink = file.openWrite();

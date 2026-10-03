@@ -7,27 +7,54 @@ import '../main.dart';
 import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
+import '../db/database_helper.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/notification_center.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
-import '../widgets/brand_gradient_card.dart';
 import '../widgets/expense_tile.dart';
+import '../widgets/hero_balance_card.dart';
 import '../widgets/motion.dart';
-import '../widgets/summary_card.dart';
+import '../widgets/smart_search.dart';
 import '../widgets/spending_insights.dart';
+import '../widgets/budget_forecast_card.dart';
 import 'budget_screen.dart';
 import 'calendar_screen.dart';
 import 'debts_screen.dart';
 import 'goals_screen.dart';
 import 'income_screen.dart';
 import 'notifications_screen.dart';
+import 'receipts_screen.dart';
 import 'recurring_screen.dart';
 import 'reminder_screen.dart';
+import 'reports_screen.dart';
 import 'split_bill_screen.dart';
 import 'subscriptions_screen.dart';
 import 'templates_screen.dart';
+import 'wishlist_screen.dart';
+import 'salary_screen.dart';
+import 'voice_report_screen.dart';
+import 'achievements_screen.dart';
+import 'challenge_screen.dart';
+import 'cash_screen.dart';
+import 'emergency_screen.dart';
+import 'fuel_screen.dart';
+import 'shopping_screen.dart';
+import 'gifts_screen.dart';
+import 'projects_screen.dart';
+import 'expense_map_screen.dart';
+import 'medical_screen.dart';
+import 'converter_screen.dart';
+import 'tip_screen.dart';
+import 'budget_planner_screen.dart';
+import 'ai_chat_screen.dart';
+import 'leaderboard_screen.dart';
+import 'public_templates_screen.dart';
+import 'tax_helper_screen.dart';
+import 'dues_screen.dart';
+import 'places_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onAddPressed;
@@ -38,9 +65,123 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+/// One money-tool shortcut: icon, label key, and the screen it opens.
+class _ToolDef {
+  final IconData icon;
+  final String labelKey;
+  final Widget Function() build;
+
+  const _ToolDef(this.icon, this.labelKey, this.build);
+}
+
+/// A section of the money-tools grid: Bangla-first header + tools.
+class _ToolSection {
+  final String titleKey;
+  final IconData icon;
+  final List<_ToolDef> tools;
+
+  const _ToolSection(this.titleKey, this.icon, this.tools);
+}
+
+/// All 34 money-tool shortcuts (33 originals + Reports), reorganized into four sections
+/// (nothing dropped, nothing renamed — only grouped). Plus a Reports
+/// shortcut in Insights.
+List<_ToolSection> _toolSections() => [
+      _ToolSection(
+        'tools_section_track',
+        Icons.track_changes_outlined,
+        [
+          _ToolDef(Icons.handshake_outlined, 'debts_title',
+              () => const DebtsScreen()),
+          _ToolDef(Icons.people_outline, 'split_title',
+              () => const SplitBillScreen()),
+          _ToolDef(Icons.subscriptions_outlined, 'subs_title',
+              () => const SubscriptionsScreen()),
+          _ToolDef(Icons.calendar_month_outlined, 'cal_title',
+              () => const CalendarScreen()),
+          _ToolDef(Icons.receipt_long_outlined, 'receipts_title',
+              () => const ReceiptsScreen()),
+          _ToolDef(Icons.event_note_outlined, 'dues_title',
+              () => const DuesScreen()),
+          _ToolDef(Icons.notifications_none_outlined, 'reminder_title',
+              () => const ReminderScreen()),
+        ],
+      ),
+      _ToolSection(
+        'tools_section_plan',
+        Icons.edit_calendar_outlined,
+        [
+          _ToolDef(Icons.account_balance_wallet_outlined, 'budget_title',
+              () => const BudgetScreen()),
+          _ToolDef(Icons.trending_up, 'income_title',
+              () => const IncomeScreen()),
+          _ToolDef(Icons.event_repeat_outlined, 'recurring_title',
+              () => const RecurringScreen()),
+          _ToolDef(Icons.savings_outlined, 'goals_title',
+              () => const GoalsScreen()),
+          _ToolDef(Icons.card_giftcard_outlined, 'wish_title',
+              () => const WishlistScreen()),
+          _ToolDef(Icons.bolt_outlined, 'tpl_title',
+              () => const TemplatesScreen()),
+          _ToolDef(Icons.payments_outlined, 'salary_title',
+              () => const SalaryScreen()),
+          _ToolDef(Icons.auto_awesome_outlined, 'bp_title',
+              () => const BudgetPlannerScreen()),
+        ],
+      ),
+      _ToolSection(
+        'tools_section_insights',
+        Icons.insights_outlined,
+        [
+          _ToolDef(Icons.chat_bubble_outline, 'ai_title',
+              () => const AiChatScreen()),
+          _ToolDef(Icons.mic_outlined, 'voice_title',
+              () => const VoiceReportScreen()),
+          _ToolDef(Icons.bar_chart_outlined, 'nav_reports',
+              () => const ReportsScreen()),
+        ],
+      ),
+      _ToolSection(
+        'tools_section_tools',
+        Icons.handyman_outlined,
+        [
+          _ToolDef(Icons.currency_exchange_outlined, 'conv_title',
+              () => const ConverterScreen()),
+          _ToolDef(Icons.percent_outlined, 'tip_title',
+              () => const TipScreen()),
+          _ToolDef(Icons.local_gas_station_outlined, 'fuel_title',
+              () => const FuelScreen()),
+          _ToolDef(Icons.shopping_cart_outlined, 'shop_title',
+              () => const ShoppingScreen()),
+          _ToolDef(Icons.card_giftcard_outlined, 'gift_title',
+              () => const GiftsScreen()),
+          _ToolDef(Icons.wallet_outlined, 'cash_title',
+              () => const CashScreen()),
+          _ToolDef(Icons.shield_outlined, 'vault_title',
+              () => const EmergencyScreen()),
+          _ToolDef(Icons.medical_services_outlined, 'medical_title',
+              () => const MedicalScreen()),
+          _ToolDef(Icons.work_outline, 'projects_title',
+              () => const ProjectsScreen()),
+          _ToolDef(Icons.map_outlined, 'expense_map_title',
+              () => const ExpenseMapScreen()),
+          _ToolDef(Icons.timer_outlined, 'challenge_title',
+              () => const ChallengeScreen()),
+          _ToolDef(Icons.emoji_events_outlined, 'ach_title',
+              () => const AchievementsScreen()),
+          _ToolDef(Icons.location_on_outlined, 'places_title',
+              () => const PlacesScreen()),
+          _ToolDef(Icons.leaderboard_outlined, 'leaderboard_title',
+              () => const LeaderboardScreen()),
+          _ToolDef(Icons.public_outlined, 'templates_public',
+              () => const PublicTemplatesScreen()),
+          _ToolDef(Icons.receipt_long_outlined, 'tax_title',
+              () => const TaxHelperScreen()),
+        ],
+      ),
+    ];
+
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _query = '';
   String? _categoryId; // null = all categories
 
   @override
@@ -52,8 +193,48 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// BS: long-press on the AppBar title for quick profile switching.
+  Future<void> _quickProfileSwitch(BuildContext context) async {
+    final profiles = await DatabaseHelper.getProfiles();
+    if (profiles.length < 2 || !context.mounted) return;
+    final current = DatabaseHelper.instance.activeProfile;
+    await showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'profile_switch')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final p in profiles)
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  p == current
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: Theme.of(dctx).colorScheme.primary,
+                ),
+                title: Text(p == 'personal'
+                    ? tr(dctx, 'profile_personal')
+                    : p),
+                onTap: () async {
+                  Navigator.pop(dctx);
+                  if (p == current) return;
+                  await DatabaseHelper.instance.setProfile(p);
+                  if (context.mounted) {
+                    await context.read<ExpenseProvider>().load();
+                    await context.read<MoneyProvider>().load();
+                    setState(() {});
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _dayHeader(DateTime day, String lang) {
@@ -74,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final lang = settings.language;
     final theme = Theme.of(context);
 
-    final filtered = expenses.filtered(query: _query, categoryId: _categoryId);
+    final filtered = expenses.filtered(categoryId: _categoryId);
     final groups = <DateTime, List<Expense>>{};
     for (final e in filtered) {
       final d = DateTime(e.date.year, e.date.month, e.date.day);
@@ -82,14 +263,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
+    final monthKey = monthKeyOf(DateTime.now());
+    final balance =
+        money.incomeForMonth(monthKey) - expenses.totalThisMonth();
+    final budget = money.monthlyBudgetFor(monthKey);
+
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Khorcha'),
-            Text(tr(context, 'tagline'), style: theme.textTheme.bodySmall),
-          ],
+        title: GestureDetector(
+          onLongPress: () => _quickProfileSwitch(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Khorcha'),
+              Text(tr(context, 'tagline'), style: theme.textTheme.bodySmall),
+            ],
+          ),
         ),
         actions: [
           ValueListenableBuilder<int>(
@@ -121,435 +310,265 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: StaggeredEntrance(
-                    delayMs: 0,
-                    child: SummaryCard(
-                      title: tr(context, 'today'),
-                      amount: expenses.totalOn(DateTime.now()),
-                      icon: Icons.today,
-                    ),
-                  ),
+      // Prominent gold add-expense button: always one tap away.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: widget.onAddPressed,
+        backgroundColor: kGold,
+        foregroundColor: kDeepGreenDark,
+        icon: const Icon(Icons.add),
+        label: Text(
+          tr(context, 'add_expense'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: CustomScrollView(
+        slivers: [
+          // Premium hero: balance count-up + quick stats.
+          SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: StaggeredEntrance(
+                child: HeroBalanceCard(
+                  balance: balance,
+                  todaySpent: expenses.totalOn(DateTime.now()),
+                  weekSpent: expenses.totalThisWeek(),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StaggeredEntrance(
-                    delayMs: 90,
-                    child: SummaryCard(
-                      title: tr(context, 'this_week'),
-                      amount: expenses.totalThisWeek(),
-                      icon: Icons.date_range,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StaggeredEntrance(
-                    delayMs: 180,
-                    child: SummaryCard(
-                      title: tr(context, 'this_month'),
-                      amount: expenses.totalThisMonth(),
-                      icon: Icons.calendar_month,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: StaggeredEntrance(
-              delayMs: 240,
-              child: _BalanceCard(
-                balance: money.incomeForMonth(monthKeyOf(DateTime.now())) -
-                    expenses.totalThisMonth(),
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SpendingInsights(),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: SpendingInsights(),
+            ),
           ),
-          Builder(
-            builder: (context) {
-              final key = monthKeyOf(DateTime.now());
-              final budget = money.monthlyBudgetFor(key);
-              if (budget == null || budget.limitAmount <= 0) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: BudgetForecastCard(),
+            ),
+          ),
+          if (budget != null && budget.limitAmount > 0)
+            SliverToBoxAdapter(
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: StaggeredEntrance(
-                  delayMs: 300,
+                  delayMs: 120,
                   child: _MonthlyBudgetProgress(
                     spent: expenses.totalThisMonth(),
                     limit: budget.limitAmount,
                   ),
                 ),
-              );
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  tr(context, 'money_tools'),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 112,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              children: [
-                _MoneyShortcut(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: tr(context, 'budget_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const BudgetScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.trending_up,
-                  label: tr(context, 'income_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const IncomeScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.event_repeat_outlined,
-                  label: tr(context, 'recurring_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RecurringScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.savings_outlined,
-                  label: tr(context, 'goals_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const GoalsScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.notifications_none_outlined,
-                  label: tr(context, 'reminder_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ReminderScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.handshake_outlined,
-                  label: tr(context, 'debts_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const DebtsScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.people_outline,
-                  label: tr(context, 'split_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SplitBillScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.subscriptions_outlined,
-                  label: tr(context, 'subs_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SubscriptionsScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.calendar_month_outlined,
-                  label: tr(context, 'cal_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CalendarScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _MoneyShortcut(
-                  icon: Icons.bolt_outlined,
-                  label: tr(context, 'tpl_title'),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TemplatesScreen(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-            child: TextField(
-              controller: _searchCtrl,
-              decoration: InputDecoration(
-                hintText: tr(context, 'search_hint'),
-                prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),
-              onChanged: (v) => setState(() => _query = v),
             ),
-          ),
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(tr(context, 'all')),
-                    selected: _categoryId == null,
-                    onSelected: (_) => setState(() => _categoryId = null),
-                  ),
+          // Money tools: sectioned grid (Bangla-first headers).
+          for (final section in _toolSections()) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                child: KSection.header(
+                  context,
+                  icon: section.icon,
+                  title: tr(context, section.titleKey),
                 ),
-                for (final c in kCategories)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(AppStrings.categoryName(c.id, lang)),
-                      avatar: Icon(c.icon, size: 16),
-                      selected: _categoryId == c.id,
-                      onSelected: (_) => setState(
-                        () => _categoryId = _categoryId == c.id ? null : c.id,
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              sliver: SliverGrid(
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 0.85,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) {
+                    final tool = section.tools[i];
+                    return StaggeredEntrance(
+                      key: ValueKey('${section.titleKey}-$i'),
+                      delayMs: (i * 35).clamp(0, 300).toInt(),
+                      child: _ToolTile(
+                        icon: tool.icon,
+                        label: tr(context, tool.labelKey),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => tool.build()),
+                        ),
                       ),
-                    ),
-                  ),
-                for (final cc in CustomCategoryRegistry.all)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(cc.name),
-                      avatar: cc.emoji.isNotEmpty
-                          ? Text(cc.emoji,
-                              style: const TextStyle(fontSize: 16))
-                          : const Icon(Icons.label_rounded, size: 16),
-                      selected: _categoryId == cc.id,
-                      onSelected: (_) => setState(
-                        () =>
-                            _categoryId = _categoryId == cc.id ? null : cc.id,
-                      ),
-                    ),
-                  ),
-              ],
+                    );
+                  },
+                  childCount: section.tools.length,
+                ),
+              ),
+            ),
+          ],
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: SmartSearch(),
             ),
           ),
-          Expanded(
-            child: days.isEmpty
-                ? Center(
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 52,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(tr(context, 'all')),
+                      selected: _categoryId == null,
+                      onSelected: (_) =>
+                          setState(() => _categoryId = null),
+                    ),
+                  ),
+                  for (final c in kCategories)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(AppStrings.categoryName(c.id, lang)),
+                        avatar: Icon(c.icon, size: 16),
+                        selected: _categoryId == c.id,
+                        onSelected: (_) => setState(
+                          () =>
+                              _categoryId = _categoryId == c.id ? null : c.id,
+                        ),
+                      ),
+                    ),
+                  for (final cc in CustomCategoryRegistry.all)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(cc.name),
+                        avatar: cc.emoji.isNotEmpty
+                            ? Text(cc.emoji,
+                                style: const TextStyle(fontSize: 16))
+                            : const Icon(Icons.label_rounded, size: 16),
+                        selected: _categoryId == cc.id,
+                        onSelected: (_) => setState(
+                          () => _categoryId =
+                              _categoryId == cc.id ? null : cc.id,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (days.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary
+                            .withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.primary
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_outlined,
+                        size: 44,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      tr(context, 'no_expenses'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 40),
+                      child: Text(
+                        tr(context, 'no_expenses_sub'),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: widget.onAddPressed,
+                      icon: const Icon(Icons.add),
+                      label: Text(tr(context, 'add_expense')),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final day = days[i];
+                  final items = groups[day]!;
+                  final dayTotal = items.fold(
+                      0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
+                  return StaggeredEntrance(
+                    key: ValueKey('day-${day.millisecondsSinceEpoch}'),
+                    delayMs: (i * 70).clamp(0, 280).toInt(),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(22),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.receipt_long_outlined,
-                            size: 44,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          tr(context, 'no_expenses'),
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
                         Padding(
                           padding:
-                              const EdgeInsets.symmetric(horizontal: 40),
-                          child: Text(
-                            tr(context, 'no_expenses_sub'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
+                              const EdgeInsets.fromLTRB(20, 16, 20, 6),
+                          child: Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _dayHeader(day, lang),
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              Text(
+                                formatMoney(dayTotal),
+                                style: theme.textTheme.titleSmall
+                                    ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.4,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        FilledButton.icon(
-                          onPressed: widget.onAddPressed,
-                          icon: const Icon(Icons.add),
-                          label: Text(tr(context, 'add_expense')),
-                        ),
+                        for (final e in items) ExpenseTile(expense: e),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: days.length,
-                    itemBuilder: (ctx, i) {
-                      final day = days[i];
-                      final items = groups[day]!;
-                      final dayTotal =
-                          items.fold(0.0, (sum, e) => sum + e.amount);
-                      return StaggeredEntrance(
-                        key: ValueKey('day-${day.millisecondsSinceEpoch}'),
-                        delayMs: (i * 70).clamp(0, 280).toInt(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 16, 20, 6),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _dayHeader(day, lang),
-                                    style: theme.textTheme.titleSmall
-                                        ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  Text(
-                                    formatMoney(dayTotal),
-                                    style: theme.textTheme.titleSmall
-                                        ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.4,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            for (final e in items) ExpenseTile(expense: e),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Full-width monthly balance card (income − expense): rich deep-green
-/// hero with gold accents and large elegant balance typography.
-class _BalanceCard extends StatelessWidget {
-  final double balance;
-
-  const _BalanceCard({required this.balance});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return BrandGradientCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: kGold.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: kGold.withValues(alpha: 0.45),
+                  );
+                },
+                childCount: days.length,
               ),
             ),
-            child: const Icon(
-              Icons.account_balance_wallet,
-              color: kGold,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr(context, 'balance_title'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.6,
-                    color: kGoldLight.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  formatMoney(balance),
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+          // Clearance so the gold FAB never covers the last row.
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 88),
           ),
         ],
       ),
@@ -630,13 +649,14 @@ class _MonthlyBudgetProgress extends StatelessWidget {
   }
 }
 
-/// One shortcut tile in the home "Money tools" row.
-class _MoneyShortcut extends StatelessWidget {
+/// One tile in the money-tools grid: icon + short text label
+/// (never icon-only), comfortably above the 48dp touch target.
+class _ToolTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _MoneyShortcut({
+  const _ToolTile({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -648,9 +668,12 @@ class _MoneyShortcut extends StatelessWidget {
     return PressableScale(
       onTap: onTap,
       child: Card(
-        child: Container(
-          width: 108,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KSpacing.xs,
+            vertical: 10,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -659,10 +682,11 @@ class _MoneyShortcut extends StatelessWidget {
                 decoration: BoxDecoration(
                   color:
                       theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(KRadius.chip),
                 ),
-                child: Icon(
-                    icon, color: theme.colorScheme.primary, size: 22),
+                child:
+                    Icon(icon, color: theme.colorScheme.primary, size: 22),
               ),
               const SizedBox(height: 6),
               // Flexible keeps long labels (e.g. "পুনরাবৃত্ত খরচ")

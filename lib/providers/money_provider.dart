@@ -179,19 +179,32 @@ class MoneyProvider extends ChangeNotifier {
   }
 
   /// Total expenses for [monthKey], queried from SQLite directly and
-  /// grouped by category id.
+  /// grouped by category id. Uses a date range (index-friendly) and
+  /// `COALESCE(bdt_amount, amount)` so foreign-currency expenses are
+  /// counted at their BDT value, consistent with the rest of the app.
   Future<Map<String, double>> expenseForMonth(String monthKey) async {
+    if (monthKey.length != 7) return {};
+    final year = int.tryParse(monthKey.substring(0, 4)) ?? 0;
+    final month = int.tryParse(monthKey.substring(5, 7)) ?? 0;
+    if (year <= 0 || month < 1 || month > 12) return {};
+    final start = DateTime(year, month, 1).toIso8601String();
+    final next =
+        DateTime(month == 12 ? year + 1 : year, month == 12 ? 1 : month + 1, 1)
+            .toIso8601String();
     final db = await DatabaseHelper.instance.database;
     final rows = await db.query(
       'expenses',
-      columns: ['categoryId', 'amount'],
-      where: 'substr(date, 1, 7) = ?',
-      whereArgs: [monthKey],
+      columns: ['categoryId', 'amount', 'bdt_amount'],
+      where: 'date >= ? AND date < ?',
+      whereArgs: [start, next],
     );
     final map = <String, double>{};
     for (final row in rows) {
-      final categoryId = row['categoryId'] as String;
-      final amount = (row['amount'] as num).toDouble();
+      final categoryId = row['categoryId'] as String?;
+      if (categoryId == null) continue;
+      final amount = (row['bdt_amount'] as num?)?.toDouble() ??
+          (row['amount'] as num?)?.toDouble() ??
+          0.0;
       map[categoryId] = (map[categoryId] ?? 0) + amount;
     }
     return map;

@@ -24,7 +24,8 @@ dependencies:
   cloud_firestore: ^6.10.0
   google_sign_in: ^7.2.0
   googleapis: ^14.0.0 # Drive appDataFolder auto-backup
-  geolocator: ^13.0.0 # location reminders
+  geolocator: ^13.0.0
+  flutter_map: ^6.1.0 # location reminders
   # SDK-bundled localizations (v4): enables the Bangla Material calendar/date picker.
   flutter_localizations:
     sdk: flutter

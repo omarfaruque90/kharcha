@@ -1,14 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 import '../db/database_helper.dart';
+import '../models/cash_entry.dart';
 import '../models/expense.dart';
+import '../services/anomaly_service.dart';
+import '../services/category_learner.dart';
+import '../services/daily_limit_service.dart';
+import '../services/stats_notification.dart';
 
 /// Total spending for one calendar month.
 class MonthlyTotal {
   final DateTime month;
   final double total;
 
-  MonthlyTotal(this.month, this.total);
+  const MonthlyTotal(this.month, this.total);
 }
 
 /// Holds all expenses in memory (newest first) and exposes aggregates.
@@ -30,9 +35,29 @@ class ExpenseProvider extends ChangeNotifier {
 
   Future<void> add(Expense expense) async {
     final id = await DatabaseHelper.instance.insertExpense(expense);
-    _expenses.add(expense.copyWith(id: id));
+    final saved = expense.copyWith(id: id);
+    _expenses.add(saved);
     _sort();
     notifyListeners();
+    // Package AL: cash payments decrement the cash ledger.
+    if (saved.paymentMethod == 'cash') {
+      try {
+        await DatabaseHelper.instance.insertCashEntry(CashEntry(
+          id: CashEntry.newId(),
+          amount: saved.bdtAmount ?? saved.amount,
+          type: 'out',
+          date: saved.date,
+          note: saved.note,
+        ));
+      } catch (_) {}
+    }
+    // Post-save intelligence (all best-effort, never break the save flow):
+    // BE anomaly detection, AV daily-limit alarm, BG category learning,
+    // BQ stats notification refresh.
+    AnomalyService.checkExpense(saved);
+    DailyLimitService.check(this);
+    CategoryLearner.learn(saved.note, saved.categoryId);
+    StatsNotification.refresh();
   }
 
   Future<void> update(Expense expense) async {
@@ -56,9 +81,29 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   Future<void> remove(String id) async {
+    // Capture before deleting so a cash expense can be refunded to the
+    // cash ledger after the delete succeeds.
+    Expense? removed;
+    try {
+      removed = _expenses.firstWhere((e) => e.id == id);
+    } catch (_) {
+      removed = null;
+    }
     await DatabaseHelper.instance.deleteExpense(id);
     _expenses.removeWhere((e) => e.id == id);
     notifyListeners();
+    // Package AL: refund a removed cash expense back into the cash ledger.
+    if (removed != null && removed.paymentMethod == 'cash') {
+      try {
+        await DatabaseHelper.instance.insertCashEntry(CashEntry(
+          id: CashEntry.newId(),
+          amount: removed.bdtAmount ?? removed.amount,
+          type: 'in',
+          date: DateTime.now(),
+          note: removed.note,
+        ));
+      } catch (_) {}
+    }
   }
 
   void _sort() {
@@ -71,7 +116,7 @@ class ExpenseProvider extends ChangeNotifier {
     final d = _day(day);
     return _expenses
         .where((e) => _day(e.date) == d)
-        .fold(0.0, (sum, e) => sum + e.amount);
+        .fold(0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
   }
 
   double totalThisWeek() {
@@ -80,14 +125,14 @@ class ExpenseProvider extends ChangeNotifier {
     final end = start.add(const Duration(days: 7));
     return _expenses
         .where((e) => !e.date.isBefore(start) && e.date.isBefore(end))
-        .fold(0.0, (sum, e) => sum + e.amount);
+        .fold(0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
   }
 
   double totalThisMonth() {
     final now = DateTime.now();
     return _expenses
         .where((e) => e.date.year == now.year && e.date.month == now.month)
-        .fold(0.0, (sum, e) => sum + e.amount);
+        .fold(0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
   }
 
   /// Expenses matching [query] (note text) and optional [categoryId],
@@ -109,7 +154,7 @@ class ExpenseProvider extends ChangeNotifier {
       final total = _expenses
           .where(
               (e) => e.date.year == month.year && e.date.month == month.month)
-          .fold(0.0, (sum, e) => sum + e.amount);
+          .fold(0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
       return MonthlyTotal(month, total);
     });
   }
@@ -119,7 +164,7 @@ class ExpenseProvider extends ChangeNotifier {
     final map = <String, double>{};
     for (final e in _expenses) {
       if (e.date.year == month.year && e.date.month == month.month) {
-        map[e.categoryId] = (map[e.categoryId] ?? 0) + e.amount;
+        map[e.categoryId] = (map[e.categoryId] ?? 0) + (e.bdtAmount ?? e.amount);
       }
     }
     return map;

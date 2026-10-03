@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../models/savings_goal.dart';
+import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -34,42 +36,49 @@ class GoalsScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: Text(tr(context, 'goal_add')),
       ),
-      body: goals.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.savings_outlined,
-                    size: 56,
-                    color: theme.colorScheme.outline,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    tr(context, 'no_goals'),
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      tr(context, 'no_goals_sub'),
-                      style: theme.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: _StreakCard(),
+          ),
+          Expanded(
+            child: goals.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.savings_outlined,
+                          size: 56,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          tr(context, 'no_goals'),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            tr(context, 'no_goals_sub'),
+                            style: theme.textTheme.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => showDialog(
+                            context: context,
+                            builder: (_) => const _GoalDialog(),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: Text(tr(context, 'goal_add')),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => showDialog(
-                      context: context,
-                      builder: (_) => const _GoalDialog(),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: Text(tr(context, 'goal_add')),
-                  ),
-                ],
-              ),
-            )
+                  )
           : ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: goals.length,
@@ -197,10 +206,15 @@ class GoalsScreen extends StatelessWidget {
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 
   void _confirmDelete(BuildContext context, SavingsGoal goal) {
+    final id = goal.id;
+    if (id == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -213,7 +227,7 @@ class GoalsScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
-              await ctx.read<MoneyProvider>().removeGoal(goal.id!);
+              await ctx.read<MoneyProvider>().removeGoal(id);
               if (ctx.mounted) {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(ctx).showSnackBar(
@@ -222,6 +236,229 @@ class GoalsScreen extends StatelessWidget {
               }
             },
             child: Text(tr(ctx, 'delete')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Monthly savings streak card (Package BB).
+///
+/// A month counts as "saved" when (income - expense) > 0. Computed from
+/// existing provider data only — no new tables. Light by design: a single
+/// pass over incomes and expenses per build, then 12 cheap lookups.
+class _StreakCard extends StatelessWidget {
+  const _StreakCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final money = context.watch<MoneyProvider>();
+    final expenses = context.watch<ExpenseProvider>().expenses;
+    final lang = context.watch<SettingsProvider>().language;
+    final theme = Theme.of(context);
+    final locale = lang == 'bn' ? 'bn' : 'en';
+    final isDark = theme.brightness == Brightness.dark;
+    final gold = isDark ? kGoldLight : kGoldDark;
+    final grey = theme.colorScheme.outline.withValues(alpha: 0.4);
+
+    // --- compute once per build -----------------------------------------
+    final now = DateTime.now();
+    // Last 12 calendar months, oldest first.
+    final months =
+        List.generate(12, (i) => DateTime(now.year, now.month - 11 + i));
+
+    final incomeByMonth = <String, double>{};
+    for (final income in money.incomes) {
+      final key = monthKeyOf(income.date);
+      incomeByMonth[key] = (incomeByMonth[key] ?? 0) + income.amount;
+    }
+    final expenseByMonth = <String, double>{};
+    for (final e in expenses) {
+      final key = monthKeyOf(e.date);
+      expenseByMonth[key] =
+          (expenseByMonth[key] ?? 0) + (e.bdtAmount ?? e.amount);
+    }
+
+    final nets = <double>[];
+    final saved = <bool>[];
+    for (final m in months) {
+      final key = monthKeyOf(m);
+      final net = (incomeByMonth[key] ?? 0) - (expenseByMonth[key] ?? 0);
+      nets.add(net);
+      saved.add(net > 0);
+    }
+
+    // Current streak: consecutive saved months ending this month. If this
+    // month is not saved yet, count back from last month instead.
+    var current = 0;
+    var start = saved.length - 1;
+    if (!saved[start]) start -= 1;
+    for (var i = start; i >= 0 && saved[i]; i--) {
+      current++;
+    }
+
+    // Best streak: longest run inside the 12-month window.
+    var best = 0;
+    var run = 0;
+    for (final s in saved) {
+      if (s) {
+        run++;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('🔥', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 8),
+                Text(
+                  tr(context, 'streak_title'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _statTile(
+                    context,
+                    '🔥',
+                    tr(context, 'streak_current'),
+                    current,
+                    gold,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _statTile(
+                    context,
+                    '🏆',
+                    tr(context, 'streak_best'),
+                    best,
+                    gold,
+                  ),
+                ),
+              ],
+            ),
+            if (current == 0 && best == 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                tr(context, 'streak_empty_hint'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              tr(context, 'streak_history'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (var i = 0; i < 12; i++)
+                  Expanded(
+                    child: Tooltip(
+                      message:
+                          '${DateFormat.yMMM(locale).format(months[i])}: '
+                          "${saved[i] ? '✓' : '✗'} ${formatMoney(nets[i])}",
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: saved[i] ? gold : grey,
+                              border: saved[i]
+                                  ? null
+                                  : Border.all(
+                                      color: theme.colorScheme.outline
+                                          .withValues(alpha: 0.5),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat.MMM(locale).format(months[i]),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 9,
+                              color: saved[i]
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.outline,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statTile(
+    BuildContext context,
+    String emoji,
+    String label,
+    int value,
+    Color accent,
+  ) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$emoji $label',
+            style: theme.textTheme.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '$value',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                tr(context, 'streak_unit_months'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -252,7 +489,12 @@ class _GoalDialogState extends State<_GoalDialog> {
     final existing = widget.existing;
     if (existing != null) {
       _titleCtrl.text = existing.title;
-      _targetCtrl.text = existing.targetAmount.toStringAsFixed(0);
+      // Keep decimals (see income edit dialog) — rounding here would
+      // corrupt the stored target on save.
+      final target = existing.targetAmount;
+      _targetCtrl.text = target.truncateToDouble() == target
+          ? target.toStringAsFixed(0)
+          : target.toString();
       _emojiCtrl.text = existing.emoji;
       _deadline = existing.deadline;
     } else {
@@ -368,7 +610,7 @@ class _GoalDialogState extends State<_GoalDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            if (!_formKey.currentState!.validate()) return;
+            if (!(_formKey.currentState?.validate() ?? false)) return;
             final money = context.read<MoneyProvider>();
             final existing = widget.existing;
             if (existing == null) {
@@ -457,9 +699,11 @@ class _AddSavingsDialogState extends State<_AddSavingsDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            if (!_formKey.currentState!.validate()) return;
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            final id = widget.goal.id;
+            if (id == null) return;
             await context.read<MoneyProvider>().addSavings(
-                  widget.goal.id!,
+                  id,
                   double.parse(_amountCtrl.text.trim()),
                 );
             if (context.mounted) {

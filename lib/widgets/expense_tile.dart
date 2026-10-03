@@ -9,6 +9,7 @@ import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/add_expense_screen.dart';
+import '../services/currency_service.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
@@ -65,7 +66,9 @@ class ExpenseTile extends StatelessWidget {
       ),
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) {
-        context.read<ExpenseProvider>().remove(expense.id!);
+        final id = expense.id;
+        if (id == null) return;
+        context.read<ExpenseProvider>().remove(id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppStrings.get('msg_deleted', lang))),
         );
@@ -82,13 +85,27 @@ class ExpenseTile extends StatelessWidget {
           title: Text(
               CustomCategoryRegistry.displayName(expense.categoryId, lang)),
           subtitle: Text(subtitle.toString()),
-          trailing: Text(
-            formatMoney(expense.amount),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.3,
-              color: theme.colorScheme.primary,
-            ),
+          trailing: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatMoney(expense.bdtAmount ?? expense.amount),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              // Package V: original amount in the entry currency.
+              if (expense.currency != 'BDT')
+                Text(
+                  '(${CurrencyService.symbols[expense.currency] ?? expense.currency}${_trimOriginal(expense.amount)})',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
           ),
           onTap: () {
             Navigator.of(context).push(
@@ -101,4 +118,10 @@ class ExpenseTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Compact display of a non-BDT original amount: 10 → "10", 10.5 → "10.5".
+String _trimOriginal(double value) {
+  final whole = value.truncateToDouble() == value;
+  return whole ? value.toStringAsFixed(0) : value.toString();
 }

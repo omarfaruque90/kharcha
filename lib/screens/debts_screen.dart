@@ -32,7 +32,10 @@ class DebtsScreen extends StatefulWidget {
   State<DebtsScreen> createState() => _DebtsScreenState();
 }
 
-enum _DebtFilter { all, lent, borrowed, settled }
+enum _DebtFilter { all, lent, borrowed, settled, splits }
+
+/// Note prefix written by the split-bill feature (kind='lent').
+const _splitPrefix = 'Split:';
 
 class _DebtsScreenState extends State<DebtsScreen> {
   List<Debt> _debts = [];
@@ -46,12 +49,19 @@ class _DebtsScreenState extends State<DebtsScreen> {
   }
 
   Future<void> _reload() async {
-    final debts = await DatabaseHelper.instance.getDebts();
-    if (!mounted) return;
-    setState(() {
-      _debts = debts;
-      _loaded = true;
-    });
+    try {
+      final debts = await DatabaseHelper.instance.getDebts();
+      if (!mounted) return;
+      setState(() {
+        _debts = debts;
+        _loaded = true;
+      });
+    } catch (_) {
+      // Keep whatever data is on screen (possibly empty) and stop the
+      // spinner so a DB failure can't leave the screen hanging.
+      if (!mounted) return;
+      setState(() => _loaded = true);
+    }
   }
 
   List<Debt> get _visible {
@@ -67,9 +77,32 @@ class _DebtsScreenState extends State<DebtsScreen> {
             .toList();
       case _DebtFilter.settled:
         return list.where((d) => d.settled).toList();
+      case _DebtFilter.splits:
+        // Split debts still belong to All/Lent; this case only keeps the
+        // switch exhaustive — the splits view is built from _splitGroups.
+        return list
+            .where((d) => d.note.trim().startsWith(_splitPrefix))
+            .toList();
       case _DebtFilter.all:
         return list;
     }
+  }
+
+  /// Split-bill history grouped by the split title (the note suffix after
+  /// 'Split:'), newest group first.
+  List<_SplitGroup> get _splitGroups {
+    final groups = <String, List<Debt>>{};
+    for (final d in _debts) {
+      final note = d.note.trim();
+      if (!note.startsWith(_splitPrefix)) continue;
+      final title = note.substring(_splitPrefix.length).trim();
+      groups.putIfAbsent(title, () => []).add(d);
+    }
+    final out = groups.entries
+        .map((e) => _SplitGroup(title: e.key, debts: e.value))
+        .toList();
+    out.sort((a, b) => b.latestDate.compareTo(a.latestDate));
+    return out;
   }
 
   double _total(bool Function(Debt) test) =>
@@ -127,13 +160,21 @@ class _DebtsScreenState extends State<DebtsScreen> {
                           tr(context, 'debts_niyechi')),
                       _filterChip(context, _DebtFilter.settled,
                           tr(context, 'debts_settled')),
+                      _filterChip(
+                        context,
+                        _DebtFilter.splits,
+                        tr(context, 'debts_filter_splits'),
+                        icon: Icons.groups_outlined,
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 4),
                 Expanded(
-                  child: visible.isEmpty
-                      ? Center(
+                  child: _filter == _DebtFilter.splits
+                      ? _buildSplitsView(context)
+                      : (visible.isEmpty
+                          ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -174,28 +215,38 @@ class _DebtsScreenState extends State<DebtsScreen> {
                               ),
                             );
                           },
-                        ),
+                        )),
                 ),
               ],
             ),
     );
   }
 
-  Widget _filterChip(
-      BuildContext context, _DebtFilter value, String label) {
+  Widget _filterChip(BuildContext context, _DebtFilter value, String label,
+      {IconData? icon}) {
     final selected = _filter == value;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = selected
+        ? (dark ? kGoldLight : kGoldDark)
+        : Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        label: Text(label),
+        label: icon == null
+            ? Text(label)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18, color: labelColor),
+                  const SizedBox(width: 6),
+                  Text(label),
+                ],
+              ),
         selected: selected,
         onSelected: (_) => setState(() => _filter = value),
         selectedColor: kGold.withValues(alpha: 0.25),
         labelStyle: TextStyle(
-          color: selected
-              ? (dark ? kGoldLight : kGoldDark)
-              : Theme.of(context).colorScheme.onSurface,
+          color: labelColor,
           fontWeight: selected ? FontWeight.bold : FontWeight.normal,
         ),
         side: BorderSide(
@@ -207,6 +258,43 @@ class _DebtsScreenState extends State<DebtsScreen> {
                   .withValues(alpha: 0.4),
         ),
       ),
+    );
+  }
+
+  /// Split-bill history: one card per split title, newest first.
+  Widget _buildSplitsView(BuildContext context) {
+    final theme = Theme.of(context);
+    final groups = _splitGroups;
+    if (groups.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.groups_outlined,
+              size: 56,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr(context, 'debts_no_splits'),
+              style: theme.textTheme.titleMedium,
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
+      itemCount: groups.length,
+      itemBuilder: (context, i) {
+        final g = groups[i];
+        return StaggeredEntrance(
+          key: ValueKey('split-$i-${g.title}'),
+          delayMs: i * 40,
+          child: _SplitGroupCard(group: g),
+        );
+      },
     );
   }
 }
@@ -756,5 +844,103 @@ class _DebtDialogState extends State<_DebtDialog> {
     ));
     if (!mounted) return;
     Navigator.of(context).pop(true);
+  }
+}
+
+/// One split bill: the debts sharing the same 'Split: <title>' note.
+class _SplitGroup {
+  final String title;
+  final List<Debt> debts;
+
+  _SplitGroup({required this.title, required List<Debt> debts})
+      : debts = List.of(debts)
+          ..sort((a, b) {
+            // Unsettled people first, then newest.
+            if (a.settled != b.settled) return a.settled ? 1 : -1;
+            return b.date.compareTo(a.date);
+          });
+
+  double get total => debts.fold(0.0, (sum, d) => sum + d.amount);
+
+  DateTime get latestDate =>
+      debts.map((d) => d.date).reduce((a, b) => a.isAfter(b) ? a : b);
+
+  List<String> get stillOwing =>
+      debts.where((d) => !d.settled).map((d) => d.person).toList();
+}
+
+/// One split-bill card: title, summed total, who still owes, and the
+/// per-person rows with their owed/settled state.
+class _SplitGroupCard extends StatelessWidget {
+  final _SplitGroup group;
+
+  const _SplitGroupCard({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final lang = context.read<SettingsProvider>().language;
+    final dateFmt = DateFormat.yMMMd(lang == 'bn' ? 'bn' : 'en');
+    final stillOwing = group.stillOwing;
+    final owedColor =
+        dark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+
+    return Card(
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: kGold.withValues(alpha: 0.18),
+          child: Icon(
+            Icons.groups_outlined,
+            color: dark ? kGoldLight : kGoldDark,
+          ),
+        ),
+        title: Text(
+          group.title,
+          style: theme.textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '${formatMoney(group.total)} • ${stillOwing.isEmpty ? tr(context, 'debts_settled') : '${tr(context, 'debts_split_still_owes')}: ${stillOwing.join(', ')}'}',
+        ),
+        children: [
+          for (final d in group.debts)
+            ListTile(
+              dense: true,
+              leading: Icon(
+                d.settled ? Icons.check_circle_outline : Icons.person_outline,
+                color: d.settled ? theme.colorScheme.outline : owedColor,
+              ),
+              title: Text(d.person),
+              subtitle: Text(dateFmt.format(d.date)),
+              trailing: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatMoney(d.amount),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          d.settled ? theme.colorScheme.outline : owedColor,
+                    ),
+                  ),
+                  Text(
+                    d.settled
+                        ? tr(context, 'debts_settled')
+                        : tr(context, 'debts_split_owed'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color:
+                          d.settled ? theme.colorScheme.outline : owedColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

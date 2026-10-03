@@ -113,6 +113,7 @@ class _ReceiptTile extends StatelessWidget {
             Image.file(
               File(expense.receiptPath!),
               fit: BoxFit.cover,
+              cacheWidth: 400,
               errorBuilder: (_, __, ___) => Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Icon(Icons.broken_image_outlined),
@@ -141,7 +142,7 @@ class _ReceiptTile extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      formatMoney(expense.amount),
+                      formatMoney(expense.bdtAmount ?? expense.amount),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -193,10 +194,14 @@ class _ReceiptViewer extends StatelessWidget {
     );
     if (yes != true || !context.mounted) return;
     // Delete the file, then clear the path on the expense.
-    try {
-      final f = File(expense.receiptPath!);
-      if (await f.exists()) await f.delete();
-    } catch (_) {}
+    // Keep every other field intact (currency, bdtAmount, mood, geo…).
+    final rp = expense.receiptPath;
+    if (rp != null && rp.isNotEmpty) {
+      try {
+        final f = File(rp);
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+    }
     if (!context.mounted) return;
     await context.read<ExpenseProvider>().update(
           Expense(
@@ -207,6 +212,13 @@ class _ReceiptViewer extends StatelessWidget {
             note: expense.note,
             paymentMethod: expense.paymentMethod,
             place: expense.place,
+            receiptPath: null,
+            currency: expense.currency,
+            bdtAmount: expense.bdtAmount,
+            mood: expense.mood,
+            projectId: expense.projectId,
+            lat: expense.lat,
+            lng: expense.lng,
           ),
         );
     if (context.mounted) {
@@ -271,7 +283,7 @@ class _ReceiptViewer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  formatMoney(expense.amount),
+                  formatMoney(expense.bdtAmount ?? expense.amount),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: dark ? kGoldLight : kGoldDark),

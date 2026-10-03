@@ -172,6 +172,8 @@ class IncomeScreen extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, Income income) {
+    final id = income.id;
+    if (id == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -184,7 +186,7 @@ class IncomeScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
-              await ctx.read<MoneyProvider>().removeIncome(income.id!);
+              await ctx.read<MoneyProvider>().removeIncome(id);
               if (ctx.mounted) {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(ctx).showSnackBar(
@@ -286,7 +288,12 @@ class _IncomeDialogState extends State<_IncomeDialog> {
     final existing = widget.existing;
     _date = existing?.date ?? DateTime.now();
     if (existing != null) {
-      _amountCtrl.text = existing.amount.toStringAsFixed(0);
+      // Keep decimals: toStringAsFixed(0) would round 1050.5 to "1050"
+      // and saving would corrupt the stored amount.
+      final amt = existing.amount;
+      _amountCtrl.text = amt.truncateToDouble() == amt
+          ? amt.toStringAsFixed(0)
+          : amt.toString();
       _sourceCtrl.text = existing.source;
       _noteCtrl.text = existing.note;
     }
@@ -381,7 +388,7 @@ class _IncomeDialogState extends State<_IncomeDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            if (!_formKey.currentState!.validate()) return;
+            if (!(_formKey.currentState?.validate() ?? false)) return;
             final amount = double.parse(_amountCtrl.text.trim());
             final money = context.read<MoneyProvider>();
             final existing = widget.existing;

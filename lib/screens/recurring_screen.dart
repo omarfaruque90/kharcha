@@ -12,17 +12,27 @@ import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 import '../widgets/payment_selector.dart';
 
-/// Recurring expense templates: CRUD + active toggle. Due templates are
-/// auto-added as real expenses by RecurringService on app start.
-class RecurringScreen extends StatelessWidget {
+/// Recurring templates: CRUD + active toggle. Due templates are
+/// auto-added as real expenses (or incomes, for 'income' kind templates)
+/// by RecurringService on app start.
+class RecurringScreen extends StatefulWidget {
   const RecurringScreen({super.key});
+
+  @override
+  State<RecurringScreen> createState() => _RecurringScreenState();
+}
+
+class _RecurringScreenState extends State<RecurringScreen> {
+  /// 0 = expense templates, 1 = income templates.
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
     final money = context.watch<MoneyProvider>();
     final lang = context.watch<SettingsProvider>().language;
     final theme = Theme.of(context);
-    final items = money.recurring;
+    final kind = _tab == 0 ? 'expense' : 'income';
+    final items = money.recurring.where((r) => r.kind == kind).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -31,105 +41,159 @@ class RecurringScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,
-          builder: (_) => const _RecurringDialog(),
+          builder: (_) => _RecurringDialog(initialKind: kind),
         ),
         icon: const Icon(Icons.add),
         label: Text(tr(context, 'recurring_add')),
       ),
-      body: items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.event_repeat_outlined,
-                    size: 56,
-                    color: theme.colorScheme.outline,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    tr(context, 'no_recurring'),
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      tr(context, 'no_recurring_sub'),
-                      style: theme.textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => showDialog(
-                      context: context,
-                      builder: (_) => const _RecurringDialog(),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: Text(tr(context, 'recurring_add')),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final r = items[i];
-                final cat = categoryById(r.categoryId);
-                return StaggeredEntrance(
-                  key: ValueKey('recurring-${r.id}'),
-                  delayMs: (i * 50).clamp(0, 250).toInt(),
-                  child: Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: cat.color.withValues(alpha: 0.15),
-                        child: Icon(cat.icon, color: cat.color),
-                      ),
-                      title: Text(
-                        r.label.trim().isEmpty
-                            ? CustomCategoryRegistry.displayName(r.categoryId, lang)
-                            : r.label,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  label: Text(tr(context, 'recurring_tab_expense')),
+                  selected: _tab == 0,
+                  onSelected: (_) => setState(() => _tab = 0),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: Text(tr(context, 'recurring_tab_income')),
+                  selected: _tab == 1,
+                  onSelected: (_) => setState(() => _tab = 1),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: items.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _tab == 0
+                              ? Icons.event_repeat_outlined
+                              : Icons.trending_up,
+                          size: 56,
+                          color: theme.colorScheme.outline,
                         ),
-                      ),
-                      subtitle: Text(
-                        '${tr(context, 'recurring_day')}: ${r.dayOfMonth} • '
-                        '${formatMoney(r.amount)}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Switch(
-                            value: r.active,
-                            onChanged: (v) => money.toggleRecurring(
-                                r.id!, v),
+                        const SizedBox(height: 12),
+                        Text(
+                          tr(
+                            context,
+                            _tab == 0 ? 'no_recurring' : 'no_recurring_income',
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => showDialog(
-                              context: context,
-                              builder: (_) =>
-                                  _RecurringDialog(existing: r),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            tr(
+                              context,
+                              _tab == 0
+                                  ? 'no_recurring_sub'
+                                  : 'no_recurring_income_sub',
+                            ),
+                            style: theme.textTheme.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => showDialog(
+                            context: context,
+                            builder: (_) =>
+                                _RecurringDialog(initialKind: kind),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: Text(tr(context, 'recurring_add')),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final r = items[i];
+                      final isIncome = r.kind == 'income';
+                      final cat = categoryById(r.categoryId);
+                      final iconBg = isIncome
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : cat.color.withValues(alpha: 0.15);
+                      final iconFg =
+                          isIncome ? Colors.green : cat.color;
+                      return StaggeredEntrance(
+                        key: ValueKey('recurring-${r.id}'),
+                        delayMs: (i * 50).clamp(0, 250).toInt(),
+                        child: Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: iconBg,
+                              child: Icon(
+                                isIncome ? Icons.trending_up : cat.icon,
+                                color: iconFg,
+                              ),
+                            ),
+                            title: Text(
+                              r.label.trim().isEmpty
+                                  ? (isIncome
+                                      ? tr(context, 'income_title')
+                                      : CustomCategoryRegistry.displayName(
+                                          r.categoryId, lang))
+                                  : r.label,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${tr(context, 'recurring_day')}: ${r.dayOfMonth} • '
+                              '${formatMoney(r.amount)}',
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Switch(
+                                  value: r.active,
+                                  onChanged: (v) {
+                                    final id = r.id;
+                                    if (id != null) {
+                                      money.toggleRecurring(id, v);
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => showDialog(
+                                    context: context,
+                                    builder: (_) =>
+                                        _RecurringDialog(existing: r),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => _confirmDelete(context, r),
+                                ),
+                              ],
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _confirmDelete(context, r),
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 
   void _confirmDelete(BuildContext context, RecurringExpense r) {
+    final id = r.id;
+    if (id == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -142,7 +206,7 @@ class RecurringScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
-              await ctx.read<MoneyProvider>().removeRecurring(r.id!);
+              await ctx.read<MoneyProvider>().removeRecurring(id);
               if (ctx.mounted) {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(ctx).showSnackBar(
@@ -158,12 +222,14 @@ class RecurringScreen extends StatelessWidget {
   }
 }
 
-/// Add / edit dialog: label, amount, category, day 1-31, payment method,
-/// active flag.
+/// Add / edit dialog: kind (expense/income), label, amount, category,
+/// day 1-31, payment method, active flag. Category and payment method are
+/// only shown for expense templates.
 class _RecurringDialog extends StatefulWidget {
   final RecurringExpense? existing;
+  final String? initialKind;
 
-  const _RecurringDialog({this.existing});
+  const _RecurringDialog({this.existing, this.initialKind});
 
   @override
   State<_RecurringDialog> createState() => _RecurringDialogState();
@@ -173,6 +239,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
   final _formKey = GlobalKey<FormState>();
   final _labelCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
+  late String _kind;
   late String _categoryId;
   late int _day;
   late String _paymentMethod;
@@ -182,10 +249,16 @@ class _RecurringDialogState extends State<_RecurringDialog> {
   void initState() {
     super.initState();
     final existing = widget.existing;
+    _kind = existing?.kind ?? widget.initialKind ?? 'expense';
     _labelCtrl.text = existing?.label ?? '';
-    _amountCtrl.text = existing != null
-        ? existing.amount.toStringAsFixed(0)
-        : '';
+    // Keep decimals: toStringAsFixed(0) would round 1050.5 to "1050"
+    // and saving would corrupt the stored amount.
+    final existingAmount = existing?.amount;
+    _amountCtrl.text = existingAmount == null
+        ? ''
+        : (existingAmount.truncateToDouble() == existingAmount
+            ? existingAmount.toStringAsFixed(0)
+            : existingAmount.toString());
     _categoryId = existing?.categoryId ?? kCategories.first.id;
     _day = existing?.dayOfMonth ?? 1;
     _paymentMethod = existing?.paymentMethod ?? 'cash';
@@ -213,6 +286,23 @@ class _RecurringDialogState extends State<_RecurringDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Expense / income kind selector.
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: Text(tr(context, 'recurring_tab_expense')),
+                    selected: _kind == 'expense',
+                    onSelected: (_) => setState(() => _kind = 'expense'),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text(tr(context, 'recurring_tab_income')),
+                    selected: _kind == 'income',
+                    onSelected: (_) => setState(() => _kind = 'income'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _labelCtrl,
                 decoration: InputDecoration(
@@ -239,29 +329,32 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _categoryId,
-                decoration: InputDecoration(
-                  labelText: tr(context, 'category'),
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  for (final c in kCategories)
-                    DropdownMenuItem(
-                      value: c.id,
-                      child: Row(
-                        children: [
-                          Icon(c.icon, size: 18, color: c.color),
-                          const SizedBox(width: 8),
-                          Text(CustomCategoryRegistry.displayName(c.id, lang)),
-                        ],
+              if (_kind == 'expense') ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _categoryId,
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'category'),
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final c in kCategories)
+                      DropdownMenuItem(
+                        value: c.id,
+                        child: Row(
+                          children: [
+                            Icon(c.icon, size: 18, color: c.color),
+                            const SizedBox(width: 8),
+                            Text(CustomCategoryRegistry.displayName(
+                                c.id, lang)),
+                          ],
+                        ),
                       ),
-                    ),
-                ],
-                onChanged: (v) =>
-                    setState(() => _categoryId = v ?? _categoryId),
-              ),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _categoryId = v ?? _categoryId),
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: _day,
@@ -279,20 +372,22 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                 onChanged: (v) =>
                     setState(() => _day = v ?? _day),
               ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  tr(context, 'payment_method'),
-                  style: Theme.of(context).textTheme.labelLarge,
+              if (_kind == 'expense') ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    tr(context, 'payment_method'),
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              PaymentSelector(
-                value: _paymentMethod,
-                onChanged: (v) =>
-                    setState(() => _paymentMethod = v),
-              ),
+                const SizedBox(height: 8),
+                PaymentSelector(
+                  value: _paymentMethod,
+                  onChanged: (v) =>
+                      setState(() => _paymentMethod = v),
+                ),
+              ],
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(tr(context, 'active')),
@@ -310,12 +405,13 @@ class _RecurringDialogState extends State<_RecurringDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            if (!_formKey.currentState!.validate()) return;
+            if (!(_formKey.currentState?.validate() ?? false)) return;
             final amount = double.parse(_amountCtrl.text.trim());
             final money = context.read<MoneyProvider>();
+            final isIncome = _kind == 'income';
             // Persist a custom "Other" payment label for reuse, mirroring
-            // the add-expense screen.
-            if (_paymentMethod.startsWith('other:')) {
+            // the add-expense screen. (Expense kind only.)
+            if (!isIncome && _paymentMethod.startsWith('other:')) {
               final label =
                   _paymentMethod.substring('other:'.length).trim();
               if (label.isNotEmpty) {
@@ -326,20 +422,26 @@ class _RecurringDialogState extends State<_RecurringDialog> {
             final existing = widget.existing;
             if (existing == null) {
               await money.addRecurring(RecurringExpense(
+                kind: _kind,
                 label: _labelCtrl.text.trim(),
                 amount: amount,
-                categoryId: _categoryId,
+                categoryId: isIncome ? 'others' : _categoryId,
                 dayOfMonth: _day,
-                paymentMethod: _paymentMethod,
+                paymentMethod: isIncome ? 'cash' : _paymentMethod,
                 active: _active,
               ));
             } else {
               await money.updateRecurring(existing.copyWith(
+                kind: _kind,
                 label: _labelCtrl.text.trim(),
                 amount: amount,
-                categoryId: _categoryId,
+                // Income templates don't expose category/payment in the
+                // dialog; keep the stored values so switching kind back
+                // and forth doesn't lose them.
+                categoryId: isIncome ? existing.categoryId : _categoryId,
                 dayOfMonth: _day,
-                paymentMethod: _paymentMethod,
+                paymentMethod:
+                    isIncome ? existing.paymentMethod : _paymentMethod,
                 active: _active,
               ));
             }

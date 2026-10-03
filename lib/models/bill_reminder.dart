@@ -13,6 +13,12 @@ class BillReminder {
   final String note;
   final bool active;
 
+  /// Path to an attached bill photo (camera/gallery). Empty = none.
+  /// Stored verbatim in the `photo_path` SQLite column and synced in the
+  /// `photoPath` Firestore field so the notification payload lookup can find
+  /// the same reminder on any device.
+  final String photoPath;
+
   /// Last modification time (millis precision). Used for last-write-wins
   /// merging between the local DB and Firestore.
   final DateTime updatedAt;
@@ -24,6 +30,7 @@ class BillReminder {
     required this.dayOfMonth,
     this.note = '',
     this.active = true,
+    this.photoPath = '',
     DateTime? updatedAt,
   })  : assert(dayOfMonth >= 1 && dayOfMonth <= 31),
         updatedAt = updatedAt ?? DateTime.now();
@@ -39,6 +46,7 @@ class BillReminder {
       'dayOfMonth': dayOfMonth,
       'note': note,
       'active': active ? 1 : 0,
+      'photo_path': photoPath,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -54,6 +62,7 @@ class BillReminder {
       active: activeRaw is int
           ? activeRaw == 1
           : (activeRaw as bool? ?? true),
+      photoPath: map['photo_path'] as String? ?? '',
       updatedAt: map['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
           : null,
@@ -69,6 +78,7 @@ class BillReminder {
       dayOfMonth: (data['dayOfMonth'] as num?)?.toInt() ?? 1,
       note: data['note'] as String? ?? '',
       active: data['active'] as bool? ?? true,
+      photoPath: data['photoPath'] as String? ?? '',
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         (data['updatedAt'] as num?)?.toInt() ?? 0,
       ),
@@ -83,6 +93,7 @@ class BillReminder {
       'dayOfMonth': dayOfMonth,
       'note': note,
       'active': active,
+      'photoPath': photoPath,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -94,6 +105,7 @@ class BillReminder {
     int? dayOfMonth,
     String? note,
     bool? active,
+    String? photoPath,
     DateTime? updatedAt,
   }) {
     return BillReminder(
@@ -103,6 +115,7 @@ class BillReminder {
       dayOfMonth: dayOfMonth ?? this.dayOfMonth,
       note: note ?? this.note,
       active: active ?? this.active,
+      photoPath: photoPath ?? this.photoPath,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

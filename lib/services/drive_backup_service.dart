@@ -126,7 +126,8 @@ class DriveBackupService {
       );
       final files = list.files;
       if (files == null || files.isEmpty) return -1;
-      final id = files.first.id!;
+      final id = files.first.id;
+      if (id == null) return -1;
       final media = await api.files.get(
         id,
         downloadOptions: drive.DownloadOptions.fullMedia,

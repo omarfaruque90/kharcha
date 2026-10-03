@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
+import '../../db/database_helper.dart';
 import '../../main.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/money_provider.dart';
@@ -79,13 +80,16 @@ class _SyncedHomeState extends State<_SyncedHome> {
     if (mounted) setState(() => _ready = true);
     // 2. Cloud sync runs in the background; refresh when merged data arrives.
     // The app is fully usable offline — sync never blocks the UI.
+    // BS: Firestore sync is personal-profile only.
     try {
-      await SyncService.instance.startSync(widget.uid);
-      if (mounted) {
-        final expenses = context.read<ExpenseProvider>();
-        final money = context.read<MoneyProvider>();
-        await expenses.load();
-        await money.load();
+      if (DatabaseHelper.instance.isPersonalProfile) {
+        await SyncService.instance.startSync(widget.uid);
+        if (mounted) {
+          final expenses = context.read<ExpenseProvider>();
+          final money = context.read<MoneyProvider>();
+          await expenses.load();
+          await money.load();
+        }
       }
     } catch (_) {
       // Offline / rules not set yet — the app still works locally.

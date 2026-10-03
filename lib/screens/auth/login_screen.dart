@@ -42,9 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _loginEmail() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     _run(() => AuthService.instance.signInWithEmail(
-          email: _email.text,
+          // Trim: a trailing space from autocorrect makes login fail.
+          email: _email.text.trim(),
           password: _password.text,
         ));
   }

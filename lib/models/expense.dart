@@ -19,6 +19,23 @@ class Expense {
   /// never synced to Firestore (paths are meaningless on other devices).
   final String? receiptPath;
 
+  /// Currency the amount was originally entered in ('BDT', 'USD', ...).
+  final String currency;
+
+  /// Amount converted to BDT at entry time. Null for old rows; totals use
+  /// (bdtAmount ?? amount) so historical data stays correct.
+  final double? bdtAmount;
+
+  /// Mood tag chosen at entry time (an emoji string), or '' when none.
+  final String mood;
+
+  /// Project id (travel mode) or '' when none.
+  final String projectId;
+
+  /// Optional geo coordinates.
+  final double? lat;
+  final double? lng;
+
   /// Last modification time (millis precision). Used for last-write-wins
   /// merging between the local DB and Firestore.
   final DateTime updatedAt;
@@ -32,6 +49,12 @@ class Expense {
     this.paymentMethod = 'cash',
     this.place,
     this.receiptPath,
+    this.currency = 'BDT',
+    this.bdtAmount,
+    this.mood = '',
+    this.projectId = '',
+    this.lat,
+    this.lng,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
@@ -48,6 +71,12 @@ class Expense {
       'paymentMethod': paymentMethod,
       'place': place,
       'receiptPath': receiptPath,
+      'currency': currency,
+      'bdt_amount': bdtAmount,
+      'mood': mood,
+      'project_id': projectId,
+      'lat': lat,
+      'lng': lng,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -63,6 +92,12 @@ class Expense {
       paymentMethod: map['paymentMethod'] as String? ?? 'cash',
       place: map['place'] as String?,
       receiptPath: map['receiptPath'] as String?,
+      currency: map['currency'] as String? ?? 'BDT',
+      bdtAmount: (map['bdt_amount'] as num?)?.toDouble(),
+      mood: map['mood'] as String? ?? '',
+      projectId: map['project_id'] as String? ?? '',
+      lat: (map['lat'] as num?)?.toDouble(),
+      lng: (map['lng'] as num?)?.toDouble(),
       updatedAt: map['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
           : null,
@@ -80,6 +115,9 @@ class Expense {
       paymentMethod: data['paymentMethod'] as String? ?? 'cash',
       place: data['place'] as String?,
       // receiptPath is intentionally not read: it is device-local.
+      currency: data['currency'] as String? ?? 'BDT',
+      bdtAmount: (data['bdt_amount'] as num?)?.toDouble(),
+      mood: data['mood'] as String? ?? '',
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         (data['updatedAt'] as num?)?.toInt() ?? 0,
       ),
@@ -96,6 +134,9 @@ class Expense {
       'note': note,
       'paymentMethod': paymentMethod,
       'place': place,
+      'currency': currency,
+      'bdt_amount': bdtAmount,
+      'mood': mood,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -109,6 +150,12 @@ class Expense {
     String? paymentMethod,
     String? place,
     String? receiptPath,
+    String? currency,
+    double? bdtAmount,
+    String? mood,
+    String? projectId,
+    double? lat,
+    double? lng,
     DateTime? updatedAt,
   }) {
     return Expense(
@@ -120,6 +167,12 @@ class Expense {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       place: place ?? this.place,
       receiptPath: receiptPath ?? this.receiptPath,
+      currency: currency ?? this.currency,
+      bdtAmount: bdtAmount ?? this.bdtAmount,
+      mood: mood ?? this.mood,
+      projectId: projectId ?? this.projectId,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

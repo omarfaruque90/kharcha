@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
@@ -8,13 +9,39 @@ import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/auth_service.dart';
+import '../services/carry_forward_service.dart';
+import '../services/public_templates_service.dart';
+import '../services/voice_budget_parser.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
 /// Monthly per-category spending limits: set/edit budgets, see spent vs
 /// limit with progress bars, and get warned at 80% / when exceeded.
-class BudgetScreen extends StatelessWidget {
+class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
+
+  @override
+  State<BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends State<BudgetScreen> {
+  /// Carried-forward leftover per category (BP: carry-forward), loaded
+  /// once per screen open.
+  Map<String, double> _carried = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCarried();
+  }
+
+  Future<void> _loadCarried() async {
+    try {
+      final m = await CarryForwardService.carriedMap();
+      if (mounted) setState(() => _carried = m);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +52,77 @@ class BudgetScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr(context, 'budget_title')),
+        actions: [
+          // BI: publish this month's budgets as a public template.
+          TextButton.icon(
+            onPressed: () async {
+              final money = context.read<MoneyProvider>();
+              final budgets = money.budgetsForMonth(key);
+              if (budgets.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(tr(context, 'pt_share_empty'))),
+                );
+                return;
+              }
+              final nameCtrl = TextEditingController();
+              final name = await showDialog<String>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(tr(ctx, 'pt_share_name_title')),
+                  content: TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      hintText: tr(ctx, 'pt_share_name_hint'),
+                    ),
+                    autofocus: true,
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(tr(ctx, 'cancel')),
+                    ),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(nameCtrl.text.trim()),
+                      child: Text(tr(ctx, 'pt_share')),
+                    ),
+                  ],
+                ),
+              );
+              nameCtrl.dispose();
+              if (name == null || name.isEmpty || !context.mounted) return;
+              final user = AuthService.instance.currentUser;
+              final author = (user?.displayName?.isNotEmpty == true)
+                  ? user!.displayName!
+                  : (user?.email ?? tr(context, 'auth_guest_label'));
+              try {
+                await PublicTemplatesService.instance
+                    .publish(name, budgets, author);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(tr(context, 'pt_shared'))),
+                  );
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(tr(context, 'pt_share_failed'))),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.ios_share_outlined),
+            label: Text(tr(context, 'pt_share')),
+          ),
+          IconButton(
+            icon: const Icon(Icons.mic_outlined),
+            tooltip: tr(context, 'voice_budget_title'),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => VoiceBudgetDialog(monthKey: key),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showBudgetDialog(context, key, null),
@@ -85,6 +183,7 @@ class BudgetScreen extends StatelessWidget {
                   child: _BudgetCard(
                     budget: budgets[i],
                     spent: spent[budgets[i].categoryId] ?? 0,
+                    carried: _carried[budgets[i].categoryId] ?? 0,
                     lang: lang,
                     onTap: () => _showBudgetDialog(
                         context, key, budgets[i]),
@@ -191,17 +290,22 @@ class _MonthlyBudgetCard extends StatelessWidget {
               ),
               if (limit > 0) ...[
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: ratio,
-                    minHeight: 8,
-                    backgroundColor:
-                        theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      over
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.primary,
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOutCubic,
+                  builder: (ctx, t, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (ratio * t).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        over
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -383,12 +487,14 @@ class _WarningBanner extends StatelessWidget {
 class _BudgetCard extends StatelessWidget {
   final Budget budget;
   final double spent;
+  final double carried;
   final String lang;
   final VoidCallback onTap;
 
   const _BudgetCard({
     required this.budget,
     required this.spent,
+    this.carried = 0,
     required this.lang,
     required this.onTap,
   });
@@ -398,9 +504,9 @@ class _BudgetCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cat = categoryById(budget.categoryId);
     final ratio = budget.limitAmount > 0 ? spent / budget.limitAmount : 0.0;
-    final barColor = ratio >= 1
+    Color colorFor(double r) => r >= 1
         ? theme.colorScheme.error
-        : ratio >= 0.8
+        : r >= 0.8
             ? const Color(0xFFF9A825)
             : theme.colorScheme.primary;
     return PressableScale(
@@ -408,69 +514,108 @@ class _BudgetCard extends StatelessWidget {
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          // Bars + numbers count up on open (~800ms, easeOutCubic).
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (ctx, t, _) {
+              final ar = ratio * t;
+              final barColor = colorFor(ar);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: cat.color.withValues(alpha: 0.15),
-                    child: Icon(cat.icon, color: cat.color),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: cat.color.withValues(alpha: 0.15),
+                        child: Icon(cat.icon, color: cat.color),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              CustomCategoryRegistry.displayName(
+                                  budget.categoryId, lang),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${tr(context, 'spent')}: ${formatMoney(spent * t)} / '
+                              '${formatMoney(budget.limitAmount)}',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            // BP: subtle badge when leftover was carried
+                            // into this month's budget for this category.
+                            if (carried > 0)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: kGold.withValues(alpha: 0.18),
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    tr(context, 'carried_badge')
+                                        .replaceAll('{amount}',
+                                            formatMoney(carried)),
+                                    style: theme.textTheme.labelSmall
+                                        ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${(ar * 100).toStringAsFixed(0)}%',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: barColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          CustomCategoryRegistry.displayName(budget.categoryId, lang),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${tr(context, 'spent')}: ${formatMoney(spent)} / '
-                          '${formatMoney(budget.limitAmount)}',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: ar.clamp(0.0, 1.0),
+                      minHeight: 10,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(barColor),
                     ),
                   ),
+                  const SizedBox(height: 6),
                   Text(
-                    '${(ratio * 100).toStringAsFixed(0)}%',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: barColor,
+                    ratio >= 1
+                        ? tr(context, 'budget_exceeded')
+                        : '${tr(context, 'remaining')}: '
+                            '${formatMoney(budget.limitAmount - spent)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: ratio >= 1
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
+                      fontWeight:
+                          ratio >= 1 ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: ratio.clamp(0.0, 1.0),
-                  minHeight: 10,
-                  backgroundColor:
-                      theme.colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                ratio >= 1
-                    ? tr(context, 'budget_exceeded')
-                    : '${tr(context, 'remaining')}: '
-                        '${formatMoney(budget.limitAmount - spent)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: ratio >= 1
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.onSurfaceVariant,
-                  fontWeight:
-                      ratio >= 1 ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -657,6 +802,240 @@ class _BudgetDialogState extends State<_BudgetDialog> {
             }
           },
           child: Text(tr(context, 'save')),
+        ),
+      ],
+    );
+  }
+}
+
+/// BT: voice budget setup dialog. Listens via speech_to_text, parses
+/// "<category> budget <amount>" (Bangla + English), shows the parsed
+/// result and confirms one-tap budget save.
+class VoiceBudgetDialog extends StatefulWidget {
+  final String monthKey;
+  const VoiceBudgetDialog({super.key, required this.monthKey});
+
+  @override
+  State<VoiceBudgetDialog> createState() => _VoiceBudgetDialogState();
+}
+
+class _VoiceBudgetDialogState extends State<VoiceBudgetDialog> {
+  final SpeechToText _speech = SpeechToText();
+  bool _listening = false;
+  String _heard = '';
+  VoiceBudgetResult? _parsed;
+  String? _pickedCategoryId;
+
+  @override
+  void dispose() {
+    _speech.stop();
+    super.dispose();
+  }
+
+  Future<void> _toggleMic() async {
+    if (_listening) {
+      await _speech.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    bool available = false;
+    try {
+      available = await _speech.initialize(
+        onStatus: (s) {
+          if ((s == 'notListening' || s == 'done') && mounted) {
+            setState(() => _listening = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _listening = false);
+        },
+      );
+    } catch (_) {
+      available = false;
+    }
+    if (!available) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'voice_error'))),
+        );
+      }
+      return;
+    }
+    final lang = context.read<SettingsProvider>().language;
+    setState(() {
+      _listening = true;
+      _heard = '';
+      _parsed = null;
+      _pickedCategoryId = null;
+    });
+    await _speech.listen(
+      localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
+      listenFor: const Duration(seconds: 12),
+      partialResults: true,
+      onResult: (r) {
+        final words = r.recognizedWords.trim();
+        if (!mounted || words.isEmpty) return;
+        setState(() {
+          _heard = words;
+          // Live parse on partial results too.
+          _parsed = VoiceBudgetParser.parse(words, lang);
+        });
+        if (r.finalResult) {
+          _speech.stop();
+          setState(() => _listening = false);
+        }
+      },
+    );
+  }
+
+  Future<void> _confirm() async {
+    final parsed = _parsed;
+    final categoryId = parsed?.categoryId ?? _pickedCategoryId;
+    final amount = parsed?.amount;
+    if (categoryId == null || categoryId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(context, 'voice_budget_no_category'))),
+      );
+      return;
+    }
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(context, 'voice_budget_no_amount'))),
+      );
+      return;
+    }
+    final money = context.read<MoneyProvider>();
+    await money.upsertBudget(Budget(
+      categoryId: categoryId,
+      monthKey: widget.monthKey,
+      limitAmount: amount,
+    ));
+    if (mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr(context, 'msg_saved'))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = context.watch<SettingsProvider>().language;
+    final parsed = _parsed;
+    final categoryId = parsed?.categoryId ?? _pickedCategoryId;
+    final amount = parsed?.amount;
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(tr(context, 'voice_budget_title')),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              tr(context, 'voice_budget_hint'),
+              style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            // Live transcript.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: theme.colorScheme.surfaceContainerHighest,
+              ),
+              child: Text(
+                _heard.isEmpty
+                    ? tr(context, 'voice_budget_tap_mic')
+                    : '“$_heard”',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (parsed != null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.category_outlined, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: categoryId != null
+                        ? Text(
+                            CustomCategoryRegistry.displayName(
+                                categoryId, lang),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : Text(tr(context, 'voice_budget_no_category')),
+                  ),
+                  if (categoryId == null)
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDialog<String>(
+                          context: context,
+                          builder: (c) => SimpleDialog(
+                            title: Text(tr(c, 'category')),
+                            children: [
+                              for (final c2 in kCategories)
+                                SimpleDialogOption(
+                                  onPressed: () =>
+                                      Navigator.pop(c, c2.id),
+                                  child: Text(
+                                    CustomCategoryRegistry.displayName(
+                                        c2.id, lang),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                        if (picked != null && mounted) {
+                          setState(() => _pickedCategoryId = picked);
+                        }
+                      },
+                      child: Text(tr(context, 'voice_budget_pick')),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.payments_outlined, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    amount != null && amount > 0
+                        ? formatMoney(amount)
+                        : tr(context, 'voice_budget_no_amount'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _toggleMic,
+              icon: Icon(_listening ? Icons.stop : Icons.mic),
+              label: Text(tr(context,
+                  _listening ? 'voice_budget_stop' : 'voice_budget_listen')),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr(context, 'cancel')),
+        ),
+        FilledButton(
+          onPressed: (categoryId != null && amount != null && amount > 0)
+              ? _confirm
+              : null,
+          child: Text(tr(context, 'voice_budget_confirm')),
         ),
       ],
     );

@@ -1,10 +1,19 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/bill_reminder.dart';
 import '../models/budget.dart';
+import '../models/cash_entry.dart';
+import '../models/fuel_log.dart';
+import '../models/gift.dart';
+import '../models/project.dart';
+import '../models/shopping_item.dart';
+import '../models/challenge.dart';
 import '../models/app_notification.dart';
 import '../models/custom_category.dart';
 import '../models/custom_payment.dart';
@@ -14,6 +23,7 @@ import '../models/expense.dart';
 import '../models/expense_template.dart';
 import '../models/income.dart';
 import '../models/recurring_expense.dart';
+import '../models/salary_rule.dart';
 import '../models/savings_goal.dart';
 import '../models/subscription.dart';
 import '../models/wishlist_item.dart';
@@ -42,12 +52,102 @@ import '../services/sync_service.dart';
 /// (recurring subscription reminders), `templates` (quick-add expense
 /// presets) and `wishlist` (items the user is saving up for). All UUID ids
 /// + updatedAt, following the v3 table pattern.
+///
+/// v7 schema: no table changes — adds indexes on frequently-queried
+/// columns (expenses.date, expenses.categoryId, expenses.project_id,
+/// debts.date, subscriptions.next_due, notifications.time,
+/// budgets.monthKey, cash_ledger/fuel_logs/gifts .date). Existing
+/// databases get them via onUpgrade (oldVersion < 7).
 class DatabaseHelper {
   DatabaseHelper._private();
 
   static final DatabaseHelper instance = DatabaseHelper._private();
 
   static Database? _db;
+
+  /// BS (multi-profile): active profile name. 'personal' is the default and
+  /// the only profile that syncs to Firestore. Each profile gets its own
+  /// SQLite file, so categories/debts/etc. are per-profile automatically.
+  String _profile = 'personal';
+
+  String get activeProfile => _profile;
+  bool get isPersonalProfile => _profile == 'personal';
+
+  static String dbFileNameFor(String profile) {
+    if (profile == 'personal') return 'kharcha.db';
+    final safe =
+        profile.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_').toLowerCase();
+    final clipped = safe.isEmpty ? 'x' : safe.substring(0, safe.length > 24 ? 24 : safe.length);
+    return 'kharcha_$clipped.db';
+  }
+
+  /// Loads the persisted active profile (call once at startup before first
+  /// [database] use).
+  Future<void> loadProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final p = prefs.getString('active_profile');
+      if (p != null && p.trim().isNotEmpty) _profile = p.trim();
+    } catch (_) {}
+  }
+
+  /// Switches profile: closes the current DB; the next [database] access
+  /// reopens the profile's own file.
+  Future<void> setProfile(String name) async {
+    final target = name.trim().isEmpty ? 'personal' : name.trim();
+    if (target == _profile) return;
+    try {
+      await _db?.close();
+    } catch (_) {}
+    _db = null;
+    _profile = target;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('active_profile', target);
+    } catch (_) {}
+  }
+
+  /// All known profiles (personal first). Stored in SharedPreferences so the
+  /// list survives outside any single profile DB.
+  static Future<List<String>> getProfiles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('profiles') ?? <String>[];
+      final out = <String>['personal'];
+      for (final p in list) {
+        if (p != 'personal' && !out.contains(p)) out.add(p);
+      }
+      return out;
+    } catch (_) {
+      return <String>['personal'];
+    }
+  }
+
+  static Future<void> addProfile(String name) async {
+    final n = name.trim();
+    if (n.isEmpty || n == 'personal') return;
+    final profiles = await getProfiles();
+    if (profiles.contains(n)) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('profiles', [...profiles.skip(1), n]);
+    } catch (_) {}
+  }
+
+  /// Deletes a profile and its database file. Cannot delete 'personal'.
+  static Future<void> deleteProfile(String name) async {
+    if (name == 'personal') return;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dir.path, dbFileNameFor(name)));
+      if (await file.exists()) await file.delete();
+      final prefs = await SharedPreferences.getInstance();
+      final profiles = await getProfiles();
+      profiles.remove(name);
+      await prefs.setStringList('profiles', profiles.skip(1).toList());
+      if (instance._profile == name) await instance.setProfile('personal');
+    } catch (_) {}
+  }
 
   Future<Database> get database async {
     final existing = _db;
@@ -59,16 +159,18 @@ class DatabaseHelper {
 
   Future<Database> _open() async {
     final dir = await getApplicationDocumentsDirectory();
-    final path = p.join(dir.path, 'kharcha.db');
+    final path = p.join(dir.path, dbFileNameFor(_profile));
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
         await _createV3Tables(db);
         await _createV5Tables(db);
         await _createV6Tables(db);
+        await _applyV6Alters(db);
+        await _createIndexes(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -85,6 +187,10 @@ class DatabaseHelper {
         }
         if (oldVersion < 6) {
           await _createV6Tables(db);
+          await _applyV6Alters(db);
+        }
+        if (oldVersion < 7) {
+          await _createIndexes(db);
         }
       },
     );
@@ -290,6 +396,168 @@ class DatabaseHelper {
         updatedAt INTEGER NOT NULL DEFAULT 0
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS salary_rules(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        percent REAL NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS challenges(
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        start INTEGER NOT NULL,
+        end INTEGER NOT NULL,
+        streak INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS achievements(
+        id TEXT PRIMARY KEY,
+        unlocked_at INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    // v0.2 batch 3 (AJ-BC): trackers
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cash_ledger(
+        id TEXT PRIMARY KEY,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL,
+        date INTEGER NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fuel_logs(
+        id TEXT PRIMARY KEY,
+        date INTEGER NOT NULL,
+        liters REAL NOT NULL DEFAULT 0,
+        price_per_liter REAL NOT NULL DEFAULT 0,
+        total REAL NOT NULL DEFAULT 0,
+        odometer REAL NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS shopping_items(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        qty REAL NOT NULL DEFAULT 1,
+        price REAL NOT NULL DEFAULT 0,
+        done INTEGER NOT NULL DEFAULT 0,
+        created INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS gifts(
+        id TEXT PRIMARY KEY,
+        person TEXT NOT NULL,
+        occasion TEXT NOT NULL DEFAULT '',
+        amount REAL NOT NULL DEFAULT 0,
+        kind TEXT NOT NULL DEFAULT 'given',
+        date INTEGER NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '',
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS emergency_fund(
+        id TEXT PRIMARY KEY,
+        amount REAL NOT NULL DEFAULT 0,
+        updated INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS emergency_ledger(
+        id TEXT PRIMARY KEY,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL,
+        date INTEGER NOT NULL,
+        note TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS category_learning(
+        word TEXT NOT NULL,
+        category_id TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (word, category_id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS projects(
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        start INTEGER NOT NULL DEFAULT 0,
+        end INTEGER NOT NULL DEFAULT 0,
+        budget REAL NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+  }
+
+  /// v7: indexes on frequently-queried columns. Called from onCreate
+  /// (fresh installs) and onUpgrade (oldVersion < 7, i.e. every existing
+  /// database — additive only, never touches table data).
+  /// CREATE INDEX IF NOT EXISTS keeps it idempotent.
+  Future<void> _createIndexes(Database db) async {
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(categoryId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_project ON expenses(project_id)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_debts_date ON debts(date)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_subs_nextdue ON subscriptions(next_due)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notif_time ON notifications(time)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(monthKey)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_cashledger_date ON cash_ledger(date)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_fuellogs_date ON fuel_logs(date)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_gifts_date ON gifts(date)');
+  }
+
+  /// v6 column additions on pre-existing tables. Runs on fresh installs
+  /// (after creates) and on upgrade from v5. Checks PRAGMA first so it
+  /// is safe if partially applied.
+  Future<void> _applyV6Alters(Database db) async {
+    Future<void> addColumn(
+        String table, String column, String ddl) async {
+      final info = await db.rawQuery('PRAGMA table_info($table)');
+      final exists = info.any((c) => c['name'] == column);
+      if (!exists) {
+        await db.execute('ALTER TABLE $table ADD COLUMN $ddl');
+      }
+    }
+
+    await addColumn(
+        'expenses', 'currency', "currency TEXT NOT NULL DEFAULT 'BDT'");
+    await addColumn('expenses', 'bdt_amount', 'bdt_amount REAL');
+    await addColumn(
+        'expenses', 'mood', "mood TEXT NOT NULL DEFAULT ''");
+    await addColumn('recurring_expenses', 'kind',
+        "kind TEXT NOT NULL DEFAULT 'expense'");
+    await addColumn('bill_reminders', 'photo_path',
+        "photo_path TEXT NOT NULL DEFAULT ''");
+    await addColumn(
+        'expenses', 'project_id', "project_id TEXT NOT NULL DEFAULT ''");
+    await addColumn('expenses', 'lat', 'lat REAL');
+    await addColumn('expenses', 'lng', 'lng REAL');
   }
 
   /// v1 -> v2: INTEGER AUTOINCREMENT ids become TEXT UUIDs; every row gets
@@ -331,6 +599,12 @@ class DatabaseHelper {
       'paymentMethod': expense.paymentMethod,
       'place': expense.place,
       'receiptPath': expense.receiptPath,
+      'currency': expense.currency,
+      'bdt_amount': expense.bdtAmount,
+      'mood': expense.mood,
+      'project_id': expense.projectId,
+      'lat': expense.lat,
+      'lng': expense.lng,
       'updatedAt': updatedAt,
     });
     if (!SyncService.instance.applyingRemote) {
@@ -364,6 +638,12 @@ class DatabaseHelper {
         'paymentMethod': expense.paymentMethod,
         'place': expense.place,
         'receiptPath': expense.receiptPath,
+        'currency': expense.currency,
+        'bdt_amount': expense.bdtAmount,
+        'mood': expense.mood,
+        'project_id': expense.projectId,
+        'lat': expense.lat,
+        'lng': expense.lng,
         'updatedAt': updatedAt,
       },
       where: 'id = ?',
@@ -535,7 +815,9 @@ class DatabaseHelper {
   }
 
   Future<int> updateIncome(Income income) async {
-    final count = await _updateRecord('incomes', income.id!, {
+    final id = income.id;
+    if (id == null) return 0;
+    final count = await _updateRecord('incomes', id, {
       'amount': income.amount,
       'source': income.source,
       'date': income.date.toIso8601String(),
@@ -544,7 +826,7 @@ class DatabaseHelper {
     await _pushRow<Income>(
       table: 'incomes',
       collection: 'incomes',
-      id: income.id!,
+      id: id,
       fromMap: Income.fromMap,
       toFirestore: (item) => item.toFirestore(),
     );
@@ -639,7 +921,9 @@ class DatabaseHelper {
   }
 
   Future<int> updateBudget(Budget budget) async {
-    final count = await _updateRecord('budgets', budget.id!, {
+    final id = budget.id;
+    if (id == null) return 0;
+    final count = await _updateRecord('budgets', id, {
       'categoryId': budget.categoryId,
       'monthKey': budget.monthKey,
       'limitAmount': budget.limitAmount,
@@ -647,7 +931,7 @@ class DatabaseHelper {
     await _pushRow<Budget>(
       table: 'budgets',
       collection: 'budgets',
-      id: budget.id!,
+      id: id,
       fromMap: Budget.fromMap,
       toFirestore: (item) => item.toFirestore(),
     );
@@ -700,7 +984,9 @@ class DatabaseHelper {
   /// Local update — also used by RecurringService.processDue() to stamp
   /// lastAddedMonth; the push keeps the template in sync cross-device.
   Future<int> updateRecurringExpense(RecurringExpense r) async {
-    final count = await _updateRecord('recurring_expenses', r.id!, {
+    final id = r.id;
+    if (id == null) return 0;
+    final count = await _updateRecord('recurring_expenses', id, {
       'amount': r.amount,
       'categoryId': r.categoryId,
       'label': r.label,
@@ -713,7 +999,7 @@ class DatabaseHelper {
     await _pushRow<RecurringExpense>(
       table: 'recurring_expenses',
       collection: 'recurring',
-      id: r.id!,
+      id: id,
       fromMap: RecurringExpense.fromMap,
       toFirestore: (item) => item.toFirestore(),
     );
@@ -755,7 +1041,9 @@ class DatabaseHelper {
   }
 
   Future<int> updateSavingsGoal(SavingsGoal goal) async {
-    final count = await _updateRecord('savings_goals', goal.id!, {
+    final id = goal.id;
+    if (id == null) return 0;
+    final count = await _updateRecord('savings_goals', id, {
       'title': goal.title,
       'targetAmount': goal.targetAmount,
       'savedAmount': goal.savedAmount,
@@ -765,7 +1053,7 @@ class DatabaseHelper {
     await _pushRow<SavingsGoal>(
       table: 'savings_goals',
       collection: 'goals',
-      id: goal.id!,
+      id: id,
       fromMap: SavingsGoal.fromMap,
       toFirestore: (item) => item.toFirestore(),
     );
@@ -990,17 +1278,20 @@ class DatabaseHelper {
   }
 
   Future<int> updateBillReminder(BillReminder reminder) async {
-    final count = await _updateRecord('bill_reminders', reminder.id!, {
+    final id = reminder.id;
+    if (id == null) return 0;
+    final count = await _updateRecord('bill_reminders', id, {
       'title': reminder.title,
       'amount': reminder.amount,
       'dayOfMonth': reminder.dayOfMonth,
       'note': reminder.note,
       'active': reminder.active ? 1 : 0,
+      'photo_path': reminder.photoPath,
     });
     await _pushRow<BillReminder>(
       table: 'bill_reminders',
       collection: 'reminders',
-      id: reminder.id!,
+      id: id,
       fromMap: BillReminder.fromMap,
       toFirestore: (item) => item.toFirestore(),
     );
@@ -1196,7 +1487,9 @@ class DatabaseHelper {
 
   /// Full row update by id.
   Future<int> updateSubscription(AppSubscription s) async {
-    return _updateRecord('subscriptions', s.id!, {
+    final id = s.id;
+    if (id == null) return 0;
+    return _updateRecord('subscriptions', id, {
       'name': s.name,
       'amount': s.amount,
       'cycle': s.cycle,
@@ -1248,7 +1541,9 @@ class DatabaseHelper {
 
   /// Full row update by id.
   Future<int> updateWishlist(WishlistItem w) async {
-    return _updateRecord('wishlist', w.id!, {
+    final id = w.id;
+    if (id == null) return 0;
+    return _updateRecord('wishlist', id, {
       'name': w.name,
       'target_price': w.targetPrice,
       'saved': w.saved,
@@ -1266,5 +1561,256 @@ class DatabaseHelper {
   Future<void> wipeLocalWishlist() async {
     final db = await database;
     await db.delete('wishlist');
+  }
+
+  // ----------------------------- challenges --------------------------
+  Future<List<Challenge>> getChallenges() async {
+    final db = await database;
+    final rows =
+        await db.query('challenges', orderBy: 'start DESC');
+    return rows.map(Challenge.fromMap).toList();
+  }
+
+  Future<Challenge?> getActiveChallenge() async {
+    final db = await database;
+    final rows = await db.query(
+      'challenges',
+      where: 'active = 1',
+      orderBy: 'start DESC',
+      limit: 1,
+    );
+    return rows.isEmpty ? null : Challenge.fromMap(rows.first);
+  }
+
+  Future<String> insertChallenge(Challenge c) async {
+    return _insertRecord('challenges', c.toMap());
+  }
+
+  Future<int> updateChallenge(Challenge c) async {
+    return _updateRecord('challenges', c.toMap());
+  }
+
+  Future<int> deleteChallenge(String id) async {
+    return _deleteRecord('challenges', id);
+  }
+
+  // ---------------------------- achievements -------------------------
+  Future<Set<String>> getUnlockedAchievements() async {
+    final db = await database;
+    final rows = await db.query('achievements', columns: ['id']);
+    return rows.map((r) => r['id'].toString()).toSet();
+  }
+
+  // ------------------------ category learning ------------------------
+  Future<void> learnCategoryWord(String word, String categoryId) async {
+    final db = await database;
+    await db.execute(
+      'INSERT INTO category_learning(word, category_id, count) VALUES(?, ?, 1) '
+      'ON CONFLICT(word, category_id) DO UPDATE SET count = count + 1',
+      [word.toLowerCase(), categoryId],
+    );
+  }
+
+  Future<String?> suggestCategoryForWords(List<String> words) async {
+    if (words.isEmpty) return null;
+    final db = await database;
+    final q = words.map((_) => '?').join(',');
+    final rows = await db.rawQuery(
+      'SELECT category_id, SUM(count) AS c FROM category_learning '
+      'WHERE word IN ($q) GROUP BY category_id ORDER BY c DESC LIMIT 1',
+      words.map((w) => w.toLowerCase()).toList(),
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['category_id'] as String?;
+  }
+
+  // --------------------------- cash ledger ---------------------------
+  Future<List<CashEntry>> getCashLedger() async {
+    final db = await database;
+    final rows = await db.query('cash_ledger', orderBy: 'date DESC');
+    return rows.map(CashEntry.fromMap).toList();
+  }
+
+  Future<double> getCashBalance() async {
+    final db = await database;
+    final rows = await db.query('cash_ledger', columns: ['amount', 'type']);
+    double bal = 0;
+    for (final r in rows) {
+      final a = (r['amount'] as num?)?.toDouble() ?? 0;
+      bal += r['type'] == 'in' ? a : -a;
+    }
+    return bal;
+  }
+
+  Future<String> insertCashEntry(CashEntry e) async =>
+      _insertRecord('cash_ledger', e.toMap());
+
+  Future<int> deleteCashEntry(String id) async =>
+      _deleteRecord('cash_ledger', id);
+
+  // ----------------------------- fuel logs ---------------------------
+  Future<List<FuelLog>> getFuelLogs() async {
+    final db = await database;
+    final rows = await db.query('fuel_logs', orderBy: 'date DESC');
+    return rows.map(FuelLog.fromMap).toList();
+  }
+
+  Future<String> insertFuelLog(FuelLog f) async =>
+      _insertRecord('fuel_logs', f.toMap());
+
+  Future<int> deleteFuelLog(String id) async =>
+      _deleteRecord('fuel_logs', id);
+
+  // --------------------------- shopping list -------------------------
+  Future<List<ShoppingItem>> getShoppingItems() async {
+    final db = await database;
+    final rows = await db.query('shopping_items',
+        orderBy: 'done ASC, created DESC');
+    return rows.map(ShoppingItem.fromMap).toList();
+  }
+
+  Future<String> insertShoppingItem(ShoppingItem i) async =>
+      _insertRecord('shopping_items', i.toMap());
+
+  Future<int> updateShoppingItem(ShoppingItem i) async =>
+      _updateRecord('shopping_items', i.toMap());
+
+  Future<int> deleteShoppingItem(String id) async =>
+      _deleteRecord('shopping_items', id);
+
+  // ------------------------------- gifts -----------------------------
+  Future<List<Gift>> getGifts() async {
+    final db = await database;
+    final rows = await db.query('gifts', orderBy: 'date DESC');
+    return rows.map(Gift.fromMap).toList();
+  }
+
+  Future<String> insertGift(Gift g) async =>
+      _insertRecord('gifts', g.toMap());
+
+  Future<int> deleteGift(String id) async => _deleteRecord('gifts', id);
+
+  // --------------------------- emergency fund ------------------------
+  Future<double> getEmergencyFund() async {
+    final db = await database;
+    final rows = await db.query('emergency_fund',
+        where: "id = 'vault'", limit: 1);
+    if (rows.isEmpty) return 0;
+    return (rows.first['amount'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<void> setEmergencyFund(double amount) async {
+    final db = await database;
+    await db.insert(
+      'emergency_fund',
+      {
+        'id': 'vault',
+        'amount': amount,
+        'updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> addEmergencyLedger(
+      String id, double amount, String type, String note) async {
+    final db = await database;
+    await db.insert('emergency_ledger', {
+      'id': id,
+      'amount': amount,
+      'type': type,
+      'date': DateTime.now().millisecondsSinceEpoch,
+      'note': note,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getEmergencyLedger() async {
+    final db = await database;
+    final rows = await db.query('emergency_ledger', orderBy: 'date DESC');
+    return rows;
+  }
+
+  // ------------------------------ projects ---------------------------
+  Future<List<Project>> getProjects() async {
+    final db = await database;
+    final rows = await db.query('projects', orderBy: 'start DESC');
+    return rows.map(Project.fromMap).toList();
+  }
+
+  Future<String> insertProject(Project p) async =>
+      _insertRecord('projects', p.toMap());
+
+  Future<int> deleteProject(String id) async =>
+      _deleteRecord('projects', id);
+
+  Future<double> getProjectSpent(String projectId) async {
+    final db = await database;
+    final r = await db.rawQuery(
+        'SELECT SUM(COALESCE(bdt_amount, amount)) AS t FROM expenses '
+        "WHERE project_id = ?",
+        [projectId]);
+    return (r.first['t'] as num?)?.toDouble() ?? 0;
+  }
+
+  /// Total spent per project id in ONE query (batch alternative to
+  /// calling [getProjectSpent] per project in a loop).
+  Future<Map<String, double>> getAllProjectsSpent() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT project_id AS p, SUM(COALESCE(bdt_amount, amount)) AS t '
+      'FROM expenses GROUP BY project_id',
+    );
+    final map = <String, double>{};
+    for (final r in rows) {
+      final id = r['p'] as String?;
+      if (id != null && id.isNotEmpty) {
+        map[id] = (r['t'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+    return map;
+  }
+
+  Future<void> unlockAchievement(String id) async {
+    final db = await database;
+    await db.insert(
+      'achievements',
+      {
+        'id': id,
+        'unlocked_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  // ----------------------------- salary rules ------------------------
+  // Salary distribution rules (Package O). Local-only for now (sync
+  // wiring is owned by the sync package).
+
+  /// Highest percent first.
+  Future<List<SalaryRule>> getSalaryRules() async {
+    final db = await database;
+    final rows = await db.query('salary_rules', orderBy: 'percent DESC');
+    return rows.map(SalaryRule.fromMap).toList();
+  }
+
+  /// Inserts a salary rule. Returns the new id.
+  Future<String> insertSalaryRule(SalaryRule rule) async {
+    return _insertRecord('salary_rules', rule.toMap());
+  }
+
+  /// Full row update by id.
+  Future<int> updateSalaryRule(SalaryRule rule) async {
+    final id = rule.id;
+    if (id == null) return 0;
+    return _updateRecord('salary_rules', id, {
+      'name': rule.name,
+      'percent': rule.percent,
+      'target_type': rule.targetType,
+      'target_id': rule.targetId,
+    });
+  }
+
+  Future<int> deleteSalaryRule(String id) async {
+    return _deleteRecord('salary_rules', id);
   }
 }

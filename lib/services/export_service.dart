@@ -182,4 +182,250 @@ class ExportService {
       ),
     );
   }
+
+  /// Branded monthly statement PDF: deep-green header, income/expense/
+  /// balance summary boxes, category breakdown bars and the full expense
+  /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.
+  static Future<void> exportFancyStatement(
+      BuildContext context, DateTime month) async {
+    final lang =
+        Provider.of<SettingsProvider>(context, listen: false).language;
+    final rows = await _monthExpenses(month);
+    final incomes = (await DatabaseHelper.instance.getAllIncomes())
+        .where((i) => i.date.year == month.year && i.date.month == month.month)
+        .toList();
+
+    final font = await _bengaliFont();
+    // ৳ and Bengali glyphs need the bundled font; without it fall back to a
+    // latin-safe format so amounts never render as tofu boxes.
+    String money(double v) =>
+        font != null ? formatMoney(v) : 'BDT ${v.toStringAsFixed(0)}';
+
+    final totalExpense = rows.fold<double>(0, (s, e) => s + e.amount);
+    final totalIncome = incomes.fold<double>(0, (s, i) => s + i.amount);
+    final balance = totalIncome - totalExpense;
+    final monthLabel = monthLong(month, lang);
+
+    final deepGreen = PdfColor.fromInt(0xFF0B3D2E);
+    final gold = PdfColor.fromInt(0xFFD4AF37);
+    final goldDark = PdfColor.fromInt(0xFF9C7C1E);
+
+    final titleStyle = pw.TextStyle(
+      font: font,
+      fontSize: 24,
+      fontWeight: pw.FontWeight.bold,
+      color: gold,
+    );
+    final monthStyle =
+        pw.TextStyle(font: font, fontSize: 13, color: PdfColors.white);
+    final sectionStyle = pw.TextStyle(
+      font: font,
+      fontSize: 13,
+      fontWeight: pw.FontWeight.bold,
+      color: deepGreen,
+    );
+    final baseStyle = pw.TextStyle(font: font, fontSize: 9);
+    final headerStyle = pw.TextStyle(
+      font: font,
+      fontSize: 10,
+      fontWeight: pw.FontWeight.bold,
+      color: PdfColors.white,
+    );
+
+    pw.Widget summaryBox(
+        String label, String value, PdfColor bg, PdfColor fg) {
+      return pw.Expanded(
+        child: pw.Container(
+          margin: const pw.EdgeInsets.only(right: 8),
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            color: bg,
+            borderRadius: pw.BorderRadius.circular(10),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                label,
+                style: pw.TextStyle(
+                    font: font, fontSize: 9, color: PdfColors.grey700),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                value,
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final byCat = <String, double>{};
+    for (final e in rows) {
+      byCat[e.categoryId] = (byCat[e.categoryId] ?? 0) + e.amount;
+    }
+    final catEntries = byCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    pw.Widget catRow(String name, double amount) {
+      final pct =
+          totalExpense > 0 ? (amount / totalExpense).clamp(0.0, 1.0) : 0.0;
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 3),
+        child: pw.Row(
+          children: [
+            pw.Expanded(
+              flex: 3,
+              child: pw.Text(name,
+                  style: pw.TextStyle(font: font, fontSize: 9)),
+            ),
+            pw.SizedBox(
+              width: 70,
+              child: pw.Text(
+                money(amount),
+                textAlign: pw.TextAlign.right,
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.SizedBox(
+              width: 34,
+              child: pw.Text(
+                '${(pct * 100).toStringAsFixed(0)}%',
+                style: pw.TextStyle(
+                    font: font, fontSize: 8, color: PdfColors.grey600),
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.SizedBox(
+              width: 100,
+              child: pw.Row(
+                children: [
+                  pw.Container(
+                    width: (100 * pct).clamp(0.0, 100.0),
+                    height: 8,
+                    color: deepGreen,
+                  ),
+                  pw.Expanded(
+                    child:
+                        pw.Container(height: 8, color: PdfColors.grey300),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        footer: (ctx) => pw.Container(
+          alignment: pw.Alignment.center,
+          margin: const pw.EdgeInsets.only(top: 10),
+          child: pw.Text(
+            'Generated by Khorcha · Niczzxo    ${ctx.pageNumber}/${ctx.pagesCount}',
+            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+          ),
+        ),
+        build: (_) => [
+          pw.Container(
+            width: double.infinity,
+            padding:
+                const pw.EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+            decoration: pw.BoxDecoration(
+              color: deepGreen,
+              borderRadius: pw.BorderRadius.circular(12),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Khorcha', style: titleStyle),
+                pw.SizedBox(height: 4),
+                pw.Text(monthLabel, style: monthStyle),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            children: [
+              summaryBox(
+                AppStrings.get('income_title', lang),
+                money(totalIncome),
+                PdfColors.green100,
+                PdfColors.green800,
+              ),
+              summaryBox(
+                AppStrings.get('month_total', lang),
+                money(totalExpense),
+                PdfColors.red100,
+                PdfColors.red800,
+              ),
+              summaryBox(
+                AppStrings.get('balance_title', lang),
+                money(balance),
+                PdfColors.amber100,
+                goldDark,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+          if (catEntries.isNotEmpty) ...[
+            pw.Text(
+                '${AppStrings.get('category', lang)} — ${money(totalExpense)}',
+                style: sectionStyle),
+            pw.SizedBox(height: 6),
+            for (final c in catEntries)
+              catRow(
+                  CustomCategoryRegistry.displayName(c.key, lang), c.value),
+            pw.SizedBox(height: 14),
+          ],
+          pw.TableHelper.fromTextArray(
+            headers: [
+              AppStrings.get('date', lang),
+              AppStrings.get('category', lang),
+              AppStrings.get('note', lang),
+              AppStrings.get('amount', lang),
+            ],
+            data: [
+              for (final e in rows)
+                [
+                  _dateStr(e.date),
+                  CustomCategoryRegistry.displayName(e.categoryId, lang),
+                  e.note,
+                  money(e.amount),
+                ],
+            ],
+            headerStyle: headerStyle,
+            headerDecoration: pw.BoxDecoration(color: deepGreen),
+            cellStyle: baseStyle,
+            cellAlignment: pw.Alignment.centerLeft,
+          ),
+        ],
+      ),
+    );
+
+    final dir = await getTemporaryDirectory();
+    final file =
+        File(p.join(dir.path, '${_fileBase(month)}-statement.pdf'));
+    await file.writeAsBytes(await doc.save());
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Khorcha — $monthLabel',
+      ),
+    );
+  }
 }

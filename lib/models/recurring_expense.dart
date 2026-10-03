@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 ///
 /// [dayOfMonth] is 1-31. [lastAddedMonth] is the `yyyy-MM` key of the month
 /// the expense was last generated for (null = never).
+/// [kind] is 'expense' (default) or 'income'. Income templates auto-add an
+/// [Income] record instead of an [Expense] when they come due.
 /// IDs are UUID strings so the same record can live in SQLite and in
 /// Firestore (`users/{uid}/recurring_expenses/{id}`).
 class RecurringExpense {
@@ -16,6 +18,9 @@ class RecurringExpense {
   final String note;
   final bool active;
   final String? lastAddedMonth;
+
+  /// 'expense' or 'income'.
+  final String kind;
 
   /// Last modification time (millis precision). Used for last-write-wins
   /// merging between the local DB and Firestore.
@@ -31,6 +36,7 @@ class RecurringExpense {
     this.note = '',
     this.active = true,
     this.lastAddedMonth,
+    this.kind = 'expense',
     DateTime? updatedAt,
   })  : assert(dayOfMonth >= 1 && dayOfMonth <= 31),
         updatedAt = updatedAt ?? DateTime.now();
@@ -50,6 +56,7 @@ class RecurringExpense {
       'active': active ? 1 : 0,
       'lastAddedMonth': lastAddedMonth,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
+      'kind': kind,
     };
   }
 
@@ -70,6 +77,7 @@ class RecurringExpense {
       updatedAt: map['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
           : null,
+      kind: map['kind'] as String? ?? 'expense',
     );
   }
 
@@ -89,6 +97,7 @@ class RecurringExpense {
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         (data['updatedAt'] as num?)?.toInt() ?? 0,
       ),
+      kind: data['kind'] as String? ?? 'expense',
     );
   }
 
@@ -104,6 +113,7 @@ class RecurringExpense {
       'active': active,
       'lastAddedMonth': lastAddedMonth,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
+      'kind': kind,
     };
   }
 
@@ -118,6 +128,7 @@ class RecurringExpense {
     bool? active,
     String? lastAddedMonth,
     bool clearLastAddedMonth = false,
+    String? kind,
     DateTime? updatedAt,
   }) {
     return RecurringExpense(
@@ -131,6 +142,7 @@ class RecurringExpense {
       active: active ?? this.active,
       lastAddedMonth:
           clearLastAddedMonth ? null : (lastAddedMonth ?? this.lastAddedMonth),
+      kind: kind ?? this.kind,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

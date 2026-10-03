@@ -1,11 +1,12 @@
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../models/expense.dart';
+import '../models/income.dart';
 import '../providers/money_provider.dart';
 import 'notification_center.dart';
 
-/// Auto-generates real expenses from active recurring templates, once per
-/// calendar month.
+/// Auto-generates real expenses / incomes from active recurring templates,
+/// once per calendar month.
 ///
 /// Called from main.dart on app start; the exact
 /// [RecurringService.processDue] signature is part of the cross-agent
@@ -13,9 +14,10 @@ import 'notification_center.dart';
 class RecurringService {
   /// For every active template whose [lastAddedMonth] is not the current
   /// month and whose day-of-month has arrived (or passed): inserts a real
-  /// expense and stamps the template with the current month key.
+  /// expense (or income, when the template's [RecurringExpense.kind] is
+  /// 'income') and stamps the template with the current month key.
   ///
-  /// Each auto-added expense also pushes a notification-center entry
+  /// Each auto-added entry also pushes a notification-center entry
   /// (deduped per template per month) so the user sees what was added.
   static Future<void> processDue() async {
     final db = DatabaseHelper.instance;
@@ -34,17 +36,34 @@ class RecurringService {
           : template.dayOfMonth;
 
       final label = template.label.trim();
-      final note = label.isEmpty
-          ? template.note
-          : '🔁 $label${template.note.trim().isEmpty ? '' : ' — ${template.note.trim()}'}';
+      final isIncome = template.kind == 'income';
 
-      await db.insertExpense(Expense(
-        amount: template.amount,
-        categoryId: template.categoryId,
-        date: DateTime(now.year, now.month, day),
-        note: note,
-        paymentMethod: template.paymentMethod,
-      ));
+      if (isIncome) {
+        // Income template: auto-add a real income record. Uses the DB
+        // directly, mirroring the expense path below — MoneyProvider is
+        // created in main.dart and is not reachable from this static,
+        // signature-locked service.
+        await db.insertIncome(Income(
+          amount: template.amount,
+          source: label.isEmpty
+              ? AppStrings.get('income_title', lang)
+              : label,
+          date: DateTime(now.year, now.month, day),
+          note: 'Recurring',
+        ));
+      } else {
+        final note = label.isEmpty
+            ? template.note
+            : '🔁 $label${template.note.trim().isEmpty ? '' : ' — ${template.note.trim()}'}';
+
+        await db.insertExpense(Expense(
+          amount: template.amount,
+          categoryId: template.categoryId,
+          date: DateTime(now.year, now.month, day),
+          note: note,
+          paymentMethod: template.paymentMethod,
+        ));
+      }
       await db.updateRecurringExpense(
         template.copyWith(lastAddedMonth: currentKey),
       );
@@ -57,12 +76,21 @@ class RecurringService {
             ? template.amount.toStringAsFixed(0)
             : template.amount.toString();
         await NotificationCenter.push(
-          title: AppStrings.get('notif_recurring_title', lang),
-          body: AppStrings.get('notif_recurring_body', lang)
+          title: AppStrings.get(
+            isIncome
+                ? 'notif_recurring_income_title'
+                : 'notif_recurring_title',
+            lang,
+          ),
+          body: AppStrings.get(
+            isIncome ? 'notif_recurring_income_body' : 'notif_recurring_body',
+            lang,
+          )
               .replaceAll(
                 '{label}',
                 label.isEmpty
-                    ? AppStrings.get('recurring_title', lang)
+                    ? AppStrings.get(
+                        isIncome ? 'income_title' : 'recurring_title', lang)
                     : label,
               )
               .replaceAll('{amount}', amountStr),

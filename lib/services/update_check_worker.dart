@@ -6,6 +6,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'drive_backup_service.dart';
+import 'geofence_service.dart';
+import 'gift_reminder_service.dart';
+import 'scheduled_export_service.dart';
+import 'stats_notification.dart';
+import 'weekly_report_service.dart';
+
 /// Periodic background update check.
 ///
 /// Runs even when the app is closed (WorkManager, ~every 12h, only with
@@ -52,9 +59,39 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     if (task == UpdateCheckWorker.taskName) {
       await _runUpdateCheck();
+      // Weekly Drive auto-backup piggybacks on the same periodic task.
+      // Silent: only runs when enabled, due, and authorized.
+      await _runDriveAutoBackup();
+      // Location reminders: silent geofence check.
+      try {
+        await GeofenceService.check();
+      } catch (_) {}
+      // Weekly summary + gift occasion reminders piggyback here too.
+      try {
+        await WeeklyReportService.maybeSend();
+      } catch (_) {}
+      try {
+        await GiftReminderService.checkUpcoming();
+      } catch (_) {}
+      // Scheduled monthly PDF export + stats notification refresh.
+      try {
+        await ScheduledExportService.maybeRun();
+      } catch (_) {}
+      try {
+        await StatsNotification.refresh();
+      } catch (_) {}
     }
     return Future.value(true);
   });
+}
+
+/// Weekly Google Drive auto-backup (silent). Runs inside the same
+/// periodic background task; no-ops when disabled, not due, or
+/// unauthorized.
+Future<void> _runDriveAutoBackup() async {
+  try {
+    await DriveBackupService.autoBackupIfDue();
+  } catch (_) {}
 }
 
 Future<void> _runUpdateCheck() async {

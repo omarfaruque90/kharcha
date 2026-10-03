@@ -28,6 +28,10 @@ const List<ExpenseCategory> kCategories = [
   ExpenseCategory(id: 'health', icon: Icons.favorite, color: Color(0xFFC2185B)),
   ExpenseCategory(id: 'entertainment', icon: Icons.movie, color: Color(0xFF5D4037)),
   ExpenseCategory(id: 'education', icon: Icons.school, color: Color(0xFF388E3C)),
+  // Package AQ: first-class pet categories.
+  ExpenseCategory(id: 'pet_food', icon: Icons.pets, color: Color(0xFF2E7D32)),
+  ExpenseCategory(
+      id: 'vet', icon: Icons.local_hospital, color: Color(0xFFD32F2F)),
 ];
 
 /// Legacy fallback for expenses saved with the old 'others' id.

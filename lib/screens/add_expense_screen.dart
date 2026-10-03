@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -12,10 +13,14 @@ import '../main.dart';
 import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
+import '../models/project.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/category_learner.dart';
+import '../services/currency_service.dart';
 import '../services/notification_center.dart';
+import '../services/ocr_categorize.dart';
 import '../services/ocr_service.dart';
 import '../widgets/calculator_pad.dart';
 import '../widgets/branded_date_picker.dart';
@@ -46,7 +51,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _showCalculator = false;
   bool _showSuccess = false;
   bool _scanning = false;
+  // Package V/AB: currency picker and mood tag.
+  String _currency = 'BDT';
+  String _mood = '';
+  // Package Y: set when receipt OCR autofilled amount/date.
+  bool _ocrAutofilled = false;
   List<CustomCategory> _customCats = [];
+  // Package AP: project assignment ('' = no project).
+  String _projectId = '';
+  List<Project> _projects = [];
+  // Package AZ: attached GPS location.
+  double? _lat, _lng;
+  bool _locating = false;
+  // Package BA: OCR auto-categorize.
+  bool _categoryManuallyPicked = false;
+  bool _ocrAutoCategory = false;
+  // Package BG: smart category suggestion from the note text.
+  Timer? _suggestDebounce;
+  String? _suggestedCategoryId;
 
   bool get _isEdit => widget.expense != null;
 
@@ -63,8 +85,34 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _date = e.date;
       _payment = e.paymentMethod;
       _receiptPath = e.receiptPath;
+      _currency = e.currency;
+      _mood = e.mood;
+      // Package AP/AZ: restore project and location on edit.
+      _projectId = e.projectId;
+      _lat = e.lat;
+      _lng = e.lng;
+      // Legacy/synced data may hold a code the picker doesn't offer —
+      // DropdownButton throws if value isn't in items.
+      if (!CurrencyService.supported.contains(_currency)) {
+        _currency = 'BDT';
+      }
     }
     _loadCustomCategories();
+    // Package AP: load projects for the project dropdown.
+    DatabaseHelper.instance.getProjects().then((ps) {
+      if (mounted) {
+        setState(() {
+          _projects = ps;
+          // Editing an expense whose project was deleted: coerce to ''
+          // so the dropdown value always matches an item (a value with
+          // no matching item throws in debug and misbehaves in release).
+          if (_projectId.isNotEmpty &&
+              !_projects.any((p) => p.id == _projectId)) {
+            _projectId = '';
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadCustomCategories() async {
@@ -77,6 +125,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _suggestDebounce?.cancel();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
@@ -98,7 +147,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _save(String lang) async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     final amount = double.parse(_amountCtrl.text.trim());
     final provider = context.read<ExpenseProvider>();
     final money = context.read<MoneyProvider>();
@@ -118,7 +167,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       // Built explicitly (not copyWith): place/receiptPath must be
       // clearable, and copyWith cannot distinguish "set to null".
       final updated = Expense(
-        id: widget.expense!.id,
+        id: widget.expense?.id,
         amount: amount,
         categoryId: _categoryId,
         date: _date,
@@ -126,6 +175,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         paymentMethod: _payment,
         place: null,
         receiptPath: _receiptPath,
+        currency: _currency,
+        bdtAmount: CurrencyService.toBdt(amount, _currency),
+        mood: _mood,
+        projectId: _projectId,
+        lat: _lat,
+        lng: _lng,
       );
       await provider.update(updated);
       if (!mounted) return;
@@ -143,6 +198,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           paymentMethod: _payment,
           place: null,
           receiptPath: _receiptPath,
+          currency: _currency,
+          bdtAmount: CurrencyService.toBdt(amount, _currency),
+          mood: _mood,
+          projectId: _projectId,
+          lat: _lat,
+          lng: _lng,
         ),
       );
       if (!mounted) return;
@@ -166,6 +227,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _payment = 'cash';
         _receiptPath = null;
         _showCalculator = false;
+        _currency = 'BDT';
+        _mood = '';
+        _ocrAutofilled = false;
+        // Package AP/AZ/BA/BG: reset project, location, OCR and
+        // suggestion state with the rest of the form.
+        _projectId = '';
+        _lat = null;
+        _lng = null;
+        _categoryManuallyPicked = false;
+        _ocrAutoCategory = false;
+        _suggestDebounce?.cancel();
+        _suggestedCategoryId = null;
       });
       widget.onSaved?.call();
     }
@@ -256,20 +329,142 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       if (file != null && mounted) {
         setState(() => _receiptPath = file.path);
+        // Package Y: OCR autofill the amount/date from the receipt.
+        unawaited(_ocrAutofill(file));
       }
     } catch (_) {
       // Permission denied or picker unavailable — leave the form as-is.
     }
   }
 
+  /// Package Y: runs the existing OCR service on an attached receipt and
+  /// autofills the amount and date. Manual edits always win: the amount is
+  /// only filled when the field is still empty.
+  Future<void> _ocrAutofill(XFile file) async {
+    try {
+      final result = await OcrService.scanBillAmount(file);
+      if (!mounted || result == null) return;
+      var touched = false;
+      final amount = result['amount'] as double?;
+      if (amount != null && _amountCtrl.text.trim().isEmpty) {
+        final whole = amount.truncateToDouble() == amount;
+        _amountCtrl.text =
+            whole ? amount.toStringAsFixed(0) : amount.toString();
+        touched = true;
+      }
+      final raw = result['rawText'] as String? ?? '';
+      final date = _extractDateFromText(raw);
+      if (date != null) {
+        _date = date;
+        touched = true;
+      }
+      // Package BA: auto-categorize from the OCR merchant text unless the
+      // user has already picked a category by hand.
+      final autoCat = categorizeShop(raw);
+      if (autoCat != null && !_categoryManuallyPicked) {
+        _categoryId = autoCat;
+        _ocrAutoCategory = true;
+        touched = true;
+      }
+      if (touched && mounted) {
+        // _categoryId/_ocrAutoCategory were assigned above; one rebuild
+        // reflects amount/date/category together.
+        setState(() => _ocrAutofilled = true);
+      }
+    } catch (_) {
+      // OCR is best-effort; never break the receipt flow.
+    }
+  }
+
+  /// Package AZ: attach the current GPS location to this expense.
+  Future<void> _attachLocation() async {
+    final lang = context.read<SettingsProvider>().language;
+    setState(() => _locating = true);
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError('location permission denied');
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      if (!mounted) return;
+      setState(() {
+        _lat = pos.latitude;
+        _lng = pos.longitude;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(lang == 'bn'
+              ? 'লোকেশন যোগ হয়েছে'
+              : 'Location attached'),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'expense_location_failed'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  /// Extracts a plausible receipt date from OCR text.
+  /// Matches DD/MM/YYYY, DD-MM-YYYY, YYYY/MM/DD and YYYY-MM-DD.
+  DateTime? _extractDateFromText(String text) {
+    final dmy = RegExp(r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\b');
+    final ymd = RegExp(r'\b(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})\b');
+    // Try both; take the first valid, non-future date found.
+    for (final re in [ymd, dmy]) {
+      for (final m in re.allMatches(text)) {
+        int y, mo, d;
+        try {
+          if (identical(re, ymd)) {
+            y = int.parse(m.group(1)!);
+            mo = int.parse(m.group(2)!);
+            d = int.parse(m.group(3)!);
+          } else {
+            d = int.parse(m.group(1)!);
+            mo = int.parse(m.group(2)!);
+            y = int.parse(m.group(3)!);
+          }
+        } catch (_) {
+          continue;
+        }
+        if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) {
+          continue;
+        }
+        final date = DateTime(y, mo, d);
+        if (date.year != y || date.month != mo || date.day != d) continue;
+        if (date.isAfter(DateTime.now().add(const Duration(days: 1)))) {
+          continue;
+        }
+        return date;
+      }
+    }
+    return null;
+  }
+
   /// v5: bill OCR — snap a bill, extract the total, fill the amount field.
   Future<void> _scanBill() async {
     if (_scanning) return;
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      maxWidth: 2000,
-      imageQuality: 90,
-    );
+    XFile? file;
+    try {
+      file = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 2000,
+        imageQuality: 90,
+      );
+    } catch (_) {
+      // Camera permission denied or picker unavailable.
+      return;
+    }
     if (file == null || !mounted) return;
     setState(() => _scanning = true);
     // Keep the photo as the receipt attachment too.
@@ -282,6 +477,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final whole = amount.truncateToDouble() == amount;
         _amountCtrl.text =
             whole ? amount.toStringAsFixed(0) : amount.toString();
+        // Package Y: also try to pick up the bill date.
+        final raw = result?['rawText'] as String?;
+        final billDate = raw != null ? _extractDateFromText(raw) : null;
+        if (billDate != null) _date = billDate;
+        setState(() => _ocrAutofilled = true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -351,7 +551,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     decoration: InputDecoration(
                       labelText: tr(context, 'amount'),
                       hintText: tr(context, 'amount_hint'),
-                      prefixText: '৳ ',
+                      prefixText:
+                          '${CurrencyService.symbols[_currency] ?? '৳'} ',
                       prefixStyle:
                           theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -362,6 +563,45 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           horizontal: 18, vertical: 18),
                     ),
                     validator: validateAmount,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Package V: currency of the entered amount.
+                Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: kGold.withValues(alpha: 0.55),
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    color:
+                        theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _currency,
+                      borderRadius: BorderRadius.circular(12),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      items: [
+                        for (final code in CurrencyService.supported)
+                          DropdownMenuItem(
+                            value: code,
+                            child: Text(
+                              '${CurrencyService.symbols[code]} $code',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => _currency = v);
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -419,7 +659,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     color: c.color,
                     selected: _categoryId == c.id,
                     iconChild: Icon(c.icon, color: c.color, size: 26),
-                    onTap: () => setState(() => _categoryId = c.id),
+                    onTap: () => setState(() {
+                      _categoryId = c.id;
+                      _categoryManuallyPicked = true;
+                      _ocrAutoCategory = false;
+                    }),
                   );
                 }
                 final ci = i - kCategories.length;
@@ -434,7 +678,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             style: const TextStyle(fontSize: 26))
                         : const Icon(Icons.label_rounded,
                             color: kCustomCategoryColor, size: 26),
-                    onTap: () => setState(() => _categoryId = cc.id),
+                    onTap: () => setState(() {
+                      _categoryId = cc.id;
+                      _categoryManuallyPicked = true;
+                      _ocrAutoCategory = false;
+                    }),
                     onLongPress: () =>
                         _confirmDeleteCategory(cc, lang),
                   );
@@ -443,6 +691,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               },
               ),
             ),
+            // Package BA: shown when receipt OCR auto-detected the category.
+            if (_ocrAutoCategory)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  tr(context, 'ocr_auto_category'),
+                  style: const TextStyle(
+                    color: kGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             StaggeredEntrance(
               delayMs: 120,
@@ -470,8 +731,44 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 hintText: tr(context, 'note_hint'),
                 border: const OutlineInputBorder(),
               ),
+              // Package BG: debounce the note and suggest a category from
+              // past learning. (Learning itself happens centrally in
+              // ExpenseProvider.add — never call learn() here.)
+              onChanged: (value) {
+                _suggestDebounce?.cancel();
+                if (value.trim().isEmpty) {
+                  setState(() => _suggestedCategoryId = null);
+                  return;
+                }
+                _suggestDebounce =
+                    Timer(const Duration(milliseconds: 600), () async {
+                  final id = await CategoryLearner.suggest(value);
+                  if (mounted) setState(() => _suggestedCategoryId = id);
+                });
+              },
               ),
             ),
+            // Package BG: one-tap smart suggestion chip.
+            if (_suggestedCategoryId != null &&
+                _suggestedCategoryId != _categoryId)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ActionChip(
+                    avatar: const Text('✨'),
+                    label: Text(
+                      '${CustomCategoryRegistry.displayName(_suggestedCategoryId!, lang)}?',
+                    ),
+                    onPressed: () => setState(() {
+                      _categoryId = _suggestedCategoryId!;
+                      _categoryManuallyPicked = true;
+                      _ocrAutoCategory = false;
+                      _suggestedCategoryId = null;
+                    }),
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             StaggeredEntrance(
               delayMs: 240,
@@ -483,6 +780,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               child: PaymentSelector(
               value: _payment,
               onChanged: (value) => setState(() => _payment = value),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Package AP: optional project assignment.
+            StaggeredEntrance(
+              delayMs: 285,
+              child: DropdownButtonFormField<String>(
+                value: _projectId,
+                decoration: InputDecoration(
+                  labelText: tr(context, 'project_label'),
+                  border: const OutlineInputBorder(),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(tr(context, 'project_none')),
+                  ),
+                  for (final p in _projects)
+                    if (p.id != null)
+                      DropdownMenuItem(
+                        value: p.id!,
+                        child: Text(p.name),
+                      ),
+                ],
+                onChanged: (v) => setState(() => _projectId = v ?? ''),
               ),
             ),
             const SizedBox(height: 16),
@@ -504,6 +826,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           width: 76,
                           height: 76,
                           fit: BoxFit.cover,
+                          // The file can vanish (user deleted it outside the
+                          // app, OS cleanup) — show a placeholder, not a
+                          // red screen.
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color:
+                                      theme.colorScheme.outlineVariant),
+                            ),
+                            child: const Icon(
+                                Icons.broken_image_outlined),
+                          ),
                         ),
                       ),
                       Positioned(
@@ -579,6 +916,66 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ),
               ],
+            ),
+            // Package Y: shown when receipt OCR autofilled amount/date.
+            if (_ocrAutofilled)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '✨ ${tr(context, 'ocr_autofill')}',
+                  style: const TextStyle(
+                    color: kGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            // Package AZ: attach the current GPS location to the expense.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _locating ? null : _attachLocation,
+                icon: _locating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(_lat == null
+                        ? Icons.location_on_outlined
+                        : Icons.location_on),
+                label: Text(_locating
+                    ? tr(context, 'expense_locating')
+                    : _lat == null
+                        ? tr(context, 'expense_add_location')
+                        : tr(context, 'expense_location_set')),
+              ),
+            ),
+            // Package AB: mood tags, single-select.
+            StaggeredEntrance(
+              delayMs: 315,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel(context, tr(context, 'mood_label')),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      for (final emoji in const ['😊', '😐', '😟', '😡', '🥳'])
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(right: 8),
+                          child: _MoodButton(
+                            emoji: emoji,
+                            selected: _mood == emoji,
+                            onTap: () => setState(() =>
+                                _mood = _mood == emoji ? '' : emoji),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             StaggeredEntrance(
@@ -844,6 +1241,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         setState(() {
           _customCats = cats;
           _categoryId = id;
+          _categoryManuallyPicked = true;
+          _ocrAutoCategory = false;
         });
       }
     } catch (_) {
@@ -935,6 +1334,51 @@ class _DashedRectPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedRectPainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+/// Package AB: one emoji mood toggle. Gold ring when selected.
+class _MoodButton extends StatelessWidget {
+  final String emoji;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MoodButton({
+    required this.emoji,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected
+              ? kGold.withValues(alpha: 0.18)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          border: Border.all(
+            color: selected ? kGold : kGold.withValues(alpha: 0.35),
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: [
+            if (selected)
+              BoxShadow(
+                color: kGold.withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(emoji, style: const TextStyle(fontSize: 24)),
+      ),
+    );
+  }
 }
 
 /// Small square icon button used next to the amount field (calculator

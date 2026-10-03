@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited, Timer;
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -9,22 +10,36 @@ import 'package:provider/provider.dart';
 
 import 'l10n/app_strings.dart';
 import 'db/database_helper.dart';
+import 'models/bill_reminder.dart';
 import 'models/custom_category.dart';
+import 'theme/amoled.dart';
+import 'utils/formatters.dart';
 import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/auth/auth_gate.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/lock_service.dart';
+import 'services/achievements.dart';
+import 'services/carry_forward_service.dart';
+import 'services/challenge_service.dart';
+import 'services/currency_service.dart';
+import 'services/daily_limit_service.dart';
+import 'services/geofence_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/monthly_report_service.dart';
 import 'services/notification_center.dart';
 import 'services/notification_service.dart';
+import 'services/quick_add_notification.dart';
+import 'services/recurring_detect_service.dart';
 import 'services/recurring_service.dart';
+import 'services/salary_service.dart';
 import 'services/sms_service.dart';
+import 'services/stats_notification.dart';
 import 'services/subscription_service.dart';
 import 'services/update_check_worker.dart';
 import 'services/update_service.dart';
@@ -42,10 +57,140 @@ const Color kEmerald = Color(0xFF10B981);
 const Color kEmeraldDark = Color(0xFF059669);
 const Color kEmeraldLight = Color(0xFFA7F3D0);
 
+/// Custom accent themes (Package AF). 'gold' is the default brand accent.
+const Map<String, Color> kAccents = {
+  'gold': Color(0xFFD4AF37),
+  'emerald': Color(0xFF10B981),
+  'blue': Color(0xFF3B82F6),
+  'purple': Color(0xFF8B5CF6),
+  'orange': Color(0xFFF97316),
+};
+
+/// Light tint of each accent (replaces kGoldLight when a custom accent is
+/// active).
+const Map<String, Color> kAccentLights = {
+  'gold': Color(0xFFF0D878),
+  'emerald': Color(0xFFA7F3D0),
+  'blue': Color(0xFFBFDBFE),
+  'purple': Color(0xFFDDD6FE),
+  'orange': Color(0xFFFED7AA),
+};
+
+/// Dark shade of each accent (replaces kGoldDark when a custom accent is
+/// active).
+const Map<String, Color> kAccentDarks = {
+  'gold': Color(0xFF9C7C1E),
+  'emerald': Color(0xFF059669),
+  'blue': Color(0xFF1D4ED8),
+  'purple': Color(0xFF7C3AED),
+  'orange': Color(0xFFC2410C),
+};
+
 /// Global navigator key — lets background services (SMS listener, update
 /// checker) show dialogs/snackbars without a BuildContext.
 final GlobalKey<NavigatorState> appNavigatorKey =
     GlobalKey<NavigatorState>();
+
+/// AC: deletes an SMS auto-added expense (undo from the notification).
+Future<void> _undoSmsExpense(String expenseId) async {
+  try {
+    await DatabaseHelper.instance.deleteExpense(expenseId);
+    final ctx = appNavigatorKey.currentContext;
+    if (ctx != null) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+            content:
+                Text(tr(ctx, 'sms_undo_done'))),
+      );
+    }
+  } catch (_) {}
+}
+
+/// AE: shows the bill photo + amount when a bill reminder is tapped.
+Future<void> _showBillReminder(String reminderId) async {
+  try {
+    final reminders =
+        await DatabaseHelper.instance.getActiveBillReminders();
+    BillReminder? found;
+    for (final r in reminders) {
+      if (r.id == reminderId) {
+        found = r;
+        break;
+      }
+    }
+    final ctx = appNavigatorKey.currentContext;
+    if (found == null || ctx == null) return;
+    final r = found;
+    showDialog(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: Text(r.title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (r.photoPath.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(r.photoPath),
+                  height: 220,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox(),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Text(formatMoney(r.amount)),
+            Text(tr(ctx, 'reminder_due_day')
+                .replaceAll('{n}', r.dayOfMonth.toString())),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr(ctx, 'close')),
+          ),
+        ],
+      ),
+    );
+  } catch (_) {}
+}
+
+/// BM: suggests recurring entries for detected repeating expenses (once/month).
+Future<void> _maybeSuggestRecurring() async {
+  try {
+    if (await RecurringDetectService.wasShownThisMonth()) return;
+    final candidates = await RecurringDetectService.detect();
+    if (candidates.isEmpty) return;
+    await RecurringDetectService.markShown();
+    final ctx = appNavigatorKey.currentContext;
+    if (ctx == null) return;
+    final c = candidates.first;
+    final create = await showDialog<bool>(
+      context: ctx,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'recurring_detect_title')),
+        content: Text(
+          tr(dctx, 'recurring_detect_body')
+              .replaceAll('{name}', c.note)
+              .replaceAll('{money}', formatMoney(c.amount)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: Text(tr(dctx, 'dismiss')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text(tr(dctx, 'create')),
+          ),
+        ],
+      ),
+    );
+    if (create == true) {
+      await RecurringDetectService.createFromCandidate(c);
+    }
+  } catch (_) {}
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +202,8 @@ Future<void> main() async {
     Firebase.initializeApp(),
     initializeDateFormatting(),
     settings.load(),
+    // BS: load the active profile before any DB access.
+    DatabaseHelper.instance.loadProfile(),
   ]);
   final expenses = ExpenseProvider();
   final money = MoneyProvider();
@@ -76,8 +223,20 @@ Future<void> main() async {
 }
 
 /// Completes startup work without blocking the UI. Everything is
-/// best-effort; a failing service must never break startup.
+/// best-effort; a failing service must never break startup — and no
+/// failure may leak out as an unhandled async error to the zone.
 Future<void> _finishBootInBackground(
+    ExpenseProvider expenses, MoneyProvider money) async {
+  try {
+    await _finishBootInBackgroundImpl(expenses, money);
+  } catch (_) {
+    // Safety net: every step below is already individually guarded.
+  }
+}
+
+/// Background boot implementation. Each service call is individually
+/// try/catch-guarded so one bad service can never abort the rest.
+Future<void> _finishBootInBackgroundImpl(
     ExpenseProvider expenses, MoneyProvider money) async {
   // Custom-category registry first — display code needs correct labels.
   try {
@@ -98,6 +257,14 @@ Future<void> _finishBootInBackground(
   NotificationService.onTap = (payload) {
     if (payload == 'app_update') {
       UpdateService.promptNow(appNavigatorKey);
+    } else if (payload != null &&
+        payload.startsWith(SmsService.undoPayloadPrefix)) {
+      // AC: undo an auto-added SMS expense.
+      final id = payload.substring(SmsService.undoPayloadPrefix.length);
+      _undoSmsExpense(id);
+    } else if (payload != null && payload.startsWith('bill_')) {
+      // AE: show the bill photo + amount on reminder tap.
+      _showBillReminder(payload.substring(5));
     }
   };
   // Periodic background update check -> phone notification when a new
@@ -121,6 +288,34 @@ Future<void> _finishBootInBackground(
   // Fire-and-forget, best-effort.
   SubscriptionService.checkDue();
   MonthlyReportService.maybeSend();
+  // v0.2 batch 2: salary day, challenges, achievements, quick-add.
+  SalaryService.checkSalaryDay(expenses, money);
+  ChallengeService.checkDaily();
+  Achievements.checkAll();
+  QuickAddNotification.show();
+  // v0.2 batch 4: carry-forward, recurring detect, stats notification.
+  CarryForwardService.maybeRollover();
+  StatsNotification.init();
+  // v0.3 batch: best-effort startup extras, each individually guarded so
+  // one bad service can never abort the rest (mirrors the neighbors).
+  try {
+    DailyLimitService.check(expenses);
+  } catch (_) {}
+  try {
+    ScheduledExportService.maybeRun();
+  } catch (_) {}
+  try {
+    CurrencyService.loadCached();
+    CurrencyService.refreshRates();
+  } catch (_) {}
+  // Routes quick-add notification taps through the coordinator's onTap
+  // chain (which the coordinator is rewiring separately — do not touch
+  // StatsNotification.onTap here).
+  try {
+    QuickAddNotification.onBodyTap =
+        (payload) => NotificationService.onTap?.call(payload);
+  } catch (_) {}
+  _maybeSuggestRecurring();
   // Keep the Android home widget in sync: debounced refresh whenever
   // expenses or income change, plus once after boot.
   HomeWidgetService.refreshFrom(expenses, money);
@@ -140,17 +335,25 @@ Future<void> _finishBootInBackground(
   await NotificationCenter.refreshUnread();
 }
 
-ColorScheme _brandScheme(Brightness brightness) {
+ColorScheme _brandScheme(Brightness brightness, String accent) {
   final base = ColorScheme.fromSeed(
     seedColor: kDeepGreen,
     brightness: brightness,
   );
+  final accentColor = kAccents[accent] ?? kGold;
+  final accentDark = kAccentDarks[accent] ?? kGoldDark;
+  // Text/icon color on top of the accent: dark green on light accents
+  // (gold), white on saturated ones. Matches the original gold behavior.
+  final onAccent =
+      ThemeData.estimateBrightnessForColor(accentColor) == Brightness.dark
+          ? Colors.white
+          : kDeepGreenDark;
   if (brightness == Brightness.dark) {
-    // Deep green hero: dark-green surfaces with gold primary accents,
+    // Deep green hero: dark-green surfaces with accent primary accents,
     // matching the 3D expense logo.
     return base.copyWith(
-      primary: kGold,
-      onPrimary: kDeepGreenDark,
+      primary: accentColor,
+      onPrimary: onAccent,
       secondary: kEmerald,
       surface: kDeepGreenSurface,
       surfaceContainerLowest: kDeepGreenDark,
@@ -160,20 +363,27 @@ ColorScheme _brandScheme(Brightness brightness) {
       surfaceContainerHighest: kDeepGreenCard,
     );
   }
-  // Light mode: clean white with deep green headers + gold accents.
+  // Light mode: clean white with deep green headers + accent highlights.
   return base.copyWith(
     primary: kDeepGreen,
     onPrimary: Colors.white,
-    secondary: kGoldDark,
+    secondary: accentDark,
   );
 }
 
-/// Shared premium fintech theme: gold primary buttons, gold focused
-/// inputs, gold selected chips, deep-green app bars with gold titles.
-ThemeData _buildTheme(Brightness brightness) {
-  final scheme = _brandScheme(brightness);
+/// Shared premium fintech theme: accent primary buttons, accent focused
+/// inputs, accent selected chips, deep-green app bars with accent titles.
+ThemeData _buildTheme(Brightness brightness, String accent) {
+  final scheme = _brandScheme(brightness, accent);
   final dark = brightness == Brightness.dark;
-  final goldText = dark ? kGoldLight : kGoldDark;
+  final accentColor = kAccents[accent] ?? kGold;
+  final accentLight = kAccentLights[accent] ?? kGoldLight;
+  final accentDark = kAccentDarks[accent] ?? kGoldDark;
+  final onAccent =
+      ThemeData.estimateBrightnessForColor(accentColor) == Brightness.dark
+          ? Colors.white
+          : kDeepGreenDark;
+  final accentText = dark ? accentLight : accentDark;
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
@@ -199,35 +409,36 @@ ThemeData _buildTheme(Brightness brightness) {
         fontSize: 20,
         fontWeight: FontWeight.bold,
         letterSpacing: 0.4,
-        color: dark ? kGold : kDeepGreen,
+        color: dark ? accentColor : kDeepGreen,
       ),
     ),
     chipTheme: ChipThemeData(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      side: BorderSide(color: kGold.withValues(alpha: dark ? 0.45 : 0.6)),
-      selectedColor: kGold,
-      checkmarkColor: kDeepGreenDark,
+      side: BorderSide(
+          color: accentColor.withValues(alpha: dark ? 0.45 : 0.6)),
+      selectedColor: accentColor,
+      checkmarkColor: onAccent,
       // Unselected chip text: explicit color, otherwise it can resolve
       // to white on the light background in light mode.
       labelStyle: TextStyle(
         fontWeight: FontWeight.w500,
         color: dark ? Colors.white : kDeepGreenDark,
       ),
-      // Selected chip text sits on the gold background.
-      secondaryLabelStyle: const TextStyle(
-        color: kDeepGreenDark,
+      // Selected chip text sits on the accent background.
+      secondaryLabelStyle: TextStyle(
+        color: onAccent,
         fontWeight: FontWeight.bold,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: kGold,
-        foregroundColor: kDeepGreenDark,
-        disabledBackgroundColor: kGold.withValues(alpha: 0.35),
-        disabledForegroundColor: kDeepGreenDark.withValues(alpha: 0.6),
+        backgroundColor: accentColor,
+        foregroundColor: onAccent,
+        disabledBackgroundColor: accentColor.withValues(alpha: 0.35),
+        disabledForegroundColor: onAccent.withValues(alpha: 0.6),
         textStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 16,
@@ -241,8 +452,8 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        side: BorderSide(color: kGold.withValues(alpha: 0.65)),
-        foregroundColor: goldText,
+        side: BorderSide(color: accentColor.withValues(alpha: 0.65)),
+        foregroundColor: accentText,
         textStyle: const TextStyle(fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -264,12 +475,12 @@ ThemeData _buildTheme(Brightness brightness) {
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: scheme.outlineVariant),
       ),
-      focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: kGold, width: 2),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(14)),
+        borderSide: BorderSide(color: accentColor, width: 2),
       ),
       floatingLabelStyle: TextStyle(
-        color: goldText,
+        color: accentText,
         fontWeight: FontWeight.w600,
       ),
     ),
@@ -280,8 +491,7 @@ ThemeData _buildTheme(Brightness brightness) {
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      indicatorColor:
-          dark ? const Color(0x47D4AF37) : const Color(0x59D4AF37),
+      indicatorColor: accentColor.withValues(alpha: dark ? 0.28 : 0.35),
     ),
     dialogTheme: const DialogThemeData(
       shape: RoundedRectangleBorder(
@@ -300,7 +510,7 @@ ThemeData _buildTheme(Brightness brightness) {
       ),
     ),
     dividerTheme: DividerThemeData(
-      color: kGold.withValues(alpha: 0.25),
+      color: accentColor.withValues(alpha: 0.25),
       thickness: 1,
     ),
   );
@@ -327,9 +537,45 @@ class KharchaApp extends StatelessWidget {
       supportedLocales: const [
         Locale('bn'),
         Locale('en'),
+        Locale('hi'),
+        Locale('ur'),
+        Locale('ar'),
+        Locale('fa'),
+        Locale('es'),
+        Locale('fr'),
+        Locale('de'),
+        Locale('pt'),
+        Locale('ru'),
+        Locale('zh'),
+        Locale('ja'),
+        Locale('ko'),
+        Locale('tr'),
+        Locale('id'),
+        Locale('ms'),
+        Locale('vi'),
+        Locale('th'),
+        Locale('it'),
+        Locale('nl'),
       ],
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
+      // Hand-rolled strings carry no text direction, so force RTL for
+      // Arabic/Urdu/Persian (the material delegates already do this for dialogs etc.).
+      builder: (context, child) {
+        final lang = settings.language;
+        final scaled = MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(settings.fontScale),
+        );
+        final rtl = Directionality(
+          textDirection: (lang == 'ar' || lang == 'ur' || lang == 'fa')
+              ? TextDirection.rtl
+              : TextDirection.ltr,
+          child: child!,
+        );
+        return MediaQuery(data: scaled, child: rtl);
+      },
+      theme: _buildTheme(Brightness.light, settings.accent),
+      darkTheme: settings.amoled
+          ? buildAmoledTheme(kAccents[settings.accent] ?? kGold)
+          : _buildTheme(Brightness.dark, settings.accent),
       themeMode: settings.themeMode,
       home: const SplashScreen(),
     );
@@ -486,10 +732,15 @@ class _LockGateState extends State<LockGate> {
       // Fire-and-forget: rationale/update dialogs handle their own errors.
       SmsService.instance.maybeStart();
       UpdateService.maybePromptOnStartup(appNavigatorKey);
-      // App opened by tapping the update notification while terminated.
+      // App opened by tapping a notification while terminated.
       NotificationService.launchPayload().then((payload) {
         if (payload == 'app_update') {
           UpdateService.promptNow(appNavigatorKey);
+        } else if (payload != null &&
+            payload.startsWith(SmsService.undoPayloadPrefix)) {
+          _undoSmsExpense(payload.substring(SmsService.undoPayloadPrefix.length));
+        } else if (payload != null && payload.startsWith('bill_')) {
+          _showBillReminder(payload.substring(5));
         }
       });
     });
@@ -511,7 +762,9 @@ class _LockGateState extends State<LockGate> {
         },
       );
     }
-    return const AuthGate(home: MainShell());
+    // First-run showcase goes after auth/lock, before the main shell —
+    // shown exactly once via OnboardingGate.
+    return const AuthGate(home: OnboardingGate(child: MainShell()));
   }
 }
 

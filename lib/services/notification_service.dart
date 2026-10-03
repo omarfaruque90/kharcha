@@ -79,9 +79,6 @@ class NotificationService {
     }
   }
 
-  /// Fires an immediate high-priority notification. Used by the
-  /// in-app notification center for budget warnings, recurring-expense
-  /// alerts, etc. Best-effort: no-op before [init] or on failure.
   /// Payload of the notification that launched the app from terminated
   /// state, or null. Check once after startup.
   static Future<String?> launchPayload() async {
@@ -94,6 +91,9 @@ class NotificationService {
     return null;
   }
 
+  /// Fires an immediate high-priority notification. Used by the
+  /// in-app notification center for budget warnings, recurring-expense
+  /// alerts, etc. Best-effort: no-op before [init] or on failure.
   static Future<void> showNow({
     required String title,
     required String body,
@@ -157,6 +157,7 @@ class NotificationService {
           id: id,
           title: AppStrings.get('notif_bill_title', lang),
           body: body,
+          payload: 'bill_${r.id ?? r.title}',
           scheduledDate: scheduled,
           notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(

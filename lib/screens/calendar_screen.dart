@@ -25,6 +25,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
 
+  /// Memoized day-grouping: rebuilding it on every build (e.g. each day
+  /// tap) is O(n) over all expenses, so recompute only when the watched
+  /// list instance changes.
+  List<Expense>? _lastGrouped;
+  Map<DateTime, List<Expense>> _byDayCache = const {};
+
+  Map<DateTime, List<Expense>> _byDay(List<Expense> expenses) {
+    if (!identical(expenses, _lastGrouped)) {
+      final byDay = <DateTime, List<Expense>>{};
+      for (final expense in expenses) {
+        final key = _dayKey(expense.date);
+        (byDay[key] ??= []).add(expense);
+      }
+      _lastGrouped = expenses;
+      _byDayCache = byDay;
+    }
+    return _byDayCache;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -43,12 +62,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
 
-    // Group expenses by day; rebuilt from the watched list every build.
-    final byDay = <DateTime, List<Expense>>{};
-    for (final expense in expenses) {
-      final key = _dayKey(expense.date);
-      (byDay[key] ??= []).add(expense);
-    }
+    // Group expenses by day; memoized — rebuilt only when the list changes.
+    final byDay = _byDay(expenses);
 
     final selectedExpenses = byDay[_dayKey(_selectedDay)] ?? const <Expense>[];
     final dayTotal =

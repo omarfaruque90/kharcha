@@ -1,20 +1,31 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../db/database_helper.dart';
 import '../widgets/motion.dart';
 import '../providers/settings_provider.dart';
+import '../providers/expense_provider.dart';
+import '../providers/money_provider.dart';
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
+import '../services/carry_forward_service.dart';
+import '../services/drive_backup_service.dart';
 import '../services/export_service.dart';
+import '../services/home_widget_service.dart';
 import '../services/lock_service.dart';
 import '../services/profile_service.dart';
+import '../services/scheduled_export_service.dart';
 import '../services/sync_service.dart';
+import '../services/stats_notification.dart';
 import '../services/update_service.dart';
+import '../utils/formatters.dart';
 import 'lock_screen.dart';
+import 'places_screen.dart';
 import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -30,6 +41,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _bioSupported = false;
   String _appVersion = '';
   bool _busy = false;
+  bool _driveAuto = false;
+  DateTime? _driveLast;
+  String _widgetStyle = 'detailed';
+  double _dailyLimit = 0;
+  List<String> _profiles = const ['personal'];
+  String _activeProfile = 'personal';
+  bool _statsNotif = false;
+  bool _carryForward = false;
+  bool _autoPdf = false;
   final GlobalKey<_SettingsAvatarState> _avatarKey =
       GlobalKey<_SettingsAvatarState>();
 
@@ -48,13 +68,267 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final pkg = await PackageInfo.fromPlatform();
       version = pkg.version;
     } catch (_) {}
+    final driveAuto = await DriveBackupService.isAutoEnabled();
+    final driveLast = await DriveBackupService.lastBackup();
+    final dailyLimit =
+        double.tryParse(await DatabaseHelper.instance.getSetting('daily_limit') ?? '') ?? 0;
+    final profiles = await DatabaseHelper.getProfiles();
+    final statsNotif = await StatsNotification.isEnabled();
+    final carryForward =
+        (await DatabaseHelper.instance.getSetting('carry_forward')) == '1';
+    // Reads the same SharedPreferences-backed toggle the background
+    // worker checks (ScheduledExportService.maybeRun); the SQLite
+    // 'auto_pdf' setting was never read by the worker.
+    final autoPdf = await ScheduledExportService.isEnabled();
     if (!mounted) return;
     setState(() {
       _lockEnabled = lock;
       _bioEnabled = bio && supported;
       _bioSupported = supported;
       _appVersion = version;
+      _driveAuto = driveAuto;
+      _driveLast = driveLast;
+      _dailyLimit = dailyLimit;
+      _profiles = profiles;
+      _activeProfile = DatabaseHelper.instance.activeProfile;
+      _statsNotif = statsNotif;
+      _carryForward = carryForward;
+      _autoPdf = autoPdf;
     });
+  }
+
+  Future<void> _editDailyLimit(BuildContext context) async {
+    final ctrl = TextEditingController(
+        text: _dailyLimit > 0 ? _dailyLimit.toStringAsFixed(0) : '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'daily_limit_title')),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: tr(dctx, 'daily_limit_hint'),
+            prefixText: '৳ ',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: Text(tr(dctx, 'cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text(tr(dctx, 'save')),
+          ),
+        ],
+      ),
+    );
+    if (saved == true && mounted) {
+      final v = double.tryParse(ctrl.text.trim()) ?? 0;
+      await DatabaseHelper.instance
+          .setSetting('daily_limit', v > 0 ? v.toStringAsFixed(0) : '0');
+      setState(() => _dailyLimit = v > 0 ? v : 0);
+    }
+    ctrl.dispose();
+  }
+
+  Future<void> _showProfileSwitcher(BuildContext context) async {
+    final profiles = await DatabaseHelper.getProfiles();
+    if (!context.mounted) return;
+    final nameCtrl = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(tr(dctx, 'profile_switch')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final p in profiles)
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    p == DatabaseHelper.instance.activeProfile
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: Theme.of(dctx).colorScheme.primary,
+                  ),
+                  title: Text(p == 'personal'
+                      ? tr(dctx, 'profile_personal')
+                      : p),
+                  subtitle: p == 'personal'
+                      ? Text(tr(dctx, 'profile_personal_sub'))
+                      : null,
+                  trailing: p == 'personal'
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          onPressed: () async {
+                            await DatabaseHelper.deleteProfile(p);
+                            if (dctx.mounted) Navigator.pop(dctx);
+                            _refresh();
+                          },
+                        ),
+                  onTap: () async {
+                    await DatabaseHelper.instance.setProfile(p);
+                    // Reload providers so the UI reflects the new profile.
+                    if (dctx.mounted) {
+                      Navigator.pop(dctx);
+                      final expenses = context.read<ExpenseProvider>();
+                      final money = context.read<MoneyProvider>();
+                      await expenses.load();
+                      await money.load();
+                      _refresh();
+                    }
+                  },
+                ),
+              const Divider(),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        hintText: tr(dctx, 'profile_new_hint'),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    onPressed: () async {
+                      final n = nameCtrl.text.trim();
+                      if (n.isEmpty) return;
+                      await DatabaseHelper.addProfile(n);
+                      await DatabaseHelper.instance.setProfile(n);
+                      if (dctx.mounted) {
+                        Navigator.pop(dctx);
+                        final expenses = context.read<ExpenseProvider>();
+                        final money = context.read<MoneyProvider>();
+                        await expenses.load();
+                        await money.load();
+                        _refresh();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: Text(tr(dctx, 'close')),
+          ),
+        ],
+      ),
+    );
+    nameCtrl.dispose();
+  }
+
+  /// Native display name for every supported language code.
+  static const Map<String, String> _languageNames = {
+    'bn': 'বাংলা',
+    'en': 'English',
+    'hi': 'हिन्दी',
+    'ur': 'اردو',
+    'ar': 'العربية',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'pt': 'Português',
+    'ru': 'Русский',
+    'zh': '中文',
+    'ja': '日本語',
+    'ko': '한국어',
+    'tr': 'Türkçe',
+    'id': 'Bahasa Indonesia',
+    'ms': 'Bahasa Melayu',
+    'vi': 'Tiếng Việt',
+    'th': 'ไทย',
+    'it': 'Italiano',
+    'fa': 'فارسی',
+    'nl': 'Nederlands',
+  };
+
+  /// Languages shown in the "Popular" section of the language picker.
+  static const List<String> _popularLangs = ['bn', 'en', 'hi', 'ur', 'ar'];
+
+  /// Languages shown in the "World" section of the language picker.
+  static const List<String> _worldLangs = [
+    'es',
+    'fr',
+    'de',
+    'pt',
+    'ru',
+    'zh',
+    'ja',
+    'ko',
+    'tr',
+    'id',
+    'ms',
+    'vi',
+    'th',
+    'it',
+    'fa',
+    'nl',
+  ];
+
+  void _showLanguagePicker(BuildContext context, SettingsProvider settings) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget sectionHeader(String key) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            tr(context, key),
+            style: TextStyle(
+              color: scheme.primary,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        );
+    Widget langTile(String code) {
+      final selected = settings.language == code;
+      return ListTile(
+        dense: true,
+        title: Text(_languageNames[code] ?? code),
+        trailing: selected
+            ? Icon(Icons.check, color: scheme.primary)
+            : null,
+        onTap: () {
+          settings.setLanguage(code);
+          Navigator.of(context).pop();
+        },
+      );
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(ctx, 'language')),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              sectionHeader('lang_popular'),
+              for (final c in _popularLangs) langTile(c),
+              sectionHeader('lang_world'),
+              for (final c in _worldLangs) langTile(c),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr(ctx, 'close')),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
@@ -154,6 +428,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _snack('${tr(context, 'restore_done')} ($count)');
       });
 
+  Future<void> _toggleDriveAuto(bool value) async {
+    if (value) {
+      // Enabling requests the drive.appdata scope (incremental consent).
+      await _runBusy(() async {
+        try {
+          final ok = await DriveBackupService.backupNow(interactive: true);
+          if (!mounted) return;
+          if (ok) {
+            await DriveBackupService.setAutoEnabled(true);
+            _driveAuto = true;
+            _driveLast = await DriveBackupService.lastBackup();
+            if (mounted) setState(() {});
+            _snack(tr(context, 'drive_done'));
+          } else {
+            _snack(tr(context, 'drive_failed'));
+          }
+        } on DriveAuthException {
+          if (!mounted) return;
+          _snack(tr(context, 'drive_auth_failed'));
+        }
+      });
+    } else {
+      await DriveBackupService.setAutoEnabled(false);
+      if (mounted) setState(() => _driveAuto = false);
+    }
+  }
+
+  Future<void> _driveBackupNow() => _runBusy(() async {
+        _snack(tr(context, 'drive_backing_up'));
+        try {
+          final ok = await DriveBackupService.backupNow(interactive: true);
+          if (!mounted) return;
+          _driveLast = await DriveBackupService.lastBackup();
+          if (mounted) setState(() {});
+          _snack(tr(context, ok ? 'drive_done' : 'drive_failed'));
+        } on DriveAuthException {
+          if (!mounted) return;
+          await DriveBackupService.setAutoEnabled(false);
+          if (mounted) setState(() => _driveAuto = false);
+          _snack(tr(context, 'drive_auth_failed'));
+        }
+      });
+
+  Future<void> _driveRestore() => _runBusy(() async {
+        try {
+          final count = await DriveBackupService.restoreLatest();
+          if (!mounted) return;
+          if (count < 0) {
+            _snack(tr(context, 'drive_no_backup'));
+            return;
+          }
+          _driveLast = await DriveBackupService.lastBackup();
+          if (mounted) setState(() {});
+          _snack(tr(context, 'drive_restored').replaceAll('{n}', '$count'));
+        } on DriveAuthException {
+          if (!mounted) return;
+          await DriveBackupService.setAutoEnabled(false);
+          if (mounted) setState(() => _driveAuto = false);
+          _snack(tr(context, 'drive_auth_failed'));
+        }
+      });
+
   Future<void> _doExportPdf() => _runBusy(() async {
         final now = DateTime.now();
         await ExportService.exportMonthlyPdf(
@@ -169,6 +505,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         _snack(tr(context, 'export_done'));
       });
+
+  Future<void> _pickDarkTime(BuildContext context,
+      {required bool isStart}) async {
+    final settings =
+        Provider.of<SettingsProvider>(context, listen: false);
+    final current = isStart ? settings.darkStart : settings.darkEnd;
+    final parts = current.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts[0]) ?? (isStart ? 22 : 6),
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final hhmm =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    if (isStart) {
+      await settings.setDarkStart(hhmm);
+    } else {
+      await settings.setDarkEnd(hhmm);
+    }
+  }
 
   Future<void> _checkForUpdates() async {
     if (_busy) return;
@@ -249,23 +613,253 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.translate),
             title: Text(tr(context, 'language')),
-            trailing: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'bn', label: Text('বাংলা')),
-                ButtonSegment(value: 'en', label: Text('English')),
-              ],
-              selected: {lang},
-              onSelectionChanged: (s) => settings.setLanguage(s.first),
+            subtitle: Text(_languageNames[lang] ?? lang),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showLanguagePicker(context, settings),
+          ),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(tr(context, 'appearance')),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SegmentedButton<String>(
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+                segments: [
+                  ButtonSegment(
+                      value: 'system',
+                      label: Text(tr(context, 'theme_system'))),
+                  ButtonSegment(
+                      value: 'light', label: Text(tr(context, 'theme_light'))),
+                  ButtonSegment(
+                      value: 'dark', label: Text(tr(context, 'theme_dark'))),
+                  ButtonSegment(
+                      value: 'scheduled',
+                      label: Text(tr(context, 'theme_scheduled'))),
+                ],
+                selected: {settings.themeChoice},
+                onSelectionChanged: (s) =>
+                    settings.setThemeChoice(s.first),
+              ),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.color_lens_outlined),
+            title: Text(tr(context, 'accent_title')),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  for (final key in SettingsProvider.accents)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: PressableScale(
+                        onTap: () => settings.setAccent(key),
+                        child: Builder(
+                          builder: (dotCtx) {
+                            final swatch =
+                                SettingsProvider.accentColors[key] ??
+                                    Colors.grey;
+                            final onSwatch =
+                                ThemeData.estimateBrightnessForColor(
+                                            swatch) ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF072A1F);
+                            final selected = key == settings.accent;
+                            return Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: swatch,
+                                border: selected
+                                    ? Border.all(
+                                        color: Theme.of(dotCtx)
+                                            .colorScheme
+                                            .onSurface,
+                                        width: 3,
+                                      )
+                                    : Border.all(
+                                        color: Theme.of(dotCtx)
+                                            .colorScheme
+                                            .outlineVariant,
+                                        width: 1,
+                                      ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black
+                                        .withValues(alpha: 0.25),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: selected
+                                  ? Icon(Icons.check,
+                                      color: onSwatch, size: 22)
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (settings.themeChoice == 'scheduled') ...[
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.bedtime_outlined),
+              title: Text(tr(context, 'dark_start')),
+              trailing: Text(
+                settings.darkStart,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              onTap: () => _pickDarkTime(context, isStart: true),
+            ),
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.wb_sunny_outlined),
+              title: Text(tr(context, 'dark_end')),
+              trailing: Text(
+                settings.darkEnd,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              onTap: () => _pickDarkTime(context, isStart: false),
+            ),
+          ],
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
-            title: Text(tr(context, 'dark_mode')),
-            subtitle: Text(tr(context, 'theme')),
-            value: settings.isDark,
-            onChanged: (v) => settings.setThemeMode(
-              v ? ThemeMode.dark : ThemeMode.light,
+            title: Text(tr(context, 'amoled_title')),
+            subtitle: Text(tr(context, 'amoled_sub')),
+            value: settings.amoled,
+            onChanged: (v) => settings.setAmoled(v),
+          ),
+          ListTile(
+            leading: const Icon(Icons.format_size_outlined),
+            title: Text(tr(context, 'font_size_title')),
+            subtitle: Slider(
+              value: settings.fontScale,
+              min: 0.85,
+              max: 1.3,
+              divisions: 9,
+              label: '${(settings.fontScale * 100).round()}%',
+              onChanged: (v) => settings.setFontScale(v),
             ),
+            trailing: Text(
+              '${(settings.fontScale * 100).round()}%',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.widgets_outlined),
+            title: Text(tr(context, 'widget_style_title')),
+            trailing: DropdownButton<String>(
+              value: _widgetStyle,
+              items: [
+                for (final s in HomeWidgetService.widgetStyles)
+                  DropdownMenuItem(
+                    value: s,
+                    child: Text(tr(context, 'widget_style_$s')),
+                  ),
+              ],
+              onChanged: (v) async {
+                if (v == null) return;
+                setState(() => _widgetStyle = v);
+                await HomeWidgetService.setStyle(v);
+              },
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.place_outlined),
+            title: Text(tr(context, 'places_title')),
+            subtitle: Text(tr(context, 'places_sub')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PlacesScreen()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.speed_outlined),
+            title: Text(tr(context, 'daily_limit_title')),
+            subtitle: Text(_dailyLimit > 0
+                ? formatMoney(_dailyLimit)
+                : tr(context, 'daily_limit_off')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _editDailyLimit(context),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_active_outlined),
+            title: Text(tr(context, 'stats_notif_title')),
+            subtitle: Text(tr(context, 'stats_notif_sub')),
+            value: _statsNotif,
+            onChanged: (v) async {
+              await StatsNotification.setEnabled(v);
+              if (mounted) setState(() => _statsNotif = v);
+            },
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.redo_outlined),
+            title: Text(tr(context, 'carry_forward_title')),
+            subtitle: Text(tr(context, 'carry_forward_sub')),
+            value: _carryForward,
+            onChanged: (v) async {
+              await DatabaseHelper.instance
+                  .setSetting('carry_forward', v ? '1' : '0');
+              if (mounted) setState(() => _carryForward = v);
+              if (v) {
+                // Run the rollover immediately so the current month picks
+                // up any leftover right away (BP: carry-forward).
+                try {
+                  await CarryForwardService.maybeRollover();
+                } catch (_) {}
+              }
+            },
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.picture_as_pdf_outlined),
+            title: Text(tr(context, 'auto_pdf_title')),
+            subtitle: Text(tr(context, 'auto_pdf_sub')),
+            value: _autoPdf,
+            onChanged: (v) async {
+              await ScheduledExportService.setEnabled(v);
+              if (mounted) setState(() => _autoPdf = v);
+            },
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              tr(context, 'profile_section'),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: Text(tr(context, 'profile_current')),
+            subtitle: Text(_profiles.isEmpty
+                ? 'personal'
+                : _profiles.contains(_activeProfile)
+                    ? _activeProfile
+                    : 'personal'),
+            trailing: const Icon(Icons.swap_horiz),
+            onTap: () => _showProfileSwitcher(context),
           ),
           const Divider(),
           Padding(
@@ -322,6 +916,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.restore_outlined),
             title: Text(tr(context, 'restore_title')),
             onTap: _busy ? null : _doRestore,
+          ),
+          const Divider(),
+          SwitchListTile(
+            secondary: const Icon(Icons.cloud_upload_outlined),
+            title: Text(tr(context, 'drive_auto')),
+            subtitle: Text(_driveLast == null
+                ? tr(context, 'drive_never')
+                : tr(context, 'drive_last').replaceAll(
+                    '{date}',
+                    DateFormat.yMMMd(
+                            context.watch<SettingsProvider>().language == 'bn'
+                                ? 'bn'
+                                : 'en')
+                        .format(_driveLast!))),
+            value: _driveAuto,
+            onChanged: _busy ? null : (v) => _toggleDriveAuto(v),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_done_outlined),
+            title: Text(tr(context, 'drive_backup')),
+            subtitle: Text(tr(context, 'drive_backup_sub')),
+            onTap: _busy ? null : _driveBackupNow,
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: Text(tr(context, 'drive_restore')),
+            subtitle: Text(tr(context, 'drive_restore_sub')),
+            onTap: _busy ? null : _driveRestore,
           ),
           ListTile(
             leading: const Icon(Icons.picture_as_pdf_outlined),

@@ -127,16 +127,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
-    final displayName = user?.displayName?.isNotEmpty == true
-        ? user!.displayName!
-        : (user?.email ?? (user?.isAnonymous == true
-            ? tr(context, 'auth_guest_label')
-            : ''));
-    final initial = displayName.isNotEmpty
-        ? displayName[0].toUpperCase()
-        : '?';
+    String displayName = '';
+    final name = user?.displayName;
+    if (name != null && name.isNotEmpty) {
+      displayName = name;
+    } else if (user?.email != null) {
+      displayName = user?.email ?? '';
+    } else if (user?.isAnonymous == true) {
+      displayName = tr(context, 'auth_guest_label');
+    }
+    final initial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
     final isGuest = user?.isAnonymous == true;
     final avatarImage = _avatarImage;
+    final email = user?.email;
 
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'profile_title'))),
@@ -200,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: Text(displayName.isNotEmpty
                 ? displayName
                 : tr(context, 'auth_account')),
-            subtitle: user?.email != null ? Text(user!.email!) : null,
+            subtitle: email != null ? Text(email) : null,
           ),
         ],
       ),

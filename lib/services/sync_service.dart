@@ -292,21 +292,25 @@ class SyncService {
     _applyingRemote = true;
     try {
       for (final change in snap.docChanges) {
-        switch (change.type) {
-          case DocumentChangeType.added:
-          case DocumentChangeType.modified:
-            final data = change.doc.data();
-            if (data != null) {
-              await db.upsertExpense(
-                Expense.fromFirestore(change.doc.id, data),
-              );
+        try {
+          switch (change.type) {
+            case DocumentChangeType.added:
+            case DocumentChangeType.modified:
+              final data = change.doc.data();
+              if (data != null) {
+                await db.upsertExpense(
+                  Expense.fromFirestore(change.doc.id, data),
+                );
+                changed = true;
+              }
+              break;
+            case DocumentChangeType.removed:
+              await db.deleteExpenseLocal(change.doc.id);
               changed = true;
-            }
-            break;
-          case DocumentChangeType.removed:
-            await db.deleteExpenseLocal(change.doc.id);
-            changed = true;
-            break;
+              break;
+          }
+        } catch (_) {
+          // One malformed remote doc must not kill the live listener.
         }
       }
     } finally {
@@ -329,19 +333,23 @@ class SyncService {
     _applyingRemote = true;
     try {
       for (final change in snap.docChanges) {
-        switch (change.type) {
-          case DocumentChangeType.added:
-          case DocumentChangeType.modified:
-            final data = change.doc.data();
-            if (data != null) {
-              await upsert(fromFirestore(change.doc.id, data));
+        try {
+          switch (change.type) {
+            case DocumentChangeType.added:
+            case DocumentChangeType.modified:
+              final data = change.doc.data();
+              if (data != null) {
+                await upsert(fromFirestore(change.doc.id, data));
+                changed = true;
+              }
+              break;
+            case DocumentChangeType.removed:
+              await deleteLocal(change.doc.id);
               changed = true;
-            }
-            break;
-          case DocumentChangeType.removed:
-            await deleteLocal(change.doc.id);
-            changed = true;
-            break;
+              break;
+          }
+        } catch (_) {
+          // One malformed remote doc must not kill the live listener.
         }
       }
     } finally {
