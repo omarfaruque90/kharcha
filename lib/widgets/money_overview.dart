@@ -1,14 +1,32 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
-/// "My Money" overview: cash + bank + lent out = total assets,
-/// plus daily average spending. Shown on home.
+/// Wallet ids for the money overview (besides hand cash + lent).
+const _walletIds = ['bkash', 'nagad', 'rocket', 'upay', 'card', 'bank'];
+
+/// Brand-ish colors for mobile banking wallets.
+const _walletColors = {
+  'bkash': Color(0xFFE2136E), // bKash pink
+  'nagad': Color(0xFFF6921E), // Nagad orange
+  'rocket': Color(0xFF8C3494), // Rocket purple
+  'upay': Color(0xFF00A651), // Upay green
+  'card': Color(0xFF2563EB), // card blue
+  'bank': Color(0xFF0E7C5B), // bank green
+};
+
+/// "My Money" overview: hand cash + mobile banking (bKash/Nagad/Rocket/Upay)
+/// + card + other bank + lent out = total assets, plus daily average.
+/// Shown on home.
 class MoneyOverviewCard extends StatefulWidget {
   const MoneyOverviewCard({super.key});
 
@@ -18,9 +36,10 @@ class MoneyOverviewCard extends StatefulWidget {
 
 class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
   double _cash = 0;
-  double _bank = 0;
+  Map<String, double> _wallets = {};
   double _lent = 0;
   bool _loading = true;
+  bool _mobileExpanded = false;
 
   @override
   void initState() {
@@ -28,11 +47,32 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     _load();
   }
 
+  Future<Map<String, double>> _readWallets() async {
+    final db = DatabaseHelper.instance;
+    final out = {for (final id in _walletIds) id: 0.0};
+    try {
+      final raw = await db.getSetting('wallet_balances');
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        for (final id in _walletIds) {
+          final v = map[id];
+          if (v is num) out[id] = v.toDouble();
+        }
+      } else {
+        // Migrate the old single bank_balance value.
+        final old = await db.getSetting('bank_balance');
+        final v = double.tryParse(old ?? '');
+        if (v != null) out['bank'] = v;
+      }
+    } catch (_) {}
+    return out;
+  }
+
   Future<void> _load() async {
     try {
       final db = DatabaseHelper.instance;
       final cash = await db.getCashBalance();
-      final bankStr = await db.getSetting('bank_balance');
+      final wallets = await _readWallets();
       final debts = await db.getDebts();
       final lent = debts
           .where((d) => d.kind == 'lent' && !d.settled)
@@ -40,7 +80,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
       if (mounted) {
         setState(() {
           _cash = cash;
-          _bank = double.tryParse(bankStr ?? '') ?? 0;
+          _wallets = wallets;
           _lent = lent;
           _loading = false;
         });
@@ -50,17 +90,18 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     }
   }
 
-  Future<void> _editBank() async {
+  Future<void> _editWallet(String id, String label) async {
+    final current = _wallets[id] ?? 0;
     final ctrl = TextEditingController(
-      text: _bank.truncateToDouble() == _bank
-          ? _bank.toStringAsFixed(0)
-          : _bank.toString(),
+      text: current.truncateToDouble() == current
+          ? current.toStringAsFixed(0)
+          : current.toString(),
     );
     final formKey = GlobalKey<FormState>();
     final value = await showDialog<double>(
       context: context,
       builder: (dctx) => AlertDialog(
-        title: Text(tr(dctx, 'bank_balance_title')),
+        title: Text(label),
         content: Form(
           key: formKey,
           child: TextFormField(
@@ -69,7 +110,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                 const TextInputType.numberWithOptions(decimal: true),
             autofocus: true,
             decoration: InputDecoration(
-              labelText: tr(dctx, 'bank_balance_hint'),
+              labelText: tr(dctx, 'wallet_balance_hint'),
               border: const OutlineInputBorder(),
               prefixText: '৳ ',
             ),
@@ -98,22 +139,45 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     );
     ctrl.dispose();
     if (value == null || !mounted) return;
-    await DatabaseHelper.instance.setSetting('bank_balance', '$value');
+    final updated = Map<String, double>.from(_wallets)..[id] = value;
+    await DatabaseHelper.instance
+        .setSetting('wallet_balances', jsonEncode(updated));
     _load();
+  }
+
+  String _walletLabel(String id, String lang) {
+    switch (id) {
+      case 'bkash':
+        return 'bKash';
+      case 'nagad':
+        return 'Nagad';
+      case 'rocket':
+        return 'Rocket';
+      case 'upay':
+        return 'Upay';
+      case 'card':
+        return tr(context, 'wallet_card');
+      case 'bank':
+        return tr(context, 'wallet_bank');
+      default:
+        return id;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<SettingsProvider>().language;
     final theme = Theme.of(context);
     final expenses = context.watch<ExpenseProvider>();
 
-    // Daily average: this month's spend / days elapsed.
     final now = DateTime.now();
-    final daysElapsed = now.day;
-    final monthSpent = expenses.totalThisMonth();
-    final dailyAvg = daysElapsed > 0 ? monthSpent / daysElapsed : 0.0;
+    final dailyAvg =
+        now.day > 0 ? expenses.totalThisMonth() / now.day : 0.0;
 
-    final total = _cash + _bank + _lent;
+    final mobileTotal = ['bkash', 'nagad', 'rocket', 'upay']
+        .fold<double>(0, (s, id) => s + (_wallets[id] ?? 0));
+    final total =
+        _cash + mobileTotal + (_wallets['card'] ?? 0) + (_wallets['bank'] ?? 0) + _lent;
 
     return StaggeredEntrance(
       child: Card(
@@ -147,21 +211,95 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   child: CircularProgressIndicator(),
                 ))
               else ...[
+                // Hand cash.
                 _row(
                   context,
                   icon: Icons.wallet_outlined,
+                  iconColor: kGold,
                   label: tr(context, 'cash_wallet'),
                   value: _cash,
                   theme: theme,
                 ),
+                // Mobile banking group (expandable).
+                InkWell(
+                  onTap: () =>
+                      setState(() => _mobileExpanded = !_mobileExpanded),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        Icon(Icons.smartphone_outlined,
+                            size: 18,
+                            color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: Text(tr(context, 'wallet_mobile'))),
+                        Text(
+                          formatMoney(mobileTotal),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _mobileExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_mobileExpanded)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 28),
+                    child: Column(
+                      children: [
+                        for (final id in [
+                          'bkash',
+                          'nagad',
+                          'rocket',
+                          'upay'
+                        ])
+                          _row(
+                            context,
+                            icon: Icons.circle,
+                            iconColor: _walletColors[id],
+                            iconSize: 10,
+                            label: _walletLabel(id, lang),
+                            value: _wallets[id] ?? 0,
+                            theme: theme,
+                            onEdit: () =>
+                                _editWallet(id, _walletLabel(id, lang)),
+                          ),
+                      ],
+                    ),
+                  ),
+                // Card.
+                _row(
+                  context,
+                  icon: Icons.credit_card_outlined,
+                  iconColor: _walletColors['card'],
+                  label: _walletLabel('card', lang),
+                  value: _wallets['card'] ?? 0,
+                  theme: theme,
+                  onEdit: () =>
+                      _editWallet('card', _walletLabel('card', lang)),
+                ),
+                // Other bank.
                 _row(
                   context,
                   icon: Icons.account_balance_outlined,
-                  label: tr(context, 'bank_balance_title'),
-                  value: _bank,
+                  iconColor: _walletColors['bank'],
+                  label: _walletLabel('bank', lang),
+                  value: _wallets['bank'] ?? 0,
                   theme: theme,
-                  onEdit: _editBank,
+                  onEdit: () =>
+                      _editWallet('bank', _walletLabel('bank', lang)),
                 ),
+                // Lent out.
                 _row(
                   context,
                   icon: Icons.handshake_outlined,
@@ -234,6 +372,8 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
   Widget _row(
     BuildContext context, {
     required IconData icon,
+    Color? iconColor,
+    double iconSize = 18,
     required String label,
     required double value,
     required ThemeData theme,
@@ -244,7 +384,8 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
       child: Row(
         children: [
           Icon(icon,
-              size: 18, color: theme.colorScheme.onSurfaceVariant),
+              size: iconSize,
+              color: iconColor ?? theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 10),
           Expanded(child: Text(label)),
           Text(
