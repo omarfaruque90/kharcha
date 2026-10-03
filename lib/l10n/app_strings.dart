@@ -718,7 +718,7 @@ class AppStrings {
       'cash_adjust_note': 'Balance adjustment',
       'cash_balance_set': 'Balance set to {amount}.',
       'money_overview': 'My Money',
-      'money_lent_out': 'Lent out (ধার)',
+      'money_lent_out': 'Lent out',
       'money_total': 'Total assets',
       'money_today': 'Today',
       'money_week': 'This week',
