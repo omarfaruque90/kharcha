@@ -22,8 +22,8 @@ class BudgetPlannerScreen extends StatefulWidget {
 
 class _PlanItem {
   final String categoryId;
-  double amount;
-  _PlanItem(this.categoryId, {this.amount = 0});
+  double amount = 0;
+  _PlanItem(this.categoryId);
 }
 
 class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
