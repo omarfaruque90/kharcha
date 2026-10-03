@@ -193,7 +193,8 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
       ),
     );
     ctrl.dispose();
-    if (value == null || !mounted) return;
+    if (value == null) return;
+    if (!mounted) return;
     final diff = value - current;
     if (diff.abs() < 0.005) return;
     final adjustNote = tr(context, 'cash_adjust');
