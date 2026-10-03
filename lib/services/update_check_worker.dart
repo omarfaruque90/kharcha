@@ -110,7 +110,7 @@ Future<void> _showUpdateNotification(String version) async {
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     await plugin.initialize(
-      const InitializationSettings(android: androidSettings),
+      settings: const InitializationSettings(android: androidSettings),
     );
     await plugin.show(
       id: 9001,
