@@ -232,10 +232,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           lng: _lng,
         ),
       );
-      // Deduct from the matching wallet so total balance drops.
-      try {
-        await totalBalance.deductForExpense(_payment, bdt);
-      } catch (_) {}
+      // Wallet deduction now happens inside ExpenseProvider.add()
+      // (single source of truth — no double-deduct).
       if (!mounted) return;
       // Fire-and-forget: budget near-limit / exceeded alerts.
       unawaited(_checkBudgetAlerts(

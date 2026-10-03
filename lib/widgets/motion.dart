@@ -29,7 +29,7 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 250),
     );
     final curved =
         CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);

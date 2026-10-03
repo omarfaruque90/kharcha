@@ -284,9 +284,7 @@ List<LlmToolDef> buildLlmTools() => [
             bdtAmount: amount,
           );
           await ctx.expenses.add(expense);
-          try {
-            await ctx.wallets.deductForExpense(pm, amount);
-          } catch (_) {}
+          // Wallet deduction is inside ExpenseProvider.add() — no double-deduct.
           final catName =
               CustomCategoryRegistry.displayName(categoryId, ctx.lang);
           return 'OK: added expense ${formatMoney(amount)} in $catName'

@@ -45,8 +45,6 @@ class AiAssistant {
   /// Returns an [AiResponse]; when [AiResponse.action] is set, the chat UI
   /// should execute it via the providers and confirm.
   static Future<AiResponse> answer(String input, String lang) async {
-    // Simulated processing so the typing dots show briefly.
-    await Future.delayed(const Duration(milliseconds: 400));
     final q = input.toLowerCase().trim();
     if (q.isEmpty) return AiResponse(_t('ai_fallback', lang));
     try {

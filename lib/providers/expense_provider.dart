@@ -54,8 +54,16 @@ class ExpenseProvider extends ChangeNotifier {
     _expenses.add(saved);
     _sort();
     notifyListeners();
-    // Package AL: cash payments decrement the cash ledger.
-    if (saved.paymentMethod == 'cash') {
+    // Package AL: deduct from the matching wallet via TotalBalanceProvider.
+    // This is the SINGLE place wallet deduction happens on add —
+    // callers must NOT also call deductForExpense() (would double-deduct).
+    if (totalBalance != null) {
+      try {
+        await totalBalance!.deductForExpense(
+            saved.paymentMethod, saved.bdtAmount ?? saved.amount);
+      } catch (_) {}
+    } else if (saved.paymentMethod == 'cash') {
+      // Fallback if TotalBalanceProvider isn't wired (shouldn't happen).
       try {
         await DatabaseHelper.instance.insertCashEntry(CashEntry(
           id: CashEntry.newId(),

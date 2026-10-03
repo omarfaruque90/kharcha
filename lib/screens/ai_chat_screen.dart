@@ -368,6 +368,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final deletedTpl = tr(context, 'ai_deleted');
     final nothingTpl = tr(context, 'ai_nothing_to_delete');
     final failedTpl = tr(context, 'ai_action_failed');
+    // Guard: actions needing an amount must have a valid one.
+    if ((action.type == 'add_expense' ||
+            action.type == 'add_income' ||
+            action.type == 'set_budget') &&
+        (action.amount == null || action.amount! <= 0)) {
+      return tr(context, 'ai_amount_missing');
+    }
     final totalBalance = context.read<TotalBalanceProvider>();
     try {
       final expenses = context.read<ExpenseProvider>();
@@ -383,9 +390,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             currency: 'BDT',
             bdtAmount: action.amount!,
           ));
-          try {
-            await totalBalance.deductForExpense('cash', action.amount!);
-          } catch (_) {}
+          // Wallet deduction is inside ExpenseProvider.add() — no double-deduct.
           return addedExpenseTpl
               .replaceAll('{amount}', formatMoney(action.amount!))
               .replaceAll('{cat}', CustomCategoryRegistry.displayName(
@@ -502,9 +507,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
           bdtAmount: amount,
           receiptPath: file.path,
         ));
-        try {
-          await totalBalance.deductForExpense('cash', amount);
-        } catch (_) {}
+        // Wallet deduction is inside ExpenseProvider.add() — no double-deduct.
         reply = addedTpl
             .replaceAll('{amount}', formatMoney(amount))
             .replaceAll('{cat}', CustomCategoryRegistry.displayName(
