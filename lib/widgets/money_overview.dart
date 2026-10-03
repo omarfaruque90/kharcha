@@ -148,6 +148,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
 
   /// Sets hand-cash via a ledger adjustment entry.
   Future<void> _editCash(BuildContext context, double current) async {
+    final adjustNote = tr(context, 'cash_adjust');
     final ctrl = TextEditingController(
       text: current.truncateToDouble() == current
           ? current.toStringAsFixed(0)
@@ -197,7 +198,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     if (value == null || !mounted) return;
     final diff = value - current;
     if (diff.abs() < 0.005) return;
-    final adjustNote = tr(context, 'cash_adjust');
     await DatabaseHelper.instance.insertCashEntry(CashEntry(
       id: CashEntry.newId(),
       amount: diff.abs(),
