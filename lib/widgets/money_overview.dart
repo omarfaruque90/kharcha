@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
-import '../main.dart';
-import '../models/debt.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
@@ -54,7 +52,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
   }
 
   Future<void> _editBank() async {
-    final lang = context.read<SettingsProvider>().language;
     final ctrl = TextEditingController(
       text: _bank.truncateToDouble() == _bank
           ? _bank.toStringAsFixed(0)
@@ -108,7 +105,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = context.watch<SettingsProvider>().language;
     final theme = Theme.of(context);
     final expenses = context.watch<ExpenseProvider>();
 
