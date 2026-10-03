@@ -105,7 +105,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
     final theme = Theme.of(context);
     final tb = context.watch<TotalBalanceProvider>();
 
-    final now = DateTime.now();
     final mobileTotal = ['bkash', 'nagad', 'rocket', 'upay']
         .fold<double>(0, (s, id) => s + tb.walletOf(id));
 
