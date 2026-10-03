@@ -46,10 +46,72 @@ class UpdateInfo {
 class UpdateService {
   static const String _releasesUrl =
       'https://api.github.com/repos/omarfaruque90/kharcha/releases/latest';
+
+  /// Public update metadata. The main repo is private (GitHub API returns
+  /// 404 anonymously), so CI publishes version info + public APK links here
+  /// on every release. This is the primary update source.
+  static const String _versionJsonUrl =
+      'https://raw.githubusercontent.com/omarfaruque90/kharcha-updates/main/version.json';
   static const String _promptedKey = 'update_last_prompted_tag';
 
   /// Returns release info when a newer version exists, else null.
+  /// Tries the public version.json first, falls back to the GitHub API
+  /// (works if the main repo ever goes public).
   static Future<UpdateInfo?> checkForUpdate() async {
+    final fromJson = await _checkVersionJson();
+    if (fromJson != null) return fromJson;
+    return _checkGithubApi();
+  }
+
+  /// Reads the public version.json from kharcha-updates.
+  static Future<UpdateInfo?> _checkVersionJson() async {
+    try {
+      final pkg = await PackageInfo.fromPlatform();
+      final local = _parseVersion(pkg.version);
+      if (local == null) return null;
+      final resp = await http
+          .get(Uri.parse(_versionJsonUrl))
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      if (data is! Map<String, dynamic>) return null;
+
+      final tag = (data['tag'] as String? ?? '').trim();
+      final version = (data['version'] as String? ?? '').trim();
+      final remote = _parseVersion(version);
+      if (remote == null || !_isNewer(remote, local)) return null;
+
+      String? apkUrl;
+      final apks = data['apks'];
+      if (apks is Map) {
+        final abis = await _deviceAbis();
+        for (final abi in abis) {
+          final url = apks[abi.toLowerCase()] as String?;
+          if (url != null && url.isNotEmpty) {
+            apkUrl = url;
+            break;
+          }
+        }
+        apkUrl ??= () {
+          for (final v in apks.values) {
+            if (v is String && v.isNotEmpty) return v;
+          }
+          return null;
+        }();
+      }
+      if (apkUrl == null || apkUrl.isEmpty) return null;
+      return UpdateInfo(
+        tag: tag,
+        version: version,
+        changelog: (data['changelog'] as String? ?? '').trim(),
+        apkUrl: apkUrl,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<UpdateInfo?> _checkGithubApi() async {
     try {
       final pkg = await PackageInfo.fromPlatform();
       final local = _parseVersion(pkg.version);
@@ -178,6 +240,18 @@ class UpdateService {
     );
   }
 
+  /// Shows the update dialog immediately, bypassing the "Later" dismissal
+  /// memory. Used when the user taps the background update notification.
+  static Future<void> promptNow(GlobalKey<NavigatorState> navKey) async {
+    try {
+      final info = await checkForUpdate();
+      if (info == null) return;
+      final ctx = navKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      await showUpdateDialog(ctx, info);
+    } catch (_) {}
+  }
+
   /// Shows the "new version" dialog with a changelog snippet.
   /// [onLater] runs when the user dismisses without updating.
   static Future<void> showUpdateDialog(
@@ -225,12 +299,14 @@ class UpdateService {
   }
 
   static List<int>? _parseVersion(String v) {
-    final m = RegExp(r'^(\d+)\.(\d+)\.(\d+)').firstMatch(v.trim());
+    // Accepts "1.2.3" and short forms like "0.1" (-> [0, 1, 0]).
+    final m =
+        RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(v.trim());
     if (m == null) return null;
     return [
       int.parse(m.group(1)!),
       int.parse(m.group(2)!),
-      int.parse(m.group(3)!),
+      int.parse(m.group(3) ?? '0'),
     ];
   }
 

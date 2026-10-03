@@ -23,6 +23,7 @@ import 'services/notification_center.dart';
 import 'services/notification_service.dart';
 import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
+import 'services/update_check_worker.dart';
 import 'services/update_service.dart';
 import 'widgets/motion.dart';
 
@@ -89,6 +90,16 @@ Future<void> _finishBootInBackground(
   try {
     await NotificationService.init();
   } catch (_) {}
+  // Tapping the background "update available" notification opens the
+  // update dialog directly.
+  NotificationService.onTap = (payload) {
+    if (payload == 'app_update') {
+      UpdateService.promptNow(appNavigatorKey);
+    }
+  };
+  // Periodic background update check -> phone notification when a new
+  // version is published. Fire-and-forget.
+  UpdateCheckWorker.schedule();
   // Wire tray notifications for the in-app notification center.
   NotificationCenter.systemNotify = ({
     required String title,
@@ -448,6 +459,12 @@ class _LockGateState extends State<LockGate> {
       // Fire-and-forget: rationale/update dialogs handle their own errors.
       SmsService.instance.maybeStart();
       UpdateService.maybePromptOnStartup(appNavigatorKey);
+      // App opened by tapping the update notification while terminated.
+      NotificationService.launchPayload().then((payload) {
+        if (payload == 'app_update') {
+          UpdateService.promptNow(appNavigatorKey);
+        }
+      });
     });
   }
 

@@ -21,6 +21,10 @@ class NotificationService {
 
   static const String _channelId = 'bill_reminders';
   static const String _alertsChannelId = 'kharcha_alerts';
+  static const String updatesChannelId = 'khorcha_updates';
+
+  /// Called when the user taps a notification. Set by main.dart.
+  static void Function(String? payload)? onTap;
 
   /// Must be called once at startup, before scheduling.
   static Future<void> init() async {
@@ -39,7 +43,10 @@ class NotificationService {
       const androidInit =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidInit);
-      await _plugin.initialize(settings: initSettings);
+      await _plugin.initialize(
+        settings: initSettings,
+        onDidReceiveNotificationResponse: (resp) => onTap?.call(resp.payload),
+      );
 
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -57,6 +64,13 @@ class NotificationService {
         importance: Importance.high,
       );
       await android?.createNotificationChannel(alertsChannel);
+      const updatesChannel = AndroidNotificationChannel(
+        updatesChannelId,
+        'Khorcha Updates',
+        description: 'Notun app version ashle janiye dey',
+        importance: Importance.high,
+      );
+      await android?.createNotificationChannel(updatesChannel);
       // Runtime permission on Android 13+. Best-effort: denied means the
       // feature silently stays off.
       await android?.requestNotificationsPermission();
@@ -68,6 +82,18 @@ class NotificationService {
   /// Fires an immediate high-priority notification. Used by the
   /// in-app notification center for budget warnings, recurring-expense
   /// alerts, etc. Best-effort: no-op before [init] or on failure.
+  /// Payload of the notification that launched the app from terminated
+  /// state, or null. Check once after startup.
+  static Future<String?> launchPayload() async {
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp == true) {
+        return details?.notificationResponse?.payload;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static Future<void> showNow({
     required String title,
     required String body,

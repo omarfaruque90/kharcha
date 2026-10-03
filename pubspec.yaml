@@ -47,6 +47,8 @@ dependencies:
   package_info_plus: ^9.0.1 # current version for update checks
   open_filex: ^4.7.0 # trigger APK install (ships its own FileProvider)
   http: ^1.6.0 # GitHub releases API + APK download
+  workmanager: ^0.9.0 # periodic background update checks
+  shared_preferences: ^2.5.3 # last-notified update tag (main + background)
 
 dev_dependencies:
   flutter_test:
