@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 
-/// Header card with a subtle gold-tinted gradient — used for the balance
+/// Header card with a subtle emerald-tinted gradient — used for the balance
 /// card on home and the income total header. Readable in both themes.
 class BrandGradientCard extends StatelessWidget {
   final Widget child;
@@ -27,7 +27,7 @@ class BrandGradientCard extends StatelessWidget {
           colors: [
             theme.colorScheme.secondaryContainer,
             theme.colorScheme.secondaryContainer.withValues(alpha: 0.65),
-            kGold.withValues(alpha: dark ? 0.28 : 0.20),
+            kEmerald.withValues(alpha: dark ? 0.30 : 0.22),
           ],
         ),
         boxShadow: [

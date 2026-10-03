@@ -119,16 +119,16 @@ class _WarningBanner extends StatelessWidget {
       final s = spent[b.categoryId] ?? 0;
       return b.limitAmount > 0 && s > b.limitAmount;
     });
-    // Amber "near limit" banner must stay readable in dark mode too:
-    // gold-tinted surface + warm amber text instead of hardcoded light colors.
+    // "Near limit" banner: emerald-tinted surface + emerald text, readable
+    // in both themes.
     final bg = anyExceeded
         ? theme.colorScheme.errorContainer
-        : kGold.withValues(alpha: isDark ? 0.22 : 0.16);
+        : kEmerald.withValues(alpha: isDark ? 0.22 : 0.16);
     final fg = anyExceeded
         ? theme.colorScheme.onErrorContainer
         : isDark
-            ? const Color(0xFFFFCC80)
-            : const Color(0xFFE65100);
+            ? kEmeraldLight
+            : kEmeraldDark;
     return Card(
       color: bg,
       child: Padding(

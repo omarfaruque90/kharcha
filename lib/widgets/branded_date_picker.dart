@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 
-/// Date picker wrapped in the Kharcha brand: emerald header in light mode,
-/// gold header in dark mode so the text stays readable in both themes.
+/// Date picker wrapped in the Kharcha brand: emerald header in both
+/// themes so the text stays readable.
 Future<DateTime?> showBrandedDatePicker({
   required BuildContext context,
   required DateTime initialDate,
@@ -23,14 +23,14 @@ Future<DateTime?> showBrandedDatePicker({
       return Theme(
         data: base.copyWith(
           colorScheme: base.colorScheme.copyWith(
-            primary: dark ? kGold : kEmerald,
-            onPrimary: dark ? kEmerald : Colors.white,
-            secondary: kGold,
-            onSurface: dark ? Colors.white : kEmerald,
+            primary: dark ? kEmerald : kEmeraldDark,
+            onPrimary: Colors.white,
+            secondary: kEmeraldDark,
+            onSurface: dark ? Colors.white : kCharcoal,
           ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
-              foregroundColor: dark ? kGold : kEmerald,
+              foregroundColor: dark ? kEmerald : kEmeraldDark,
             ),
           ),
         ),

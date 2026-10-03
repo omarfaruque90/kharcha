@@ -22,6 +22,7 @@ dependencies:
   firebase_core: ^4.15.0
   firebase_auth: ^6.7.0
   cloud_firestore: ^6.10.0
+  firebase_storage: ^13.0.0 # profile avatars (v5)
   google_sign_in: ^7.2.0
   # SDK-bundled localizations (v4): enables the Bangla Material calendar/date picker.
   flutter_localizations:
@@ -31,6 +32,7 @@ dependencies:
   # against Dart ^3.4 / current Flutter stable.
   image_picker: ^1.2.3 # receipt photo (Agent B)
   speech_to_text: ^7.5.0 # voice input (Agent B)
+  google_mlkit_text_recognition: ^0.15.0 # bill/receipt OCR scanning (v5)
   receive_sms: ^1.3.1 # incoming-SMS stream (modern, AGP8 namespace OK)
   permission_handler: ^13.0.2 # runtime SMS permission
   flutter_local_notifications: ^22.3.1

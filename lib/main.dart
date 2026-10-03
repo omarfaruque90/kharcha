@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -20,9 +22,13 @@ import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
 import 'services/update_service.dart';
 
-/// Brand colors: deep emerald + gold.
-const Color kEmerald = Color(0xFF0B3D2E);
-const Color kGold = Color(0xFFD4AF37);
+/// Brand colors: charcoal black + emerald (sleek dark).
+const Color kCharcoal = Color(0xFF121212);
+const Color kCharcoalSurface = Color(0xFF1E1E1E);
+const Color kCharcoalCard = Color(0xFF2D2D2D);
+const Color kEmerald = Color(0xFF10B981);
+const Color kEmeraldDark = Color(0xFF059669);
+const Color kEmeraldLight = Color(0xFFA7F3D0);
 
 /// Global navigator key — lets background services (SMS listener, update
 /// checker) show dialogs/snackbars without a BuildContext.
@@ -32,19 +38,17 @@ final GlobalKey<NavigatorState> appNavigatorKey =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase config comes from android/app/google-services.json.
+  // Awaited: AuthGate reads Firebase Auth state before the first frame.
   await Firebase.initializeApp();
-  // v4 system features init (all best-effort; never crash startup).
-  await NotificationService.init();
-  await RecurringService.processDue();
-  await NotificationService.scheduleBillReminders();
-  SmsService.instance.attachNavigator(appNavigatorKey);
+  // Awaited: home screen formats dates immediately; needs locale data.
   await initializeDateFormatting();
+  // Awaited: fast local read; determines locale/theme before first frame.
   final settings = SettingsProvider();
   await settings.load();
   final expenses = ExpenseProvider();
-  await expenses.load();
   final money = MoneyProvider();
-  await money.load();
+  // First frame NOW — the remaining boot work continues in the background
+  // so the app opens instantly instead of blocking on services.
   runApp(
     MultiProvider(
       providers: [
@@ -55,13 +59,52 @@ Future<void> main() async {
       child: const KharchaApp(),
     ),
   );
+  unawaited(_finishBootInBackground(expenses, money));
+}
+
+/// Completes startup work without blocking the UI. Everything is
+/// best-effort; a failing service must never break startup.
+Future<void> _finishBootInBackground(
+    ExpenseProvider expenses, MoneyProvider money) async {
+  // Local data first so lists populate immediately.
+  try {
+    await expenses.load();
+  } catch (_) {}
+  try {
+    await money.load();
+  } catch (_) {}
+  // System services — notifications, recurring expenses, SMS.
+  try {
+    await NotificationService.init();
+  } catch (_) {}
+  try {
+    await RecurringService.processDue();
+    // Recurring may have inserted expenses; refresh the list.
+    await expenses.load();
+  } catch (_) {}
+  try {
+    await NotificationService.scheduleBillReminders();
+  } catch (_) {}
+  SmsService.instance.attachNavigator(appNavigatorKey);
 }
 
 ColorScheme _brandScheme(Brightness brightness) {
-  return ColorScheme.fromSeed(
+  final base = ColorScheme.fromSeed(
     seedColor: kEmerald,
     brightness: brightness,
-  ).copyWith(secondary: kGold);
+  );
+  if (brightness == Brightness.dark) {
+    // Sleek dark hero: true charcoal surfaces instead of seed-derived ones.
+    return base.copyWith(
+      surface: kCharcoal,
+      surfaceContainerLowest: kCharcoal,
+      surfaceContainerLow: kCharcoalSurface,
+      surfaceContainer: kCharcoalSurface,
+      surfaceContainerHigh: kCharcoalCard,
+      surfaceContainerHighest: kCharcoalCard,
+    );
+  }
+  return base;
 }
 
 class KharchaApp extends StatelessWidget {
@@ -113,7 +156,7 @@ class KharchaApp extends StatelessWidget {
           ),
         ),
         dividerTheme: DividerThemeData(
-          color: kGold.withValues(alpha: 0.25),
+          color: kEmerald.withValues(alpha: 0.25),
           thickness: 1,
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -148,7 +191,7 @@ class KharchaApp extends StatelessWidget {
           ),
         ),
         dividerTheme: DividerThemeData(
-          color: kGold.withValues(alpha: 0.25),
+          color: kEmerald.withValues(alpha: 0.25),
           thickness: 1,
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -183,7 +226,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1900),
+      duration: const Duration(milliseconds: 900),
     );
     // Logo bounces in first...
     _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -209,7 +252,8 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
     _controller.forward();
-    Future.delayed(const Duration(milliseconds: 2100), () {
+    // Brief brand flash only — navigate as soon as the animation completes.
+    Future.delayed(const Duration(milliseconds: 1000), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -228,7 +272,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kEmerald,
+      backgroundColor: kCharcoal,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -251,7 +295,7 @@ class _SplashScreenState extends State<SplashScreen>
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
-                  color: kGold,
+                  color: kEmerald,
                   letterSpacing: 1.2,
                 ),
               ),

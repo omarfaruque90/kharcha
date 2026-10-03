@@ -103,6 +103,32 @@ class MoneyProvider extends ChangeNotifier {
 
   // ------------------------------- budgets ----------------------------
 
+  /// Special category id for the overall monthly spending limit.
+  /// Stored in the same `budgets` table (and synced via Firestore) as
+  /// category budgets; UI lists must filter it out via [budgetsForMonth].
+  static const String monthlyBudgetCategoryId = '__monthly_total__';
+
+  /// The overall monthly budget for [monthKey] (`yyyy-MM`), or null when
+  /// the user hasn't set one.
+  Budget? monthlyBudgetFor(String monthKey) =>
+      budgetFor(monthlyBudgetCategoryId, monthKey);
+
+  /// Sets the overall monthly budget, or removes it when [limit] <= 0.
+  Future<void> setMonthlyBudget(String monthKey, double limit) async {
+    final existing = monthlyBudgetFor(monthKey);
+    if (limit <= 0) {
+      final id = existing?.id;
+      if (id != null) await removeBudget(id);
+      return;
+    }
+    await upsertBudget(Budget(
+      id: existing?.id,
+      categoryId: monthlyBudgetCategoryId,
+      monthKey: monthKey,
+      limitAmount: limit,
+    ));
+  }
+
   /// Creates or replaces the budget for (categoryId, monthKey).
   Future<void> upsertBudget(Budget budget) async {
     final id = await DatabaseHelper.instance.upsertBudget(budget);
@@ -131,9 +157,15 @@ class MoneyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// All budgets for [monthKey] (`yyyy-MM`).
+  /// All category budgets for [monthKey] (`yyyy-MM`).
+  /// The overall monthly budget ([monthlyBudgetCategoryId]) is excluded —
+  /// use [monthlyBudgetFor] for that.
   List<Budget> budgetsForMonth(String monthKey) {
-    return _budgets.where((b) => b.monthKey == monthKey).toList(
+    return _budgets
+        .where((b) =>
+            b.monthKey == monthKey &&
+            b.categoryId != monthlyBudgetCategoryId)
+        .toList(
           growable: false,
         );
   }

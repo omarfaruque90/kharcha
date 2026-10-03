@@ -69,12 +69,7 @@ class _SyncedHomeState extends State<_SyncedHome> {
   }
 
   Future<void> _boot() async {
-    try {
-      await SyncService.instance.startSync(widget.uid);
-    } catch (_) {
-      // Offline / rules not set yet — the app still works locally.
-    }
-    // Reload the providers so merged cloud data shows up immediately.
+    // 1. Local data first — show the UI immediately, no waiting.
     if (mounted) {
       final expenses = context.read<ExpenseProvider>();
       final money = context.read<MoneyProvider>();
@@ -82,6 +77,19 @@ class _SyncedHomeState extends State<_SyncedHome> {
       await money.load();
     }
     if (mounted) setState(() => _ready = true);
+    // 2. Cloud sync runs in the background; refresh when merged data arrives.
+    // The app is fully usable offline — sync never blocks the UI.
+    try {
+      await SyncService.instance.startSync(widget.uid);
+      if (mounted) {
+        final expenses = context.read<ExpenseProvider>();
+        final money = context.read<MoneyProvider>();
+        await expenses.load();
+        await money.load();
+      }
+    } catch (_) {
+      // Offline / rules not set yet — the app still works locally.
+    }
   }
 
   @override
@@ -104,7 +112,7 @@ class _AuthLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kEmerald,
+      backgroundColor: kCharcoal,
       body: SafeArea(
         child: Center(
           child: Column(
@@ -123,7 +131,7 @@ class _AuthLoading extends StatelessWidget {
                 width: 32,
                 height: 32,
                 child: CircularProgressIndicator(
-                  color: kGold,
+                  color: kEmerald,
                   strokeWidth: 3,
                 ),
               ),

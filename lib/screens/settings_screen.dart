@@ -11,6 +11,7 @@ import '../services/lock_service.dart';
 import '../services/sync_service.dart';
 import '../services/update_service.dart';
 import 'lock_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -220,18 +221,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (user != null) ...[
             ListTile(
               leading: CircleAvatar(
-                child: Text(
-                  (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
-                      .toUpperCase(),
-                ),
+                backgroundImage: (user.photoURL?.isNotEmpty == true)
+                    ? NetworkImage(user.photoURL!)
+                    : null,
+                child: (user.photoURL?.isNotEmpty == true)
+                    ? null
+                    : Text(
+                        (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
+                            .toUpperCase(),
+                      ),
               ),
               title: Text(userLabel ?? tr(context, 'auth_account')),
-              subtitle: Text(tr(context, 'auth_account')),
+              subtitle: Text(tr(context, 'profile_title')),
               trailing: IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: tr(context, 'auth_logout'),
                 onPressed: () => _confirmLogout(context),
               ),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+                // Refresh the avatar in case the photo was changed.
+                if (context.mounted) setState(() {});
+              },
             ),
             const Divider(),
           ],

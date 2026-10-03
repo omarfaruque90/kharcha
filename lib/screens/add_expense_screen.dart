@@ -13,6 +13,7 @@ import '../models/category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/ocr_service.dart';
 import '../widgets/calculator_pad.dart';
 import '../widgets/branded_date_picker.dart';
 import '../widgets/motion.dart';
@@ -46,6 +47,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _showCalculator = false;
   bool _listening = false;
   bool _showSuccess = false;
+  bool _scanning = false;
 
   bool get _isEdit => widget.expense != null;
 
@@ -180,6 +182,50 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
     } catch (_) {
       // Permission denied or picker unavailable — leave the form as-is.
+    }
+  }
+
+  /// v5: bill OCR — snap a bill, extract the total, fill the amount field.
+  Future<void> _scanBill() async {
+    if (_scanning) return;
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      maxWidth: 2000,
+      imageQuality: 90,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _scanning = true);
+    // Keep the photo as the receipt attachment too.
+    setState(() => _receiptPath = file.path);
+    try {
+      final result = await OcrService.scanBillAmount(file);
+      if (!mounted) return;
+      final amount = result?['amount'] as double?;
+      if (amount != null) {
+        final whole = amount.truncateToDouble() == amount;
+        _amountCtrl.text =
+            whole ? amount.toStringAsFixed(0) : amount.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(context, 'bill_scanned')
+                  .replaceAll('{amount}', _amountCtrl.text),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'bill_scan_failed'))),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'bill_scan_failed'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _scanning = false);
     }
   }
 
@@ -556,6 +602,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             size: 18),
                         label: Text(tr(context, 'receipt_gallery')),
                       ),
+                      FilledButton.icon(
+                        onPressed: _scanning ? null : _scanBill,
+                        icon: _scanning
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              )
+                            : const Icon(Icons.document_scanner_outlined,
+                                size: 18),
+                        label: Text(tr(context,
+                            _scanning ? 'bill_scanning' : 'scan_bill')),
+                      ),
                     ],
                   ),
                 ),
@@ -654,7 +714,7 @@ class _IconSquare extends StatelessWidget {
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: active ? kEmerald : kGold.withValues(alpha: 0.55),
+            color: active ? kEmerald : kEmerald.withValues(alpha: 0.55),
           ),
         ),
         child: Icon(
