@@ -31,7 +31,13 @@ jobs:
         run: flutter analyze
 
       - name: Build release APKs (split per ABI for smaller downloads)
-        run: flutter build apk --release --split-per-abi
+        # LLM_API_KEY etc. come from repo secrets; when unset the app simply
+        # runs the AI assistant in offline rule-based mode (build never fails).
+        run: >
+          flutter build apk --release --split-per-abi
+          --dart-define=LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          --dart-define=LLM_PROVIDER=${{ secrets.LLM_PROVIDER }}
+          --dart-define=LLM_MODEL=${{ secrets.LLM_MODEL }}
 
       - name: Verify APK signatures (v1+v2)
         run: |

@@ -26,6 +26,7 @@ import '../services/stats_notification.dart';
 import '../services/update_service.dart';
 import '../utils/formatters.dart';
 import 'lock_screen.dart';
+import 'ai_llm_settings_screen.dart';
 import 'categories_screen.dart';
 import 'places_screen.dart';
 import 'profile_screen.dart';
@@ -914,6 +915,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (mounted) setState(() => _bioEnabled = v);
               },
             ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              tr(context, 'ai_settings_section'),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: Text(tr(context, 'ai_settings_title')),
+            subtitle: Text(tr(context, 'ai_settings_sub')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiLlmSettingsScreen()),
+            ),
+          ),
           const Divider(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

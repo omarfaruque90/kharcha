@@ -16,6 +16,8 @@ import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_assistant.dart';
+import '../services/llm_service.dart';
+import '../services/llm_tools.dart';
 import '../services/ocr_service.dart';
 import '../services/voice_budget_parser.dart';
 import '../utils/formatters.dart';
@@ -53,6 +55,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final SpeechToText _speech = SpeechToText();
   bool _listening = false;
 
+  /// Real-LLM mode (user-provided API key). Falls back to the on-device
+  /// rule-based assistant when no key is configured.
+  bool _llmMode = false;
+  LlmConfig? _llmConfig;
+  final List<LlmMessage> _llmHistory = [];
+  late final List<LlmToolDef> _llmTools = buildLlmTools();
+
   String get _lang =>
       Provider.of<SettingsProvider>(context, listen: false).language;
 
@@ -60,6 +69,17 @@ class _AiChatScreenState extends State<AiChatScreen> {
   void initState() {
     super.initState();
     _messages.add(_Msg.ai(AppStrings.get('ai_greeting', _lang)));
+    _initLlm();
+  }
+
+  /// Checks for a configured LLM key; enables LLM mode when present.
+  Future<void> _initLlm() async {
+    final cfg = await LlmConfig.load();
+    if (!mounted) return;
+    setState(() {
+      _llmConfig = cfg;
+      _llmMode = cfg.isConfigured;
+    });
   }
 
   @override
@@ -125,6 +145,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Future<void> _send(String text) async {
     final input = text.trim();
     if (input.isEmpty || _typing) return;
+    if (_llmMode) {
+      await _sendLlm(input, null);
+      return;
+    }
     final lang = _lang;
     setState(() {
       _messages.add(_Msg.user(input));
@@ -145,6 +169,127 @@ class _AiChatScreenState extends State<AiChatScreen> {
     setState(() {
       _typing = false;
       _messages.add(_Msg.ai(reply));
+    });
+    _scrollToEnd();
+  }
+
+  /// Sends a message in real-LLM mode: multi-round tool calling
+  /// (max 3 rounds), then shows the final text.
+  Future<void> _sendLlm(String text, String? imagePath) async {
+    final input = text.trim();
+    if ((input.isEmpty && imagePath == null) || _typing) return;
+    final lang = _lang;
+    // Capture providers before async gaps.
+    final expenses = context.read<ExpenseProvider>();
+    final money = context.read<MoneyProvider>();
+    final wallets = context.read<TotalBalanceProvider>();
+    final cfg = _llmConfig ?? await LlmConfig.load();
+    final toolCtx = LlmToolContext(
+      expenses: expenses,
+      money: money,
+      wallets: wallets,
+      lang: lang,
+    );
+    final schemas = [for (final t in _llmTools) t.schema];
+    final byName = {for (final t in _llmTools) t.name: t};
+
+    setState(() {
+      _messages.add(_Msg.user(input, imagePath: imagePath));
+      _typing = true;
+    });
+    _ctrl.clear();
+    _scrollToEnd();
+
+    _llmHistory.add(LlmMessage.user(
+      input,
+      imagePaths: imagePath == null ? const [] : [imagePath],
+    ));
+    // Keep history bounded.
+    while (_llmHistory.length > 20) {
+      _llmHistory.removeAt(0);
+    }
+
+    final todayIso =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
+    final systemPrompt = buildAssistantSystemPrompt(
+      lang: lang,
+      todayIso: todayIso,
+      categoryList: categoryListForPrompt(lang),
+    );
+
+    String? finalText;
+    try {
+      for (var round = 0; round < 3; round++) {
+        final reply = await LlmService.chat(
+          config: cfg,
+          history: List.of(_llmHistory),
+          systemPrompt: systemPrompt,
+          toolSchemas: schemas,
+        );
+        if (reply.text != null && reply.text!.isNotEmpty) {
+          _llmHistory.add(LlmMessage.assistant(reply.text!,
+              toolCalls: reply.toolCalls));
+        } else if (reply.toolCalls.isNotEmpty) {
+          _llmHistory.add(LlmMessage.assistant('', toolCalls: reply.toolCalls));
+        } else {
+          finalText = reply.text;
+          break;
+        }
+        if (reply.toolCalls.isEmpty) {
+          finalText = reply.text;
+          break;
+        }
+        // Execute tool calls and feed results back.
+        for (final call in reply.toolCalls) {
+          final def = byName[call.name];
+          String result;
+          if (def == null) {
+            result = 'Error: unknown tool ${call.name}.';
+          } else {
+            try {
+              result = await def.execute(call.args, toolCtx);
+            } catch (e) {
+              result = 'Error executing ${call.name}: $e';
+            }
+          }
+          _llmHistory.add(LlmMessage.toolResult(
+            toolCallId: call.id ?? 'call_${call.name}_$round',
+            toolName: call.name,
+            result: result,
+          ));
+        }
+        // If the last round produced text alongside tools, use it.
+        if (reply.text != null && reply.text!.isNotEmpty) {
+          finalText = reply.text;
+        }
+      }
+    } catch (_) {
+      finalText = null;
+    }
+
+    if (!mounted) return;
+    var displayText = finalText?.trim().isNotEmpty == true
+        ? finalText!.trim()
+        : AppStrings.get('ai_action_failed', lang);
+    // True offline fallback: if the LLM is unreachable, answer with the
+    // on-device rule-based assistant instead of showing an error.
+    if (displayText.startsWith('🌐')) {
+      try {
+        final res = await AiAssistant.answer(input, lang);
+        if (!mounted) return;
+        var reply = res.reply;
+        if (res.action != null) {
+          reply = await _runAction(res.action!, lang);
+        }
+        displayText = reply;
+      } catch (_) {
+        // Keep the network error text.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _typing = false;
+      _messages.add(_Msg.ai(displayText));
     });
     _scrollToEnd();
   }
@@ -248,6 +393,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
     } catch (_) {}
     if (file == null || !mounted) return;
 
+    // LLM mode: send the image to the real AI with the current text.
+    if (_llmMode) {
+      await _sendLlm(_ctrl.text, file.path);
+      return;
+    }
+
+    // Rule-based mode: on-device OCR bill scan (unchanged).
     // Show the bill in chat, then "think" while scanning.
     setState(() {
       _messages.add(_Msg.user('', imagePath: file!.path));
@@ -325,7 +477,39 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Assistant ✨'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('AI Assistant ✨'),
+            const SizedBox(width: 8),
+            // Mode badge: AI (real LLM) vs Offline (on-device rules).
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: _llmMode
+                    ? kGold.withValues(alpha: 0.25)
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _llmMode
+                      ? kGold.withValues(alpha: 0.6)
+                      : theme.colorScheme.outline.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Text(
+                _llmMode ? 'AI' : tr(context, 'ai_badge_offline'),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: _llmMode
+                      ? kGold
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ],
+        ),
         centerTitle: true,
       ),
       body: StaggeredEntrance(
