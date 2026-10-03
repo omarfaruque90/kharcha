@@ -96,9 +96,9 @@ public final class GeneratedPluginRegistrant {
       Log.e(TAG, "Error registering plugin permission_handler_android, com.baseflow.permissionhandler.PermissionHandlerPlugin", e);
     }
     try {
-      flutterEngine.getPlugins().add(new com.ayush783.readsms.ReadsmsPlugin());
+      flutterEngine.getPlugins().add(new com.receivesms.receive_sms.ReceiveSmsPlugin());
     } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin readsms, com.ayush783.readsms.ReadsmsPlugin", e);
+      Log.e(TAG, "Error registering plugin receive_sms, com.receivesms.receive_sms.ReceiveSmsPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new dev.fluttercommunity.plus.share.SharePlusPlugin());

@@ -175,8 +175,8 @@ class SmsService {
 
   Future<void> _onSms(SmsMessage sms) async {
     try {
-      final sender = sms.address ?? '';
-      final body = sms.body ?? '';
+      final sender = sms.address;
+      final body = sms.body;
       final fingerprint = '$sender|$body|${sms.timestamp}';
       if (!_seen.add(fingerprint)) return; // de-dupe double delivery
       if (_seen.length > 200) _seen.clear();
