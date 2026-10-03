@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../l10n/app_strings.dart';
+import '../widgets/motion.dart';
 import '../models/app_notification.dart';
 import '../providers/settings_provider.dart';
 import '../services/notification_center.dart';
@@ -126,8 +127,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       final timeLabel = DateFormat.yMMMd(
                         lang == 'bn' ? 'bn' : 'en',
                       ).add_Hm().format(n.time);
-                      return Card(
-                        child: ListTile(
+                      return StaggeredEntrance(
+                        delayMs: (i * 40).clamp(0, 320),
+                        child: Card(
+                          child: ListTile(
                           leading: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -173,6 +176,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   ),
                                 ),
                           onTap: () => _open(n),
+                          ),
                         ),
                       );
                     },

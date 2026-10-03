@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../widgets/motion.dart';
 import '../providers/settings_provider.dart';
 import '../services/lock_service.dart';
 
@@ -89,18 +90,23 @@ class _LockScreenState extends State<LockScreen> {
         child: Column(
           children: [
             const SizedBox(height: 64),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: Image.asset(
-                'assets/app_logo.png',
-                width: 96,
-                height: 96,
+            StaggeredEntrance(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Image.asset(
+                  'assets/app_logo.png',
+                  width: 96,
+                  height: 96,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              tr(context, 'lock_enter_pin'),
-              style: Theme.of(context).textTheme.titleLarge,
+            StaggeredEntrance(
+              delayMs: 80,
+              child: Text(
+                tr(context, 'lock_enter_pin'),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
             const SizedBox(height: 20),
             Row(

@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../widgets/motion.dart';
 import '../providers/settings_provider.dart';
 import '../services/auth_service.dart';
 import '../services/backup_service.dart';
@@ -219,10 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? tr(context, 'auth_guest_label')
                     : '')));
 
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(context, 'nav_settings'))),
-      body: ListView(
-        children: [
+    final tiles = <Widget>[
           if (user != null) ...[
             ListTile(
               leading: _SettingsAvatar(
@@ -378,6 +376,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Niczzxo 💛'),
             subtitle: Text(tr(context, 'about_developer')),
           ),
+    ];
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(context, 'nav_settings'))),
+      body: ListView(
+        children: [
+          for (var i = 0; i < tiles.length; i++)
+            StaggeredEntrance(
+              delayMs: (i * 35).clamp(0, 280),
+              child: tiles[i],
+            ),
         ],
       ),
     );

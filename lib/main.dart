@@ -24,6 +24,7 @@ import 'services/notification_service.dart';
 import 'services/recurring_service.dart';
 import 'services/sms_service.dart';
 import 'services/update_service.dart';
+import 'widgets/motion.dart';
 
 /// Brand colors: deep green + gold (matches the 3D expense logo).
 const Color kDeepGreen = Color(0xFF0B3D2E);
@@ -144,6 +145,12 @@ ThemeData _buildTheme(Brightness brightness) {
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: FastPageTransitionsBuilder(),
+        TargetPlatform.iOS: FastPageTransitionsBuilder(),
+      },
+    ),
     cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -311,7 +318,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 500),
     );
     // Logo bounces in first...
     _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -338,7 +345,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _controller.forward();
     // Brief brand flash only — navigate as soon as the animation completes.
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -376,7 +383,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 20),
               const Text(
-                'Kharcha',
+                'Khorcha',
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
