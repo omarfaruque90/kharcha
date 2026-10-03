@@ -14,7 +14,7 @@ class LiquidAddButton extends StatefulWidget {
     super.key,
     required this.onTap,
     this.active = false,
-    this.size = 78,
+    this.size = 88,
   });
 
   @override
@@ -54,28 +54,28 @@ class _LiquidAddButtonState extends State<LiquidAddButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
-              // Strong halo like the reference image.
+              // Strong halo like reference image 2.
               BoxShadow(
-                color: Colors.white.withValues(alpha: 0.55),
-                blurRadius: 22,
-                spreadRadius: 4,
+                color: Colors.white.withValues(alpha: 0.7),
+                blurRadius: 28,
+                spreadRadius: 6,
               ),
               BoxShadow(
                 color: const Color(0xFFB6C8FF)
-                    .withValues(alpha: widget.active ? 0.85 : 0.6),
-                blurRadius: widget.active ? 32 : 24,
-                spreadRadius: 3,
+                    .withValues(alpha: widget.active ? 0.95 : 0.7),
+                blurRadius: widget.active ? 40 : 30,
+                spreadRadius: 5,
               ),
               BoxShadow(
                 color: const Color(0xFFFFAECB)
-                    .withValues(alpha: 0.35),
-                blurRadius: 40,
-                spreadRadius: 6,
+                    .withValues(alpha: 0.45),
+                blurRadius: 52,
+                spreadRadius: 8,
               ),
             ],
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.85),
-              width: 2.5,
+              color: Colors.white.withValues(alpha: 0.9),
+              width: 3,
             ),
           ),
           child: ClipOval(

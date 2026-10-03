@@ -73,9 +73,13 @@ class _GooeyNavBarState extends State<GooeyNavBar>
         child: LayoutBuilder(
           builder: (ctx, c) {
             final barW = c.maxWidth;
-            const barH = 70.0;
+            const barH = 72.0;
             const sidePad = 16.0;
-            const bubbleR = 39.0; // 78px — big like the reference image.
+            // Reference image 1: selected tab sits in a bubble cradled
+            // deep in the sliding dip. Reference image 2: the + orb is
+            // always big, raised high above the bar with a strong glow.
+            const bubbleR = 34.0; // 68px tab bubbles
+            const addR = 44.0; // 88px + orb — always big
             final tabW = (barW - sidePad * 2) / 5;
             double xFor(int i) => sidePad + tabW * (i + 0.5);
 
@@ -90,7 +94,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                     xFor(i0) * (1 - frac) + xFor(i0 + 1) * frac;
 
                 return SizedBox(
-                  height: barH + 30,
+                  height: barH + 56,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -108,13 +112,17 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                           ),
                         ),
                       ),
-                      // Bubble carrying the selected icon, nestled in the dip
-                      // like the reference: cradled, not floating above.
+                      // Bubble carrying the selected icon, cradled deep
+                      // in the dip like the reference: half in, half out.
+                      // The + orb stays big and raised like image 2.
                       Positioned(
-                        left: dipX - bubbleR,
-                        bottom: barH - bubbleR - 6,
+                        left: dipX -
+                            (widget.index == 2 ? addR : bubbleR),
+                        bottom: widget.index == 2
+                            ? barH - addR + 14
+                            : barH - bubbleR + 10,
                         child: _bubble(context, widget.index,
-                            bubbleR, accent, dark),
+                            bubbleR, addR, accent, dark),
                       ),
                       // Tap targets + unselected icons/labels.
                       Positioned(
@@ -187,11 +195,12 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   }
 
   Widget _bubble(BuildContext context, int index, double r,
-      Color accent, bool dark) {
-    // Center tab: the liquid-marble add button, bigger now.
+      double addR, Color accent, bool dark) {
+    // Center tab: the liquid-marble add button — always big (88px),
+    // raised high with a strong glow like reference image 2.
     if (index == 2) {
       return LiquidAddButton(
-        size: r * 2,
+        size: addR * 2,
         onTap: () => widget.onTap(2),
         active: true,
       );
@@ -252,10 +261,10 @@ class _BarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const r = 24.0; // corner radius
-    const dipR = 44.0; // dip half-width at the base (cradles the bubble)
-    const dipD = 38.0; // dip depth
-    const s = dipR + 18; // smooth zone half-width
+    const r = 26.0; // corner radius — pill like the reference
+    const dipR = 52.0; // dip half-width: wide smooth U like image 1
+    const dipD = 34.0; // dip depth
+    const s = dipR + 22; // smooth zone half-width
 
     final path = Path();
     path.moveTo(r, 0);
