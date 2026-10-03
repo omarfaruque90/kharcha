@@ -57,7 +57,7 @@ class NotificationService {
 
   /// Re-schedules every active bill reminder for its next monthly fire
   /// time (dayOfMonth at 9:00 AM). Safe to call on every app start.
-  Future<void> scheduleBillReminders() async {
+  static Future<void> scheduleBillReminders() async {
     try {
       final reminders =
           await DatabaseHelper.instance.getActiveBillReminders();

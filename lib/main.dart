@@ -36,7 +36,7 @@ Future<void> main() async {
   // v4 system features init (all best-effort; never crash startup).
   await NotificationService.init();
   await RecurringService.processDue();
-  await NotificationService().scheduleBillReminders();
+  await NotificationService.scheduleBillReminders();
   SmsService.instance.attachNavigator(appNavigatorKey);
   await initializeDateFormatting();
   final settings = SettingsProvider();
