@@ -30,20 +30,22 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release APKs (split per ABI for smaller downloads)
+        run: flutter build apk --release --split-per-abi
 
       - name: Verify APK signatures (v1+v2)
         run: |
           SDK="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
           BT=$(find "$SDK/build-tools" -maxdepth 1 -type d -name "[0-9]*" | sort -V | tail -1)
-          APK=build/app/outputs/flutter-apk/app-release.apk
-          "$BT/apksigner" verify "$APK" && echo "apksigner verify: OK"
-          unzip -l "$APK" | grep -qiE "META-INF/.+\.(RSA|DSA|EC)$" && echo "v1 (JAR) signature: PRESENT"
+          for APK in build/app/outputs/flutter-apk/app-*-release.apk; do
+            echo "== $APK"
+            "$BT/apksigner" verify "$APK" && echo "apksigner verify: OK"
+            unzip -l "$APK" | grep -qiE "META-INF/.+\.(RSA|DSA|EC)$" && echo "v1 (JAR) signature: PRESENT"
+          done
 
-      - name: Upload APK artifact
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kharcha-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error

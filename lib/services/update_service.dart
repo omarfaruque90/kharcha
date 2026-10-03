@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -71,15 +72,17 @@ class UpdateService {
       String? apkUrl;
       final assets = data['assets'];
       if (assets is List) {
+        final apkAssets = <Map<String, String>>[];
         for (final a in assets) {
           if (a is Map) {
             final name = (a['name'] as String? ?? '').toLowerCase();
-            if (name.endsWith('.apk')) {
-              apkUrl = a['browser_download_url'] as String?;
-              break;
+            final url = a['browser_download_url'] as String?;
+            if (name.endsWith('.apk') && url != null && url.isNotEmpty) {
+              apkAssets.add({'name': name, 'url': url});
             }
           }
         }
+        apkUrl = await _pickApkForDevice(apkAssets);
       }
       if (apkUrl == null || apkUrl.isEmpty) return null;
       final body = (data['body'] as String? ?? '').trim();
@@ -92,6 +95,37 @@ class UpdateService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Returns the device's supported ABIs via the native channel.
+  /// Empty list when the channel is unavailable (e.g. tests).
+  static Future<List<String>> _deviceAbis() async {
+    try {
+      const channel = MethodChannel('com.kharcha.app/device');
+      final abis =
+          await channel.invokeMethod<List<dynamic>>('getSupportedAbis');
+      return abis?.map((e) => e.toString()).toList() ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Picks the smallest correct APK for this device from the release assets.
+  /// Prefers a split-per-ABI build matching the device's ABIs; falls back to
+  /// the first APK (universal build) when detection fails or nothing matches.
+  static Future<String?> _pickApkForDevice(
+      List<Map<String, String>> apkAssets) async {
+    if (apkAssets.isEmpty) return null;
+    final abis = await _deviceAbis();
+    if (abis.isNotEmpty) {
+      for (final abi in abis) {
+        final needle = abi.toLowerCase();
+        for (final a in apkAssets) {
+          if (a['name']!.contains(needle)) return a['url'];
+        }
+      }
+    }
+    return apkAssets.first['url'];
   }
 
   /// Streams the APK to the cache dir, reporting 0..1 progress, then opens
