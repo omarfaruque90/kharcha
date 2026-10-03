@@ -1,10 +1,36 @@
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import '../models/budget.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../utils/formatters.dart';
 import 'expense_query.dart';
+import 'voice_budget_parser.dart';
+
+/// An action the bot can perform on the user's data, parsed from chat.
+class AiAction {
+  /// 'add_expense' | 'add_income' | 'set_budget' | 'delete_last'
+  final String type;
+  final double? amount;
+  final String? categoryId;
+  final String? note;
+
+  const AiAction({
+    required this.type,
+    this.amount,
+    this.categoryId,
+    this.note,
+  });
+}
+
+/// Bot reply + optional action for the UI to execute.
+class AiResponse {
+  final String reply;
+  final AiAction? action;
+
+  const AiResponse(this.reply, [this.action]);
+}
 
 /// On-device AI assistant for Khorcha (Package BD).
 ///
@@ -17,20 +43,25 @@ class AiAssistant {
   /// Answers a natural-language money question in [lang] ('bn'/'en').
   /// Includes a short simulated "thinking" delay so the chat UI can show
   /// a typing indicator. Never throws.
-  static Future<String> answer(String input, String lang) async {
+  /// Returns an [AiResponse]; when [AiResponse.action] is set, the chat UI
+  /// should execute it via the providers and confirm.
+  static Future<AiResponse> answer(String input, String lang) async {
     // Simulated processing so the typing dots show briefly.
     await Future.delayed(const Duration(milliseconds: 400));
     final q = input.toLowerCase().trim();
-    if (q.isEmpty) return _t('ai_fallback', lang);
+    if (q.isEmpty) return AiResponse(_t('ai_fallback', lang));
     try {
-      if (_isAdvice(q)) return await _advice(lang);
-      if (_isSavings(q)) return await _savings(lang);
-      if (_isBreakdown(q)) return await _breakdown(lang);
-      if (_isComparison(q)) return await _comparison(lang);
-      if (_isTop(q)) return await _topExpenses(lang);
-      return await _generic(input, lang);
+      // Action intents first — the bot manages data like an assistant.
+      final action = _parseAction(input, q, lang);
+      if (action != null) return AiResponse('', action);
+      if (_isAdvice(q)) return AiResponse(await _advice(lang));
+      if (_isSavings(q)) return AiResponse(await _savings(lang));
+      if (_isBreakdown(q)) return AiResponse(await _breakdown(lang));
+      if (_isComparison(q)) return AiResponse(await _comparison(lang));
+      if (_isTop(q)) return AiResponse(await _topExpenses(lang));
+      return AiResponse(await _generic(input, lang));
     } catch (_) {
-      return _t('ai_fallback', lang);
+      return AiResponse(_t('ai_fallback', lang));
     }
   }
 
@@ -79,6 +110,77 @@ class AiAssistant {
         'boro khoroch', 'বড় খরচ', 'বড়ো খরচ', 'সবচেয়ে বড়', 'biggest',
         'largest', 'top expense', 'top khoroch', 'সবচাইতে বড়',
       ]);
+
+  // ------------------------------------------------------------------
+  // Action intents — the bot manages data, not just answers.
+  // Questions (how/what/কত/?) never trigger actions.
+  // ------------------------------------------------------------------
+  static bool _looksLikeQuestion(String q) =>
+      q.contains('?') ||
+      q.startsWith('how') ||
+      q.startsWith('what') ||
+      q.startsWith('কত') ||
+      q.startsWith('কোথায়') ||
+      q.startsWith('কোন');
+
+  static bool _isDeleteLast(String q) =>
+      _has(q, const [
+        'delete', 'ডিলিট', 'মুছে', 'মুছো', 'remove', 'বাদ দাও', 'বাদ দে',
+      ]) &&
+      _has(q, const [
+        'last', 'শেষ', 'previous', 'আগের',
+      ]);
+
+  static bool _isSetBudget(String q) => _has(q, const ['budget', 'বাজেট']);
+
+  static bool _isAddIncome(String q) => _has(q, const [
+        'income', 'আয়', 'aay', 'বেতন', 'salary',
+      ]);
+
+  static bool _isAddExpense(String q) => _has(q, const [
+        'add', 'যোগ', 'khoroch', 'খরচ', 'expense', 'ব্যয়',
+        'spent', 'খরচ করলাম', 'khoroch korlam',
+      ]);
+
+  /// Parses an action command. Returns null when the input is a question
+  /// or has no actionable amount.
+  static AiAction? _parseAction(String input, String q, String lang) {
+    if (_looksLikeQuestion(q)) return null;
+
+    // Delete last expense — no amount needed.
+    if (_isDeleteLast(q)) {
+      return const AiAction(type: 'delete_last');
+    }
+
+    final parsed = VoiceBudgetParser.parse(input, lang);
+    final amount = parsed.amount;
+    if (amount == null || amount <= 0) return null;
+
+    if (_isSetBudget(q)) {
+      return AiAction(
+        type: 'set_budget',
+        amount: amount,
+        categoryId: parsed.categoryId ?? 'others',
+      );
+    }
+    if (_isAddIncome(q)) {
+      // "salary 50000" — note keeps the raw input for reference.
+      return AiAction(
+        type: 'add_income',
+        amount: amount,
+        note: input.trim(),
+      );
+    }
+    if (_isAddExpense(q)) {
+      return AiAction(
+        type: 'add_expense',
+        amount: amount,
+        categoryId: parsed.categoryId ?? 'others',
+        note: '',
+      );
+    }
+    return null;
+  }
 
   // ------------------------------------------------------------------
   // Data helpers.

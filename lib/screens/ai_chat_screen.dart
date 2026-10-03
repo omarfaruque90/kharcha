@@ -4,8 +4,15 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
+import '../models/budget.dart';
+import '../models/custom_category.dart';
+import '../models/expense.dart';
+import '../models/income.dart';
+import '../providers/expense_provider.dart';
+import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_assistant.dart';
+import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
 /// One chat message.
@@ -117,13 +124,71 @@ class _AiChatScreenState extends State<AiChatScreen> {
     _ctrl.clear();
     _scrollToEnd();
     // The service simulates a short "thinking" delay internally.
-    final reply = await AiAssistant.answer(input, lang);
+    final res = await AiAssistant.answer(input, lang);
+    if (!mounted) return;
+    String reply = res.reply;
+    // Execute bot actions (add expense/income, set budget, delete last)
+    // through the providers so the whole app updates.
+    if (res.action != null) {
+      reply = await _runAction(res.action!, lang);
+    }
     if (!mounted) return;
     setState(() {
       _typing = false;
       _messages.add(_Msg.ai(reply));
     });
     _scrollToEnd();
+  }
+
+  /// Runs a bot action and returns the confirmation message.
+  Future<String> _runAction(AiAction action, String lang) async {
+    try {
+      final expenses = context.read<ExpenseProvider>();
+      final money = context.read<MoneyProvider>();
+      switch (action.type) {
+        case 'add_expense':
+          await expenses.add(Expense(
+            amount: action.amount!,
+            categoryId: action.categoryId ?? 'others',
+            date: DateTime.now(),
+            note: action.note ?? '',
+            paymentMethod: 'cash',
+            currency: 'BDT',
+            bdtAmount: action.amount!,
+          ));
+          return tr(context, 'ai_added_expense')
+              .replaceAll('{amount}', formatMoney(action.amount!))
+              .replaceAll('{cat}', CustomCategoryRegistry.displayName(
+                  action.categoryId ?? 'others', lang));
+        case 'add_income':
+          await money.addIncome(Income(
+            amount: action.amount!,
+            source: 'other',
+            date: DateTime.now(),
+            note: action.note ?? '',
+          ));
+          return tr(context, 'ai_added_income')
+              .replaceAll('{amount}', formatMoney(action.amount!));
+        case 'set_budget':
+          await money.upsertBudget(Budget(
+            categoryId: action.categoryId ?? 'others',
+            monthKey: monthKeyOf(DateTime.now()),
+            limitAmount: action.amount!,
+          ));
+          return tr(context, 'ai_budget_set')
+              .replaceAll('{cat}', CustomCategoryRegistry.displayName(
+                  action.categoryId ?? 'others', lang))
+              .replaceAll('{amount}', formatMoney(action.amount!));
+        case 'delete_last':
+          final all = expenses.expenses;
+          if (all.isEmpty) return tr(context, 'ai_nothing_to_delete');
+          final last = all.first;
+          await expenses.remove(last.id!);
+          return tr(context, 'ai_deleted')
+              .replaceAll('{amount}', formatMoney(last.bdtAmount ?? last.amount));
+      }
+    } catch (_) {}
+    return tr(context, 'ai_action_failed');
   }
 
   void _scrollToEnd() {
