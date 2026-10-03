@@ -157,7 +157,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
       appBar: AppBar(
         title: Text(tr(context, 'wish_title')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _items.isEmpty
+          ? null
+          : FloatingActionButton(
         onPressed: () => _openAddEdit(),
         backgroundColor: kGold,
         foregroundColor: kDeepGreenDark,

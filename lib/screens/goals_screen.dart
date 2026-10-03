@@ -28,7 +28,9 @@ class GoalsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(tr(context, 'goals_title')),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: goals.isEmpty
+          ? null
+          : FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,
           builder: (_) => const _GoalDialog(),

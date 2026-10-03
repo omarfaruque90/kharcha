@@ -155,7 +155,9 @@ class _SalaryScreenState extends State<SalaryScreen> {
       appBar: AppBar(
         title: Text(tr(context, 'salary_title')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _rules.isEmpty
+          ? null
+          : FloatingActionButton(
         onPressed: () => _openDialog(),
         backgroundColor: kGold,
         foregroundColor: kDeepGreenDark,

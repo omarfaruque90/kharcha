@@ -125,7 +125,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: money.budgetsForMonth(key).isEmpty
+          ? null
+          : FloatingActionButton.extended(
         onPressed: () => _showBudgetDialog(context, key, null),
         icon: const Icon(Icons.add),
         label: Text(tr(context, 'budget_set')),

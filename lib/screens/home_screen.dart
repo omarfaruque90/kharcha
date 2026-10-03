@@ -186,17 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // Prominent gold add-expense button: always one tap away.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: widget.onAddPressed,
-        backgroundColor: kGold,
-        foregroundColor: kDeepGreenDark,
-        icon: const Icon(Icons.add),
-        label: Text(
-          tr(context, 'add_expense'),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
+      // Add lives in the bottom nav — no duplicate FAB.
       body: CustomScrollView(
         slivers: [
           // Premium hero: balance count-up + quick stats.

@@ -130,7 +130,9 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       appBar: AppBar(
         title: Text(tr(context, 'subs_title')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _subs.isEmpty
+          ? null
+          : FloatingActionButton(
         onPressed: () async {
           await showDialog(
             context: context,

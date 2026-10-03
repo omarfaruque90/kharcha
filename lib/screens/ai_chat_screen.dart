@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
@@ -32,6 +33,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final List<_Msg> _messages = [];
   bool _typing = false;
 
+  /// Voice input inside the chat field.
+  final SpeechToText _speech = SpeechToText();
+  bool _listening = false;
+
   String get _lang =>
       Provider.of<SettingsProvider>(context, listen: false).language;
 
@@ -43,9 +48,62 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   @override
   void dispose() {
+    _speech.stop();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Toggles voice input: recognized words go straight into the chat field.
+  Future<void> _toggleMic() async {
+    if (_listening) {
+      await _speech.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    bool available = false;
+    try {
+      available = await _speech.initialize(
+        onStatus: (s) {
+          if ((s == 'notListening' || s == 'done') && mounted) {
+            setState(() => _listening = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _listening = false);
+        },
+      );
+    } catch (_) {
+      available = false;
+    }
+    if (!available) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'voice_error'))),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final lang = _lang;
+    setState(() => _listening = true);
+    await _speech.listen(
+      listenOptions: SpeechListenOptions(
+        localeId: lang == 'bn' ? 'bn_BD' : 'en_US',
+        listenFor: const Duration(seconds: 30),
+        partialResults: true,
+      ),
+      onResult: (r) {
+        final words = r.recognizedWords.trim();
+        if (words.isEmpty || !mounted) return;
+        setState(() {
+          _ctrl.text = words;
+          _ctrl.selection = TextSelection.fromPosition(
+            TextPosition(offset: _ctrl.text.length),
+          );
+        });
+      },
+    );
   }
 
   Future<void> _send(String text) async {
@@ -180,6 +238,17 @@ class _AiChatScreenState extends State<AiChatScreen> {
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 18,
                             vertical: 12,
+                          ),
+                          // Mic lives INSIDE the chat field.
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _listening ? Icons.stop : Icons.mic_outlined,
+                              color: _listening
+                                  ? theme.colorScheme.error
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            tooltip: tr(context, 'voice_title'),
+                            onPressed: _toggleMic,
                           ),
                         ),
                       ),

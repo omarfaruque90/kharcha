@@ -119,7 +119,9 @@ class _DebtsScreenState extends State<DebtsScreen> {
       appBar: AppBar(
         title: Text(tr(context, 'debts_title')),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _debts.isEmpty
+          ? null
+          : FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,
           builder: (_) => const _DebtDialog(),
