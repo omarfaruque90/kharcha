@@ -112,9 +112,11 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.pdf'));
     await file.writeAsBytes(await doc.save());
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Kharcha — $monthLabel',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Kharcha — $monthLabel',
+      ),
     );
   }
 
@@ -172,9 +174,11 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.xlsx'));
     await file.writeAsBytes(bytes);
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Kharcha — $monthLabel',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Kharcha — $monthLabel',
+      ),
     );
   }
 }

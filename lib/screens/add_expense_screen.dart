@@ -256,9 +256,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     // Indices line up 1:1 (each Bangla digit maps to one ASCII digit), so
     // the surrounding words are taken from the original text to keep
     // their script.
-    final rest = (text.substring(0, match.start) +
-            ' ' +
-            text.substring(match.end))
+    final rest = '${text.substring(0, match.start)} ${text.substring(match.end)}'
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (rest.isNotEmpty) {

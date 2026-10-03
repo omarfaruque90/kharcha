@@ -136,6 +136,7 @@ class SmsService {
         _startListening();
         return;
       }
+      if (!ctx.mounted) return;
       final allow = await showDialog<bool>(
         context: ctx,
         builder: (dctx) => AlertDialog(
@@ -218,10 +219,12 @@ class SmsService {
       );
       // Refresh the home list when the provider is reachable.
       final ctx2 = _navKey?.currentContext;
-      if (ctx2 != null) {
+      if (ctx2 != null && ctx2.mounted) {
         try {
-          await Provider.of<ExpenseProvider>(ctx2, listen: false).load();
+          final expenses = Provider.of<ExpenseProvider>(ctx2, listen: false);
+          await expenses.load();
         } catch (_) {}
+        if (!ctx2.mounted) return;
         try {
           final messenger = ScaffoldMessenger.maybeOf(ctx2);
           messenger?.showSnackBar(

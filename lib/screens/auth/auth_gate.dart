@@ -76,8 +76,10 @@ class _SyncedHomeState extends State<_SyncedHome> {
     }
     // Reload the providers so merged cloud data shows up immediately.
     if (mounted) {
-      await context.read<ExpenseProvider>().load();
-      await context.read<MoneyProvider>().load();
+      final expenses = context.read<ExpenseProvider>();
+      final money = context.read<MoneyProvider>();
+      await expenses.load();
+      await money.load();
     }
     if (mounted) setState(() => _ready = true);
   }

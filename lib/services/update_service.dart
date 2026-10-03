@@ -135,7 +135,7 @@ class UpdateService {
     final prompted = await DatabaseHelper.instance.getSetting(_promptedKey);
     if (prompted == info.tag) return;
     final ctx = navKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null || !ctx.mounted) return;
     await showUpdateDialog(
       ctx,
       info,

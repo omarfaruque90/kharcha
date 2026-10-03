@@ -132,12 +132,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _doBackup() => _runBusy(() async {
         final ok = await BackupService.backup(context);
+        if (!mounted) return;
         _snack(tr(context, ok ? 'backup_done' : 'backup_failed'));
       });
 
   Future<void> _doRestore() => _runBusy(() async {
         if (!mounted) return;
         final count = await BackupService.restore(context);
+        if (!mounted) return;
         if (count < 0) {
           _snack(tr(context, 'restore_failed'));
           return;
@@ -149,6 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final now = DateTime.now();
         await ExportService.exportMonthlyPdf(
             context, DateTime(now.year, now.month));
+        if (!mounted) return;
         _snack(tr(context, 'export_done'));
       });
 
@@ -156,6 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final now = DateTime.now();
         await ExportService.exportMonthlyExcel(
             context, DateTime(now.year, now.month));
+        if (!mounted) return;
         _snack(tr(context, 'export_done'));
       });
 

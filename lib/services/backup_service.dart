@@ -37,6 +37,7 @@ class BackupService {
   /// Dumps all tables to a JSON file and opens the share sheet.
   /// Returns true when a file was shared.
   static Future<bool> backup(BuildContext context) async {
+    final doneText = tr(context, 'backup_done');
     try {
       final db = await DatabaseHelper.instance.database;
       final tables = <String, dynamic>{};
@@ -54,9 +55,11 @@ class BackupService {
       final file =
           File(p.join(dir.path, 'kharcha-backup-$stamp.json'));
       await file.writeAsString(jsonEncode(payload));
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: tr(context, 'backup_done'),
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: doneText,
+        ),
       );
       return true;
     } catch (_) {
@@ -130,11 +133,14 @@ class BackupService {
 
       // Refresh in-memory providers so the UI reflects restored data.
       if (context.mounted) {
+        final expenses = Provider.of<ExpenseProvider>(context, listen: false);
+        final money = Provider.of<MoneyProvider>(context, listen: false);
         try {
-          await Provider.of<ExpenseProvider>(context, listen: false).load();
+          await expenses.load();
         } catch (_) {}
+        if (!context.mounted) return written;
         try {
-          await Provider.of<MoneyProvider>(context, listen: false).load();
+          await money.load();
         } catch (_) {}
       }
       return written;
