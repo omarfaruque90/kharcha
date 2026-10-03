@@ -20,8 +20,15 @@ import '../widgets/smart_search.dart';
 import '../widgets/spending_insights.dart';
 import '../widgets/budget_forecast_card.dart';
 import 'ai_chat_screen.dart';
+import 'achievements_screen.dart';
+import 'budget_planner_screen.dart';
+import 'budget_screen.dart';
+import 'cash_screen.dart';
+import 'goals_screen.dart';
+import 'leaderboard_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
+import 'wishlist_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onAddPressed;
@@ -221,6 +228,84 @@ class _HomeScreenState extends State<HomeScreen> {
               child: BudgetForecastCard(),
             ),
           ),
+          // Quick shortcuts the user wants pinned on home.
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 0, 0),
+              child: SizedBox(
+                height: 96,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(right: 16),
+                  children: [
+                    _QuickShortcut(
+                      icon: Icons.emoji_events_outlined,
+                      labelKey: 'ach_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AchievementsScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.leaderboard_outlined,
+                      labelKey: 'leaderboard_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LeaderboardScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.wallet_outlined,
+                      labelKey: 'cash_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CashScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.card_giftcard_outlined,
+                      labelKey: 'wish_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WishlistScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.savings_outlined,
+                      labelKey: 'goals_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const GoalsScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.account_balance_wallet_outlined,
+                      labelKey: 'budget_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const BudgetScreen()),
+                      ),
+                    ),
+                    _QuickShortcut(
+                      icon: Icons.auto_awesome_outlined,
+                      labelKey: 'bp_title',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const BudgetPlannerScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           if (budget != null && budget.limitAmount > 0)
             SliverToBoxAdapter(
               child: Padding(
@@ -398,6 +483,68 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SizedBox(height: 88),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact horizontal shortcut tile pinned on the home screen.
+class _QuickShortcut extends StatelessWidget {
+  final IconData icon;
+  final String labelKey;
+  final VoidCallback onTap;
+
+  const _QuickShortcut({
+    required this.icon,
+    required this.labelKey,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          width: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: kGold.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: kGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: kGoldDark, size: 20),
+              ),
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(
+                  tr(context, labelKey),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
