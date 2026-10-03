@@ -106,7 +106,7 @@ class _LockScreenState extends State<LockScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                for (var i = 0; i < 4)
+                for (var i = 0; i < 4; i++)
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     width: 18,
@@ -146,7 +146,7 @@ class _LockScreenState extends State<LockScreen> {
                       crossAxisSpacing: 8,
                       childAspectRatio: 1.4,
                       children: [
-                        for (var d = 1; d <= 9) _padKey('$d'),
+                        for (var d = 1; d <= 9; d++) _padKey('$d'),
                         _bioAvailable
                             ? IconButton(
                                 iconSize: 30,
