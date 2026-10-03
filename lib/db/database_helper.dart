@@ -25,6 +25,9 @@ import '../services/sync_service.dart';
 /// savings_goals, custom_places, custom_payment_methods, bill_reminders
 /// (all UUID ids + updatedAt), and `expenses.receiptPath TEXT` for an
 /// optional attached receipt photo path.
+///
+/// v4 schema: adds `expenses.place TEXT` — the custom "where" label for the
+/// Others category (e.g. "Dhanmondi Lake 🎮").
 class DatabaseHelper {
   DatabaseHelper._private();
 
@@ -45,7 +48,7 @@ class DatabaseHelper {
     final path = p.join(dir.path, 'kharcha.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
@@ -57,6 +60,9 @@ class DatabaseHelper {
         }
         if (oldVersion < 3) {
           await _migrateV2ToV3(db);
+        }
+        if (oldVersion < 4) {
+          await _migrateV3ToV4(db);
         }
       },
     );
@@ -72,6 +78,7 @@ class DatabaseHelper {
         note TEXT NOT NULL DEFAULT '',
         paymentMethod TEXT NOT NULL DEFAULT 'cash',
         receiptPath TEXT,
+        place TEXT,
         updatedAt INTEGER NOT NULL DEFAULT 0
       )
     ''');
@@ -174,6 +181,16 @@ class DatabaseHelper {
     }
   }
 
+  /// v3 -> v4: add `expenses.place` (custom "where" for Others).
+  /// The ALTER is guarded so re-running the migration never crashes.
+  Future<void> _migrateV3ToV4(Database db) async {
+    try {
+      await db.execute('ALTER TABLE expenses ADD COLUMN place TEXT');
+    } catch (_) {
+      // Column already exists (e.g. partial upgrade) — safe to ignore.
+    }
+  }
+
   /// v1 -> v2: INTEGER AUTOINCREMENT ids become TEXT UUIDs; every row gets
   /// an `updatedAt` stamp. Settings table is untouched.
   Future<void> _migrateV1ToV2(Database db) async {
@@ -211,6 +228,8 @@ class DatabaseHelper {
       'date': expense.date.toIso8601String(),
       'note': expense.note,
       'paymentMethod': expense.paymentMethod,
+      'place': expense.place,
+      'receiptPath': expense.receiptPath,
       'updatedAt': updatedAt,
     });
     if (!SyncService.instance.applyingRemote) {
@@ -242,6 +261,8 @@ class DatabaseHelper {
         'date': expense.date.toIso8601String(),
         'note': expense.note,
         'paymentMethod': expense.paymentMethod,
+        'place': expense.place,
+        'receiptPath': expense.receiptPath,
         'updatedAt': updatedAt,
       },
       where: 'id = ?',

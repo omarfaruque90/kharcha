@@ -12,6 +12,13 @@ class Expense {
   final String note;
   final String paymentMethod;
 
+  /// Custom "where" label for the Others category, e.g. "Dhanmondi Lake 🎮".
+  final String? place;
+
+  /// Local file path of an attached receipt photo. Device-local only —
+  /// never synced to Firestore (paths are meaningless on other devices).
+  final String? receiptPath;
+
   /// Last modification time (millis precision). Used for last-write-wins
   /// merging between the local DB and Firestore.
   final DateTime updatedAt;
@@ -23,6 +30,8 @@ class Expense {
     required this.date,
     this.note = '',
     this.paymentMethod = 'cash',
+    this.place,
+    this.receiptPath,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
@@ -37,6 +46,8 @@ class Expense {
       'date': date.toIso8601String(),
       'note': note,
       'paymentMethod': paymentMethod,
+      'place': place,
+      'receiptPath': receiptPath,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -50,6 +61,8 @@ class Expense {
       date: DateTime.parse(map['date'] as String),
       note: map['note'] as String? ?? '',
       paymentMethod: map['paymentMethod'] as String? ?? 'cash',
+      place: map['place'] as String?,
+      receiptPath: map['receiptPath'] as String?,
       updatedAt: map['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
           : null,
@@ -65,6 +78,8 @@ class Expense {
       date: DateTime.parse(data['date'] as String),
       note: data['note'] as String? ?? '',
       paymentMethod: data['paymentMethod'] as String? ?? 'cash',
+      place: data['place'] as String?,
+      // receiptPath is intentionally not read: it is device-local.
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
         (data['updatedAt'] as num?)?.toInt() ?? 0,
       ),
@@ -72,6 +87,7 @@ class Expense {
   }
 
   /// Document fields for Firestore (the id is the document id itself).
+  /// receiptPath is excluded — a local file path must not sync.
   Map<String, dynamic> toFirestore() {
     return {
       'amount': amount,
@@ -79,6 +95,7 @@ class Expense {
       'date': date.toIso8601String(),
       'note': note,
       'paymentMethod': paymentMethod,
+      'place': place,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
   }
@@ -90,6 +107,8 @@ class Expense {
     DateTime? date,
     String? note,
     String? paymentMethod,
+    String? place,
+    String? receiptPath,
     DateTime? updatedAt,
   }) {
     return Expense(
@@ -99,6 +118,8 @@ class Expense {
       date: date ?? this.date,
       note: note ?? this.note,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      place: place ?? this.place,
+      receiptPath: receiptPath ?? this.receiptPath,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
