@@ -42,7 +42,7 @@ class AuthHeader extends StatelessWidget {
         const StaggeredEntrance(
           delayMs: 90,
           child: Text(
-            'Kharcha',
+            'Khorcha',
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.bold,

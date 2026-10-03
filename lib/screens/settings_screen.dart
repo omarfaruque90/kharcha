@@ -362,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 height: 44,
               ),
             ),
-            title: const Text('Kharcha'),
+            title: const Text('Khorcha'),
             subtitle: Text(tr(context, 'tagline')),
           ),
           ListTile(

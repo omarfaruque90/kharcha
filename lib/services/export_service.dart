@@ -76,7 +76,7 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (_) => [
-          pw.Text('Kharcha — $monthLabel', style: titleStyle),
+          pw.Text('Khorcha — $monthLabel', style: titleStyle),
           pw.SizedBox(height: 12),
           pw.TableHelper.fromTextArray(
             headers: [
@@ -115,7 +115,7 @@ class ExportService {
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text: 'Kharcha — $monthLabel',
+        text: 'Khorcha — $monthLabel',
       ),
     );
   }
@@ -177,7 +177,7 @@ class ExportService {
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text: 'Kharcha — $monthLabel',
+        text: 'Khorcha — $monthLabel',
       ),
     );
   }

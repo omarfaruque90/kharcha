@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Kharcha'),
+            const Text('Khorcha'),
             Text(tr(context, 'tagline'), style: theme.textTheme.bodySmall),
           ],
         ),
