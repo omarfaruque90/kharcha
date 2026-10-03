@@ -213,15 +213,15 @@ ThemeData _buildTheme(Brightness brightness) {
         fontWeight: FontWeight.w600,
       ),
     ),
-    listTileTheme: ListTileThemeData(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      shape: const RoundedRectangleBorder(
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(14)),
       ),
     ),
-    navigationBarTheme: const NavigationBarThemeData(
-      indicatorColor: Color(0x47D4AF37),
+    navigationBarTheme: NavigationBarThemeData(
+      indicatorColor:
+          dark ? const Color(0x47D4AF37) : const Color(0x59D4AF37),
     ),
     dialogTheme: const DialogThemeData(
       shape: RoundedRectangleBorder(
