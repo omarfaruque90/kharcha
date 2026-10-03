@@ -6,7 +6,6 @@ import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
-import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
