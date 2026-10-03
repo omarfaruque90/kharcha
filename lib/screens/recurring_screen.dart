@@ -9,6 +9,7 @@ import '../models/recurring_expense.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import '../widgets/category_dialogs.dart';
 import '../widgets/motion.dart';
 import '../widgets/payment_selector.dart';
 
@@ -241,6 +242,7 @@ class _RecurringDialogState extends State<_RecurringDialog> {
   final _amountCtrl = TextEditingController();
   late String _kind;
   late String _categoryId;
+  int _catNonce = 0;
   late int _day;
   late String _paymentMethod;
   late bool _active;
@@ -259,7 +261,10 @@ class _RecurringDialogState extends State<_RecurringDialog> {
         : (existingAmount.truncateToDouble() == existingAmount
             ? existingAmount.toStringAsFixed(0)
             : existingAmount.toString());
-    _categoryId = existing?.categoryId ?? kCategories.first.id;
+    _categoryId = existing?.categoryId ??
+        (CustomCategoryRegistry.visibleBuiltinCategories().isNotEmpty
+            ? CustomCategoryRegistry.visibleBuiltinCategories().first.id
+            : kCategories.first.id);
     _day = existing?.dayOfMonth ?? 1;
     _paymentMethod = existing?.paymentMethod ?? 'cash';
     _active = existing?.active ?? true;
@@ -332,13 +337,15 @@ class _RecurringDialogState extends State<_RecurringDialog> {
               if (_kind == 'expense') ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  key: ValueKey('cat-$_categoryId-$_catNonce'),
                   initialValue: _categoryId,
                   decoration: InputDecoration(
                     labelText: tr(context, 'category'),
                     border: const OutlineInputBorder(),
                   ),
                   items: [
-                    for (final c in kCategories)
+                    for (final c in CustomCategoryRegistry
+                        .visibleBuiltinCategories())
                       DropdownMenuItem(
                         value: c.id,
                         child: Row(
@@ -350,9 +357,41 @@ class _RecurringDialogState extends State<_RecurringDialog> {
                           ],
                         ),
                       ),
+                    for (final cc in CustomCategoryRegistry.all)
+                      DropdownMenuItem(
+                        value: cc.id,
+                        child: Row(
+                          children: [
+                            Text(cc.emoji,
+                                style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Flexible(child: Text(cc.name)),
+                          ],
+                        ),
+                      ),
+                    DropdownMenuItem(
+                      value: '__add_new__',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 18),
+                          const SizedBox(width: 8),
+                          Text(tr(context, 'add_category')),
+                        ],
+                      ),
+                    ),
                   ],
-                  onChanged: (v) =>
-                      setState(() => _categoryId = v ?? _categoryId),
+                  onChanged: (v) async {
+                    if (v == '__add_new__') {
+                      final id = await showAddCategoryDialog(context);
+                      if (!mounted) return;
+                      setState(() {
+                        _catNonce++;
+                        if (id != null) _categoryId = id;
+                      });
+                      return;
+                    }
+                    setState(() => _categoryId = v ?? _categoryId);
+                  },
                 ),
               ],
               const SizedBox(height: 12),

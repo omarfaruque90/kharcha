@@ -1,4 +1,5 @@
 import '../l10n/app_strings.dart';
+import 'category.dart';
 
 /// A user-created expense category, stored locally in SQLite
 /// (`custom_categories`). The user types the name and an emoji manually
@@ -56,5 +57,55 @@ class CustomCategoryRegistry {
     final custom = _byId[id];
     if (custom != null) return custom.name;
     return AppStrings.categoryName(id, lang);
+  }
+
+  // ------------------- built-in hide/show -------------------
+
+  /// Ids of built-in categories the user hid from pickers.
+  /// History (expenses, reports, exports) still resolves hidden ids —
+  /// only pickers filter them out.
+  static final Set<String> _hidden = {};
+
+  /// Called once at startup with the persisted list (see main.dart).
+  static void setHidden(Iterable<String> ids) {
+    _hidden
+      ..clear()
+      ..addAll(ids);
+  }
+
+  static List<String> get hiddenIds => _hidden.toList();
+
+  static bool isHidden(String id) => _hidden.contains(id);
+
+  /// Built-ins minus hidden ones — use this in every category PICKER.
+  static List<ExpenseCategory> visibleBuiltinCategories() =>
+      kCategories.where((c) => !_hidden.contains(c.id)).toList();
+
+  /// Persist hook, wired in main.dart (avoids a db import cycle).
+  static Future<void> Function(List<String> hidden)? onHiddenChanged;
+
+  static Future<void> _persist() async {
+    try {
+      await onHiddenChanged?.call(_hidden.toList());
+    } catch (_) {}
+  }
+
+  static Future<void> hideBuiltin(String id) async {
+    _hidden.add(id);
+    await _persist();
+  }
+
+  static Future<void> unhideBuiltin(String id) async {
+    _hidden.remove(id);
+    await _persist();
+  }
+
+  static Future<void> toggleBuiltin(String id) async {
+    if (_hidden.contains(id)) {
+      _hidden.remove(id);
+    } else {
+      _hidden.add(id);
+    }
+    await _persist();
   }
 }

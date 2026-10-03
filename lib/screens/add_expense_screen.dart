@@ -24,7 +24,9 @@ import '../services/ocr_categorize.dart';
 import '../services/ocr_service.dart';
 import '../widgets/calculator_pad.dart';
 import '../widgets/branded_date_picker.dart';
+import '../widgets/category_dialogs.dart';
 import '../widgets/motion.dart';
+import 'categories_screen.dart';
 import '../widgets/payment_selector.dart';
 
 /// Add a new expense, or edit [expense] when provided.
@@ -637,7 +639,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             const SizedBox(height: 16),
             StaggeredEntrance(
               delayMs: 60,
-              child: _sectionLabel(context, tr(context, 'category')),
+              child: Row(
+                children: [
+                  Expanded(
+                      child: _sectionLabel(context, tr(context, 'category'))),
+                  IconButton(
+                    tooltip: tr(context, 'customize_categories'),
+                    icon: const Icon(Icons.tune, size: 20),
+                    color: kGoldDark,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CategoriesScreen()),
+                    ).then((_) => setState(() {})),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             StaggeredEntrance(
@@ -652,11 +669,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.85,
               ),
-              // Built-ins + user-created categories + the "add" tile.
-              itemCount: kCategories.length + _customCats.length + 1,
+              // Visible built-ins + user-created categories + the "add" tile.
+              // (Hidden built-ins stay out of pickers but still resolve in
+              // history via CustomCategoryRegistry.displayName.)
+              itemCount:
+                  CustomCategoryRegistry.visibleBuiltinCategories().length +
+                      _customCats.length +
+                      1,
               itemBuilder: (ctx, i) {
-                if (i < kCategories.length) {
-                  final c = kCategories[i];
+                final visible =
+                    CustomCategoryRegistry.visibleBuiltinCategories();
+                if (i < visible.length) {
+                  final c = visible[i];
                   return _categoryTile(
                     label: AppStrings.categoryName(c.id, lang),
                     color: c.color,
@@ -667,9 +691,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       _categoryManuallyPicked = true;
                       _ocrAutoCategory = false;
                     }),
+                    onLongPress: () async {
+                      final label = AppStrings.categoryName(c.id, lang);
+                      if (await showHideCategoryDialog(ctx, label)) {
+                        await CustomCategoryRegistry.hideBuiltin(c.id);
+                        if (mounted) {
+                          setState(() {
+                            if (_categoryId == c.id) {
+                              _categoryId = visible.isNotEmpty
+                                  ? visible.first.id
+                                  : 'food';
+                            }
+                          });
+                        }
+                      }
+                    },
                   );
                 }
-                final ci = i - kCategories.length;
+                final ci = i - visible.length;
                 if (ci < _customCats.length) {
                   final cc = _customCats[ci];
                   return _categoryTile(
@@ -1176,111 +1215,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Dialog to create a custom category: name + manually typed emoji.
   Future<void> _showAddCategoryDialog() async {
-    final lang = context.read<SettingsProvider>().language;
-    final nameCtrl = TextEditingController();
-    final emojiCtrl = TextEditingController();
-    var confirmed = false;
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr(ctx, 'new_category_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: tr(ctx, 'category_name'),
-                hintText: tr(ctx, 'category_name_hint'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emojiCtrl,
-              decoration: InputDecoration(
-                labelText: tr(ctx, 'goal_emoji'),
-                hintText: '🎮',
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(tr(ctx, 'cancel')),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text(AppStrings.get('err_name_empty', lang))),
-                );
-                return;
-              }
-              confirmed = true;
-              Navigator.pop(ctx);
-            },
-            child: Text(tr(ctx, 'save')),
-          ),
-        ],
-      ),
-    );
-    final name = nameCtrl.text.trim();
-    final emoji = emojiCtrl.text.trim();
-    nameCtrl.dispose();
-    emojiCtrl.dispose();
-    if (!confirmed || name.isEmpty || !mounted) return;
-    try {
-      final id =
-          await DatabaseHelper.instance.insertCustomCategory(name, emoji);
-      final cats = await DatabaseHelper.instance.getCustomCategories();
-      CustomCategoryRegistry.setAll(cats);
-      if (mounted) {
-        setState(() {
-          _customCats = cats;
-          _categoryId = id;
-          _categoryManuallyPicked = true;
-          _ocrAutoCategory = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.get('err_name_empty', lang))),
-        );
-      }
+    final id = await showAddCategoryDialog(context);
+    if (id == null || !mounted) return;
+    final cats = await DatabaseHelper.instance.getCustomCategories();
+    if (mounted) {
+      setState(() {
+        _customCats = cats;
+        _categoryId = id;
+        _categoryManuallyPicked = true;
+        _ocrAutoCategory = false;
+      });
     }
   }
 
   /// Long-press a custom category tile → confirm → delete it.
   Future<void> _confirmDeleteCategory(CustomCategory cat, String lang) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr(ctx, 'delete_category_title')),
-        content: Text(AppStrings.get('delete_category_msg', lang)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(tr(ctx, 'cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(tr(ctx, 'delete')),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    await DatabaseHelper.instance.deleteCustomCategory(cat.id);
+    if (!await showDeleteCategoryDialog(context)) return;
+    if (!mounted) return;
+    await deleteCustomCategoryAndRefresh(cat.id);
     final cats = await DatabaseHelper.instance.getCustomCategories();
-    CustomCategoryRegistry.setAll(cats);
     if (mounted) {
       setState(() {
         _customCats = cats;

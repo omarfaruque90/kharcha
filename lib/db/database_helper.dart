@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -1332,6 +1333,24 @@ class DatabaseHelper {
       {'key': key, 'value': value},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  /// Built-in category ids the user chose to hide from pickers.
+  /// Stored as a JSON list under the 'hidden_categories' setting key.
+  static const String hiddenCategoriesKey = 'hidden_categories';
+
+  Future<List<String>> getHiddenCategories() async {
+    final raw = await getSetting(hiddenCategoriesKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> setHiddenCategories(List<String> ids) async {
+    await setSetting(hiddenCategoriesKey, jsonEncode(ids));
   }
 
   // --------------------------- custom categories ----------------------

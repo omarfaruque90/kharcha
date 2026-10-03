@@ -337,7 +337,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() => _categoryId = null),
                     ),
                   ),
-                  for (final c in kCategories)
+                  for (final c in CustomCategoryRegistry
+                      .visibleBuiltinCategories())
                     Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(

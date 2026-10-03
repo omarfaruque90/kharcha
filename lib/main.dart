@@ -243,6 +243,11 @@ Future<void> _finishBootInBackgroundImpl(
     CustomCategoryRegistry.setAll(
       await DatabaseHelper.instance.getCustomCategories(),
     );
+    CustomCategoryRegistry.onHiddenChanged =
+        (hidden) => DatabaseHelper.instance.setHiddenCategories(hidden);
+    CustomCategoryRegistry.setHidden(
+      await DatabaseHelper.instance.getHiddenCategories(),
+    );
   } catch (_) {}
   // Local data in parallel so lists populate immediately.
   try {

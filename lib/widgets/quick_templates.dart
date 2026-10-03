@@ -11,6 +11,7 @@ import '../models/expense_template.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import 'category_dialogs.dart';
 import 'motion.dart';
 
 /// Quick expense templates: one-tap chips that instantly log a pre-set
@@ -114,8 +115,12 @@ class _QuickTemplatesState extends State<QuickTemplates> {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     final emojiCtrl = TextEditingController();
-    String categoryId = 'food';
+    String categoryId =
+        CustomCategoryRegistry.visibleBuiltinCategories().isNotEmpty
+            ? CustomCategoryRegistry.visibleBuiltinCategories().first.id
+            : 'food';
     String payment = 'cash';
+    int catNonce = 0;
 
     final result = await showDialog<bool>(
       context: context,
@@ -145,12 +150,14 @@ class _QuickTemplatesState extends State<QuickTemplates> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
+                    key: ValueKey('tplcat-$categoryId-$catNonce'),
                     initialValue: categoryId,
                     decoration: InputDecoration(
                       labelText: tr(ctx, 'category'),
                     ),
                     items: [
-                      for (final c in kCategories)
+                      for (final c in CustomCategoryRegistry
+                          .visibleBuiltinCategories())
                         DropdownMenuItem(
                           value: c.id,
                           child: Text(AppStrings.categoryName(c.id, lang)),
@@ -161,8 +168,20 @@ class _QuickTemplatesState extends State<QuickTemplates> {
                           child: Text(
                               '${c.emoji.isNotEmpty ? '${c.emoji} ' : ''}${c.name}'),
                         ),
+                      DropdownMenuItem(
+                        value: '__add_new__',
+                        child: Text('+ ${tr(ctx, 'add_category')}'),
+                      ),
                     ],
-                    onChanged: (v) {
+                    onChanged: (v) async {
+                      if (v == '__add_new__') {
+                        final id = await showAddCategoryDialog(ctx);
+                        setDialogState(() {
+                          catNonce++;
+                          if (id != null) categoryId = id;
+                        });
+                        return;
+                      }
                       if (v != null) setDialogState(() => categoryId = v);
                     },
                   ),

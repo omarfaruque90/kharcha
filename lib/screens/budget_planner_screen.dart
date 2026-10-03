@@ -66,7 +66,8 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
   }
 
   List<String> _categoryIds() => [
-        ...kCategories.map((c) => c.id),
+        ...CustomCategoryRegistry.visibleBuiltinCategories()
+            .map((c) => c.id),
         ...CustomCategoryRegistry.all.map((c) => c.id),
       ];
 

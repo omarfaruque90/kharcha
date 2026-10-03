@@ -14,6 +14,7 @@ import '../services/carry_forward_service.dart';
 import '../services/public_templates_service.dart';
 import '../services/voice_budget_parser.dart';
 import '../utils/formatters.dart';
+import '../widgets/category_dialogs.dart';
 import '../widgets/motion.dart';
 
 /// Monthly per-category spending limits: set/edit budgets, see spent vs
@@ -686,12 +687,15 @@ class _BudgetDialogState extends State<_BudgetDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
   late String _categoryId;
+  int _catNonce = 0;
 
   @override
   void initState() {
     super.initState();
     final existing = widget.existing;
-    _categoryId = existing?.categoryId ?? kCategories.first.id;
+    final visible = CustomCategoryRegistry.visibleBuiltinCategories();
+    _categoryId = existing?.categoryId ??
+        (visible.isNotEmpty ? visible.first.id : kCategories.first.id);
     if (existing != null) {
       _amountCtrl.text = existing.limitAmount.toStringAsFixed(0);
     }
@@ -701,6 +705,43 @@ class _BudgetDialogState extends State<_BudgetDialog> {
   void dispose() {
     _amountCtrl.dispose();
     super.dispose();
+  }
+
+  /// (id, icon, label) for the category dropdown: visible built-ins +
+  /// customs, plus the currently-selected id even when hidden (edit mode).
+  List<(String, Widget, String)> _budgetDialogItems(String lang) {
+    final items = <(String, Widget, String)>[];
+    final seen = <String>{};
+    for (final c in CustomCategoryRegistry.visibleBuiltinCategories()) {
+      seen.add(c.id);
+      items.add((
+        c.id,
+        Icon(c.icon, size: 18, color: c.color),
+        CustomCategoryRegistry.displayName(c.id, lang),
+      ));
+    }
+    for (final cc in CustomCategoryRegistry.all) {
+      seen.add(cc.id);
+      items.add((
+        cc.id,
+        cc.emoji.isNotEmpty
+            ? Text(cc.emoji, style: const TextStyle(fontSize: 18))
+            : const Icon(Icons.label_rounded, size: 18),
+        cc.name,
+      ));
+    }
+    // Editing a budget whose category is now hidden: keep it selectable.
+    if (!seen.contains(_categoryId)) {
+      final custom = CustomCategoryRegistry.byId(_categoryId);
+      items.add((
+        _categoryId,
+        custom != null
+            ? Text(custom.emoji, style: const TextStyle(fontSize: 18))
+            : const Icon(Icons.label_rounded, size: 18),
+        CustomCategoryRegistry.displayName(_categoryId, lang),
+      ));
+    }
+    return items;
   }
 
   @override
@@ -717,26 +758,49 @@ class _BudgetDialogState extends State<_BudgetDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
+              key: ValueKey('cat-$_categoryId-$_catNonce'),
               initialValue: _categoryId,
               decoration: InputDecoration(
                 labelText: tr(context, 'category'),
                 border: const OutlineInputBorder(),
               ),
               items: [
-                for (final c in kCategories)
+                for (final c in _budgetDialogItems(lang))
                   DropdownMenuItem(
-                    value: c.id,
+                    value: c.$1,
                     child: Row(
                       children: [
-                        Icon(c.icon, size: 18, color: c.color),
+                        c.$2,
                         const SizedBox(width: 8),
-                        Text(CustomCategoryRegistry.displayName(c.id, lang)),
+                        Flexible(child: Text(c.$3)),
                       ],
                     ),
                   ),
+                DropdownMenuItem(
+                  value: '__add_new__',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add_circle_outline,
+                          size: 18, color: kGoldDark),
+                      const SizedBox(width: 8),
+                      Text(tr(context, 'add_category')),
+                    ],
+                  ),
+                ),
               ],
               onChanged: existing == null
-                  ? (v) => setState(() => _categoryId = v ?? _categoryId)
+                  ? (v) async {
+                      if (v == '__add_new__') {
+                        final id = await showAddCategoryDialog(context);
+                        if (!mounted) return;
+                        setState(() {
+                          _catNonce++;
+                          if (id != null) _categoryId = id;
+                        });
+                        return;
+                      }
+                      setState(() => _categoryId = v ?? _categoryId);
+                    }
                   : null,
             ),
             const SizedBox(height: 12),
@@ -982,7 +1046,8 @@ class _VoiceBudgetDialogState extends State<VoiceBudgetDialog> {
                           builder: (c) => SimpleDialog(
                             title: Text(tr(c, 'category')),
                             children: [
-                              for (final c2 in kCategories)
+                              for (final c2 in CustomCategoryRegistry
+                                  .visibleBuiltinCategories())
                                 SimpleDialogOption(
                                   onPressed: () =>
                                       Navigator.pop(c, c2.id),
@@ -990,6 +1055,12 @@ class _VoiceBudgetDialogState extends State<VoiceBudgetDialog> {
                                     CustomCategoryRegistry.displayName(
                                         c2.id, lang),
                                   ),
+                                ),
+                              for (final cc in CustomCategoryRegistry.all)
+                                SimpleDialogOption(
+                                  onPressed: () =>
+                                      Navigator.pop(c, cc.id),
+                                  child: Text(cc.name),
                                 ),
                             ],
                           ),

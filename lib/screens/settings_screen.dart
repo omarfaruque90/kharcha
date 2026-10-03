@@ -25,6 +25,7 @@ import '../services/stats_notification.dart';
 import '../services/update_service.dart';
 import '../utils/formatters.dart';
 import 'lock_screen.dart';
+import 'categories_screen.dart';
 import 'places_screen.dart';
 import 'profile_screen.dart';
 
@@ -621,6 +622,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text(_languageNames[lang] ?? lang),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showLanguagePicker(context, settings),
+          ),
+          ListTile(
+            leading: const Icon(Icons.category_outlined),
+            title: Text(tr(context, 'customize_categories')),
+            subtitle: Text(tr(context, 'customize_categories_sub')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const CategoriesScreen()),
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.palette_outlined),
