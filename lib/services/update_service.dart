@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import '../main.dart';
 
 /// Details of a newer GitHub release.
 class UpdateInfo {
@@ -156,6 +157,7 @@ class UpdateService {
     final update = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
+        icon: const Icon(Icons.system_update, color: kGold, size: 32),
         title: Text('${tr(dctx, 'update_title')} v${info.version}'),
         content: SingleChildScrollView(
           child: Text(

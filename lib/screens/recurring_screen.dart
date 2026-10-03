@@ -57,6 +57,15 @@ class RecurringScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const _RecurringDialog(),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: Text(tr(context, 'recurring_add')),
+                  ),
                 ],
               ),
             )

@@ -7,6 +7,8 @@ import '../models/income.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import '../widgets/brand_gradient_card.dart';
+import '../widgets/branded_date_picker.dart';
 import '../widgets/motion.dart';
 
 /// Income list with a gold-accented monthly total header; add via FAB.
@@ -38,52 +40,48 @@ class IncomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           StaggeredEntrance(
-            child: Card(
-              color: theme.colorScheme.secondaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary.withValues(
-                          alpha: 0.2,
+            child: BrandGradientCard(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withValues(
+                        alpha: 0.2,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.trending_up,
+                      color: theme.colorScheme.onSecondaryContainer,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${tr(context, 'this_month')} — '
+                          '${tr(context, 'income_title')}',
+                          style: theme.textTheme.bodyMedium,
                         ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.trending_up,
-                        color: theme.colorScheme.onSecondaryContainer,
-                        size: 28,
-                      ),
+                        Text(
+                          formatMoney(monthTotal),
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                        Text(
+                          '${monthIncomes.length} ${tr(context, 'income_entries')}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${tr(context, 'this_month')} — '
-                            '${tr(context, 'income_title')}',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          Text(
-                            formatMoney(monthTotal),
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                          Text(
-                            '${monthIncomes.length} ${tr(context, 'income_entries')}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -103,6 +101,15 @@ class IncomeScreen extends StatelessWidget {
                     Text(
                       tr(context, 'no_income'),
                       style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) => const _IncomeDialog(),
+                      ),
+                      icon: const Icon(Icons.add),
+                      label: Text(tr(context, 'income_add')),
                     ),
                   ],
                 ),
@@ -295,7 +302,7 @@ class _IncomeDialogState extends State<_IncomeDialog> {
 
   Future<void> _pickDate() async {
     final lang = context.read<SettingsProvider>().language;
-    final picked = await showDatePicker(
+    final picked = await showBrandedDatePicker(
       context: context,
       initialDate: _date,
       firstDate: DateTime(2020),

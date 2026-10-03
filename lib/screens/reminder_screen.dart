@@ -55,6 +55,15 @@ class ReminderScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const _ReminderDialog(),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: Text(tr(context, 'reminder_add')),
+                  ),
                 ],
               ),
             )

@@ -14,6 +14,7 @@ import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/calculator_pad.dart';
+import '../widgets/branded_date_picker.dart';
 import '../widgets/motion.dart';
 import '../widgets/payment_selector.dart';
 import '../widgets/place_input.dart';
@@ -76,35 +77,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _pickDate(String lang) async {
-    final picked = await showDatePicker(
+    final picked = await showBrandedDatePicker(
       context: context,
       initialDate: _date,
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 1)),
-      // FIX (white/blank screen): this app bundles no flutter_localizations
-      // (MaterialApp declares no localizationsDelegates/supportedLocales),
-      // so only the default English delegates exist. Passing Locale('bn')
-      // left the dialog with no MaterialLocalizations and it rendered blank
-      // white (release builds swallow the lookup error). Only pass a locale
-      // the bundled delegates actually support.
+      // Only pass a locale the bundled flutter_localizations supports;
+      // null falls back to the app locale (bn/en are both bundled).
       locale: lang == 'en' ? const Locale('en') : null,
-      builder: (context, child) {
-        final base = Theme.of(context);
-        return Theme(
-          data: base.copyWith(
-            colorScheme: base.colorScheme.copyWith(
-              primary: kEmerald,
-              onPrimary: Colors.white,
-              secondary: kGold,
-              onSurface: kEmerald,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: kEmerald),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null && mounted) {
       setState(() => _date = picked);

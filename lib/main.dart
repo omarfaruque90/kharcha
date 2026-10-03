@@ -89,10 +89,73 @@ class KharchaApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: _brandScheme(Brightness.light),
         useMaterial3: true,
+        // --- Kharcha brand polish (shared by every screen) ---
+        cardTheme: const CardThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        dialogTheme: const DialogThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        dividerTheme: DividerThemeData(
+          color: kGold.withValues(alpha: 0.25),
+          thickness: 1,
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         colorScheme: _brandScheme(Brightness.dark),
         useMaterial3: true,
+        cardTheme: const CardThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        dialogTheme: const DialogThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        dividerTheme: DividerThemeData(
+          color: kGold.withValues(alpha: 0.25),
+          thickness: 1,
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
       themeMode: settings.themeMode,
       home: const SplashScreen(),

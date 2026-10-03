@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../models/budget.dart';
 import '../models/category.dart';
 import '../providers/money_provider.dart';
@@ -32,6 +33,15 @@ class BudgetScreen extends StatelessWidget {
       body: FutureBuilder<Map<String, double>>(
         future: money.expenseForMonth(key),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
           final spent = snapshot.data ?? <String, double>{};
           final budgets = money.budgetsForMonth(key);
           final warnings = budgets.where((b) {
@@ -56,6 +66,9 @@ class BudgetScreen extends StatelessWidget {
                     icon: Icons.account_balance_wallet_outlined,
                     title: tr(context, 'no_budgets'),
                     subtitle: tr(context, 'no_budgets_sub'),
+                    ctaLabel: tr(context, 'budget_set'),
+                    onAdd: () =>
+                        _showBudgetDialog(context, key, null),
                   ),
                 ),
               for (var i = 0; i < budgets.length; i++)
@@ -101,16 +114,21 @@ class _WarningBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final anyExceeded = budgets.any((b) {
       final s = spent[b.categoryId] ?? 0;
       return b.limitAmount > 0 && s > b.limitAmount;
     });
+    // Amber "near limit" banner must stay readable in dark mode too:
+    // gold-tinted surface + warm amber text instead of hardcoded light colors.
     final bg = anyExceeded
         ? theme.colorScheme.errorContainer
-        : const Color(0xFFFFF3E0);
+        : kGold.withValues(alpha: isDark ? 0.22 : 0.16);
     final fg = anyExceeded
         ? theme.colorScheme.onErrorContainer
-        : const Color(0xFFE65100);
+        : isDark
+            ? const Color(0xFFFFCC80)
+            : const Color(0xFFE65100);
     return Card(
       color: bg,
       child: Padding(
@@ -253,11 +271,15 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String ctaLabel;
+  final VoidCallback onAdd;
 
   const _EmptyState({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.ctaLabel,
+    required this.onAdd,
   });
 
   @override
@@ -279,6 +301,12 @@ class _EmptyState extends StatelessWidget {
               style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: Text(ctaLabel),
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import '../models/savings_goal.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import '../widgets/branded_date_picker.dart';
 import '../widgets/motion.dart';
 
 /// Savings goals with progress bars, "add savings" increments and
@@ -56,6 +57,15 @@ class GoalsScreen extends StatelessWidget {
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const _GoalDialog(),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: Text(tr(context, 'goal_add')),
                   ),
                 ],
               ),
@@ -261,7 +271,7 @@ class _GoalDialogState extends State<_GoalDialog> {
   Future<void> _pickDeadline() async {
     final lang = context.read<SettingsProvider>().language;
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await showBrandedDatePicker(
       context: context,
       initialDate: _deadline ?? now.add(const Duration(days: 30)),
       firstDate: now,

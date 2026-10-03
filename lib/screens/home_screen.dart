@@ -9,6 +9,7 @@ import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/formatters.dart';
+import '../widgets/brand_gradient_card.dart';
 import '../widgets/expense_tile.dart';
 import '../widgets/motion.dart';
 import '../widgets/summary_card.dart';
@@ -341,42 +342,39 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.account_balance_wallet,
-                color: theme.colorScheme.onSecondaryContainer,
-                size: 22,
-              ),
+    return BrandGradientCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 12),
-            Text(
-              tr(context, 'balance_title'),
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
+            child: Icon(
+              Icons.account_balance_wallet,
+              color: theme.colorScheme.onSecondaryContainer,
+              size: 22,
             ),
-            const Spacer(),
-            Text(
-              formatMoney(balance),
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            tr(context, 'balance_title'),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSecondaryContainer,
             ),
-          ],
-        ),
+          ),
+          const Spacer(),
+          Text(
+            formatMoney(balance),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }

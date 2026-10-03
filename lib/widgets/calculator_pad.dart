@@ -142,6 +142,11 @@ class _CalculatorPadState extends State<CalculatorPad> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    // Brand accents that stay readable on both themes.
+    final accent = isDark ? kGold : kEmerald;
+    final accentSoft =
+        isDark ? const Color(0xFFE8C766) : const Color(0xFF8a6d1c);
     final preview = _evaluate(_expr);
     return Container(
       decoration: BoxDecoration(
@@ -157,7 +162,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: kEmerald.withValues(alpha: 0.08),
+              color: accent.withValues(alpha: isDark ? 0.14 : 0.08),
               borderRadius: const BorderRadius.circular(12),
             ),
             child: Column(
@@ -166,7 +171,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
                 Text(
                   _expr.isEmpty ? '0' : _expr,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    color: kEmerald,
+                    color: accent,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -176,7 +181,7 @@ class _CalculatorPadState extends State<CalculatorPad> {
                   Text(
                     '= ${_format(preview)}',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF8a6d1c),
+                      color: accentSoft,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -222,6 +227,7 @@ class _CalcKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isEquals = label == '=';
     final isOperator =
         label == '+' || label == '−' || label == '×' || label == '÷';
@@ -236,7 +242,9 @@ class _CalcKey extends StatelessWidget {
     final fg = isEquals
         ? Colors.white
         : isOperator
-            ? const Color(0xFF8a6d1c)
+            ? (isDark
+                ? const Color(0xFFE8C766)
+                : const Color(0xFF8a6d1c))
             : isUtility
                 ? theme.colorScheme.onErrorContainer
                 : theme.colorScheme.onSurface;

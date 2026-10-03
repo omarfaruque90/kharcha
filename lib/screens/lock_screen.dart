@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../providers/settings_provider.dart';
-import 'lock_service.dart';
+import '../services/lock_service.dart';
 
 /// Full-screen PIN pad shown at startup when app lock is enabled.
 /// Calls [onUnlock] after a correct PIN or a successful biometric check.
