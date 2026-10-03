@@ -43,7 +43,7 @@ dependencies:
   excel: ^4.0.6
   share_plus: ^13.3.1
   file_picker: ^8.3.7
-  package_info_plus: ^10.2.2 # current version for update checks
+  package_info_plus: ^9.0.1 # current version for update checks
   open_filex: ^4.7.0 # trigger APK install (ships its own FileProvider)
   http: ^1.6.0 # GitHub releases API + APK download
 
