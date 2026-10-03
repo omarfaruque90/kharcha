@@ -748,24 +748,43 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  void _goHome() => setState(() => _index = 0);
-  void _goAdd() => setState(() => _index = 2);
+  /// Direction of the last tab switch: +1 (moved right) or -1 (moved left).
+  /// Drives the slide direction of the tab-switch animation.
+  int _slideDir = 1;
+
+  void _goHome() => _goTo(0);
+  void _goAdd() => _goTo(2);
+
+  void _goTo(int i) {
+    if (i == _index) return;
+    setState(() {
+      _slideDir = i > _index ? 1 : -1;
+      _index = i;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 320),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
+          // Direction-aware: new tab slides in from the side it was
+          // tapped from, with a soft fade + subtle scale for depth.
           final slide = Tween<Offset>(
-            begin: const Offset(0.06, 0),
+            begin: Offset(0.12 * _slideDir, 0),
             end: Offset.zero,
           ).animate(animation);
+          final scale = Tween<double>(begin: 0.97, end: 1.0)
+              .animate(animation);
           return FadeTransition(
             opacity: animation,
-            child: SlideTransition(position: slide, child: child),
+            child: SlideTransition(
+              position: slide,
+              child: ScaleTransition(scale: scale, child: child),
+            ),
           );
         },
         child: IndexedStack(
@@ -782,7 +801,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: _KhorchaBottomBar(
         index: _index,
-        onTap: (i) => setState(() => _index = i),
+        onTap: _goTo,
       ),
     );
   }
@@ -819,6 +838,7 @@ class _KhorchaBottomBar extends StatelessWidget {
             _navItem(context, 1, Icons.history_outlined, Icons.history,
                 tr(context, 'nav_history'), selected, unselected),
             // Big gold center Add button, raised above the bar.
+            // Pops with a spring when its tab becomes active.
             Expanded(
               child: GestureDetector(
                 onTap: () => onTap(2),
@@ -828,7 +848,14 @@ class _KhorchaBottomBar extends StatelessWidget {
                   children: [
                     Transform.translate(
                       offset: const Offset(0, -14),
-                      child: Container(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(
+                            begin: 1.0, end: index == 2 ? 1.12 : 1.0),
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.elasticOut,
+                        builder: (ctx, scale, child) =>
+                            Transform.scale(scale: scale, child: child),
+                        child: Container(
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
@@ -855,6 +882,7 @@ class _KhorchaBottomBar extends StatelessWidget {
                           Icons.add,
                           size: 32,
                           color: kDeepGreenDark,
+                        ),
                         ),
                       ),
                     ),
@@ -901,24 +929,45 @@ class _KhorchaBottomBar extends StatelessWidget {
         onTap: () => onTap(i),
         behavior: HitTestBehavior.opaque,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isSel ? activeIcon : icon,
-                size: 24,
-                color: isSel ? selected : unselected,
+              // Bouncy icon pop + soft pill glow on select.
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.85, end: isSel ? 1.15 : 1.0),
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.elasticOut,
+                builder: (ctx, scale, child) =>
+                    Transform.scale(scale: scale, child: child),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: isSel
+                        ? selected.withValues(alpha: 0.14)
+                        : Colors.transparent,
+                  ),
+                  child: Icon(
+                    isSel ? activeIcon : icon,
+                    size: 24,
+                    color: isSel ? selected : unselected,
+                  ),
+                ),
               ),
               const SizedBox(height: 3),
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
+                style: theme.textTheme.labelSmall!.copyWith(
                   color: isSel ? selected : unselected,
                   fontWeight:
                       isSel ? FontWeight.bold : FontWeight.w500,
                   fontSize: 11,
                 ),
+                child: Text(label),
               ),
             ],
           ),
