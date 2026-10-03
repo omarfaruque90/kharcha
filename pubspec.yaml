@@ -41,7 +41,7 @@ dependencies:
   crypto: ^3.0.7 # SHA-256 PIN hashing
   pdf: ^3.13.1
   excel: ^4.0.6
-  share_plus: ^13.3.1
+  share_plus: ^12.0.0
   file_picker: ^8.3.7
   package_info_plus: ^9.0.1 # current version for update checks
   open_filex: ^4.7.0 # trigger APK install (ships its own FileProvider)
