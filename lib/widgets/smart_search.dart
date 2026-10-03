@@ -37,6 +37,14 @@ import 'motion.dart';
 class SmartSearch extends StatefulWidget {
   const SmartSearch({super.key});
 
+  /// Clears all saved search history (used from Settings).
+  static Future<void> clearHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('recent_searches');
+    } catch (_) {}
+  }
+
   @override
   State<SmartSearch> createState() => _SmartSearchState();
 }
@@ -44,14 +52,6 @@ class SmartSearch extends StatefulWidget {
 class _SmartSearchState extends State<SmartSearch> {
   static const _recentKey = 'recent_searches';
   static const _maxRecent = 8;
-
-  /// Clears all saved search history (used from Settings).
-  static Future<void> clearHistory() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_recentKey);
-    } catch (_) {}
-  }
 
   final _controller = TextEditingController();
   ParsedQuery? _query;
