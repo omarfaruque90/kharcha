@@ -91,8 +91,8 @@ class QuickAddNotification {
   /// confirmation). Best-effort.
   static Future<void> hide() async {
     try {
-      await _plugin.cancel(_notifId);
-      await _plugin.cancel(_confirmId);
+      await _plugin.cancel(id: _notifId);
+      await _plugin.cancel(id: _confirmId);
     } catch (_) {}
   }
 

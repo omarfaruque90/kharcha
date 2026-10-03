@@ -29,7 +29,6 @@ import 'services/carry_forward_service.dart';
 import 'services/challenge_service.dart';
 import 'services/currency_service.dart';
 import 'services/daily_limit_service.dart';
-import 'services/geofence_service.dart';
 import 'services/home_widget_service.dart';
 import 'services/monthly_report_service.dart';
 import 'services/notification_center.dart';

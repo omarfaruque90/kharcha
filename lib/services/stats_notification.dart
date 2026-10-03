@@ -167,7 +167,7 @@ class StatsNotification {
   /// Cancels the ongoing stats notification, if any. Best-effort.
   static Future<void> cancel() async {
     try {
-      await _plugin.cancel(notifId);
+      await _plugin.cancel(id: notifId);
     } catch (_) {}
   }
 

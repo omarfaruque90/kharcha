@@ -473,7 +473,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     // Keep the photo as the receipt attachment too.
     setState(() => _receiptPath = picked.path);
     try {
-      final result = await OcrService.scanBillAmount(file);
+      final result = await OcrService.scanBillAmount(picked);
       if (!mounted) return;
       final amount = result?['amount'] as double?;
       if (amount != null) {
