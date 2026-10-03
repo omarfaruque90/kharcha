@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../main.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
@@ -20,7 +21,9 @@ import 'recurring_screen.dart';
 import 'reminder_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onAddPressed;
+
+  const HomeScreen({super.key, this.onAddPressed});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -83,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Row(
               children: [
                 Expanded(
@@ -96,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: StaggeredEntrance(
                     delayMs: 90,
@@ -107,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: StaggeredEntrance(
                     delayMs: 180,
@@ -122,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: StaggeredEntrance(
               delayMs: 240,
               child: _BalanceCard(
@@ -139,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const SizedBox.shrink();
               }
               return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: StaggeredEntrance(
                   delayMs: 300,
                   child: _MonthlyBudgetProgress(
@@ -151,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -159,17 +162,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   tr(context, 'money_tools'),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
               ],
             ),
           ),
           SizedBox(
-            height: 88,
+            height: 104,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               children: [
                 _MoneyShortcut(
                   icon: Icons.account_balance_wallet_outlined,
@@ -229,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
@@ -244,11 +249,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            height: 46,
+            height: 52,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
@@ -279,24 +284,48 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.receipt_long_outlined,
-                          size: 56,
-                          color: theme.colorScheme.outline,
+                        Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_outlined,
+                            size: 44,
+                            color: theme.colorScheme.primary,
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Text(
                           tr(context, 'no_expenses'),
-                          style: theme.textTheme.titleMedium,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 40),
                           child: Text(
                             tr(context, 'no_expenses_sub'),
-                            style: theme.textTheme.bodySmall,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                             textAlign: TextAlign.center,
                           ),
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: widget.onAddPressed,
+                          icon: const Icon(Icons.add),
+                          label: Text(tr(context, 'add_expense')),
                         ),
                       ],
                     ),
@@ -316,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Padding(
                               padding:
-                                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                                  const EdgeInsets.fromLTRB(20, 16, 20, 6),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -326,6 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: theme.textTheme.titleSmall
                                         ?.copyWith(
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
                                   Text(
@@ -333,6 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: theme.textTheme.titleSmall
                                         ?.copyWith(
                                       fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.4,
                                       color: theme.colorScheme.primary,
                                     ),
                                   ),
@@ -352,7 +383,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Full-width monthly balance card (income − expense), gold-accented.
+/// Full-width monthly balance card (income − expense): rich deep-green
+/// hero with gold accents and large elegant balance typography.
 class _BalanceCard extends StatelessWidget {
   final double balance;
 
@@ -362,35 +394,48 @@ class _BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return BrandGradientCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+              color: kGold.withValues(alpha: 0.18),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: kGold.withValues(alpha: 0.45),
+              ),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.account_balance_wallet,
-              color: theme.colorScheme.onSecondaryContainer,
-              size: 22,
+              color: kGold,
+              size: 26,
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            tr(context, 'balance_title'),
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            formatMoney(balance),
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSecondaryContainer,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(context, 'balance_title'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.6,
+                    color: kGoldLight.withValues(alpha: 0.9),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  formatMoney(balance),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -417,20 +462,29 @@ class _MonthlyBudgetProgress extends StatelessWidget {
     final over = spent > limit;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.savings_outlined,
-                    size: 20, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.savings_outlined,
+                      size: 18, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     tr(context, 'monthly_budget'),
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 0.6,
                     ),
                   ),
                 ),
@@ -438,17 +492,18 @@ class _MonthlyBudgetProgress extends StatelessWidget {
                   '${formatMoney(spent)} / ${formatMoney(limit)}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
                     color: over ? theme.colorScheme.error : null,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: ratio,
-                minHeight: 8,
+                minHeight: 10,
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   over ? theme.colorScheme.error : theme.colorScheme.primary,
@@ -481,17 +536,27 @@ class _MoneyShortcut extends StatelessWidget {
       onTap: onTap,
       child: Card(
         child: Container(
-          width: 104,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          width: 108,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: theme.colorScheme.primary, size: 26),
-              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color:
+                      theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                    icon, color: theme.colorScheme.primary, size: 24),
+              ),
+              const SizedBox(height: 8),
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 0.2,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,

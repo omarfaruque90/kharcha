@@ -354,11 +354,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     controller: _amountCtrl,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                     decoration: InputDecoration(
                       labelText: tr(context, 'amount'),
                       hintText: tr(context, 'amount_hint'),
                       prefixText: '৳ ',
+                      prefixStyle:
+                          theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
                       border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 18),
                     ),
                     validator: validateAmount,
                   ),
@@ -416,11 +427,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            Text(
-              tr(context, 'category'),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
+            _sectionLabel(context, tr(context, 'category')),
+            const SizedBox(height: 10),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -436,7 +444,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 final c = kCategories[i];
                 final selected = _categoryId == c.id;
                 return InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () => setState(() => _categoryId = c.id),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
@@ -448,7 +456,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                     transformAlignment: Alignment.center,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       color: selected
                           ? c.color.withValues(alpha: 0.18)
                           : theme.colorScheme.surfaceContainerHighest,
@@ -463,8 +471,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           color: selected
                               ? c.color.withValues(alpha: 0.35)
                               : Colors.transparent,
-                          blurRadius: selected ? 8 : 0,
-                          offset: const Offset(0, 2),
+                          blurRadius: selected ? 10 : 0,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -517,21 +525,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              tr(context, 'payment_method'),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
+            _sectionLabel(context, tr(context, 'payment_method')),
+            const SizedBox(height: 10),
             PaymentSelector(
               value: _payment,
               onChanged: (value) => setState(() => _payment = value),
             ),
             const SizedBox(height: 16),
-            Text(
-              tr(context, 'receipt_photo'),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
+            _sectionLabel(context, tr(context, 'receipt_photo')),
+            const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -624,12 +626,35 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             const SizedBox(height: 24),
             PressableScale(
               pressedScale: 0.97,
-              child: FilledButton.icon(
-                onPressed: () => _save(lang),
-                icon: const Icon(Icons.check),
-                label: Text(tr(context, 'save')),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [kGoldLight, kGold, kGoldDark],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kGold.withValues(alpha: 0.4),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: FilledButton.icon(
+                  onPressed: () => _save(lang),
+                  icon: const Icon(Icons.check),
+                  label: Text(tr(context, 'save')),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -686,6 +711,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
   }
+
+  /// Premium section header: small caps gold, letterspaced.
+  Widget _sectionLabel(BuildContext context, String text) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.2,
+        color: dark ? kGoldLight : kGoldDark,
+      ),
+    );
+  }
 }
 
 /// Small square icon button used next to the amount field (calculator
@@ -707,16 +746,24 @@ class _IconSquare extends StatelessWidget {
     return PressableScale(
       onTap: onTap,
       child: Container(
-        width: 52,
-        height: 52,
+        width: 56,
+        height: 56,
         decoration: BoxDecoration(
           color: active
               ? kGold
               : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: active ? kGold : kGold.withValues(alpha: 0.55),
           ),
+          boxShadow: [
+            if (active)
+              BoxShadow(
+                color: kGold.withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+          ],
         ),
         child: Icon(
           icon,

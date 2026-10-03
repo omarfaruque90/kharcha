@@ -79,8 +79,10 @@ class ExpenseTile extends StatelessWidget {
           subtitle: Text(subtitle.toString()),
           trailing: Text(
             formatMoney(expense.amount),
-            style: theme.textTheme.titleSmall?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+              color: theme.colorScheme.primary,
             ),
           ),
           onTap: () {

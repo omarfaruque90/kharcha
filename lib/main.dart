@@ -120,6 +120,132 @@ ColorScheme _brandScheme(Brightness brightness) {
   );
 }
 
+/// Shared premium fintech theme: gold primary buttons, gold focused
+/// inputs, gold selected chips, deep-green app bars with gold titles.
+ThemeData _buildTheme(Brightness brightness) {
+  final scheme = _brandScheme(brightness);
+  final dark = brightness == Brightness.dark;
+  final goldText = dark ? kGoldLight : kGoldDark;
+  return ThemeData(
+    colorScheme: scheme,
+    useMaterial3: true,
+    cardTheme: CardThemeData(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+    ),
+    appBarTheme: AppBarTheme(
+      centerTitle: false,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.4,
+        color: dark ? kGold : kDeepGreen,
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      side: BorderSide(color: kGold.withValues(alpha: dark ? 0.45 : 0.6)),
+      selectedColor: kGold,
+      checkmarkColor: kDeepGreenDark,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      secondaryLabelStyle: const TextStyle(
+        color: kDeepGreenDark,
+        fontWeight: FontWeight.bold,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: kGold,
+        foregroundColor: kDeepGreenDark,
+        disabledBackgroundColor: kGold.withValues(alpha: 0.35),
+        disabledForegroundColor: kDeepGreenDark.withValues(alpha: 0.6),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          letterSpacing: 0.3,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: kGold.withValues(alpha: 0.65)),
+        foregroundColor: goldText,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: dark
+          ? Colors.white.withValues(alpha: 0.04)
+          : kDeepGreen.withValues(alpha: 0.05),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+        borderSide: BorderSide(color: kGold, width: 2),
+      ),
+      floatingLabelStyle: TextStyle(
+        color: goldText,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+      ),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      indicatorColor: Color(0x47D4AF37),
+    ),
+    dialogTheme: const DialogThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+    dividerTheme: DividerThemeData(
+      color: kGold.withValues(alpha: 0.25),
+      thickness: 1,
+    ),
+  );
+}
+
 class KharchaApp extends StatelessWidget {
   const KharchaApp({super.key});
 
@@ -142,77 +268,8 @@ class KharchaApp extends StatelessWidget {
         Locale('bn'),
         Locale('en'),
       ],
-      theme: ThemeData(
-        colorScheme: _brandScheme(Brightness.light),
-        useMaterial3: true,
-        // --- Kharcha brand polish (shared by every screen) ---
-        cardTheme: CardThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        dialogTheme: const DialogThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        dividerTheme: DividerThemeData(
-          color: kGold.withValues(alpha: 0.25),
-          thickness: 1,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: _brandScheme(Brightness.dark),
-        useMaterial3: true,
-        cardTheme: CardThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        dialogTheme: const DialogThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        dividerTheme: DividerThemeData(
-          color: kGold.withValues(alpha: 0.25),
-          thickness: 1,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
       themeMode: settings.themeMode,
       home: const SplashScreen(),
     );
@@ -403,6 +460,7 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   void _goHome() => setState(() => _index = 0);
+  void _goAdd() => setState(() => _index = 1);
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +483,7 @@ class _MainShellState extends State<MainShell> {
           key: ValueKey<int>(_index),
           index: _index,
           children: [
-            const HomeScreen(),
+            HomeScreen(onAddPressed: _goAdd),
             AddExpenseScreen(onSaved: _goHome),
             const ReportsScreen(),
             const SettingsScreen(),
