@@ -375,7 +375,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
         (action.amount == null || action.amount! <= 0)) {
       return tr(context, 'ai_amount_missing');
     }
-    final totalBalance = context.read<TotalBalanceProvider>();
     try {
       final expenses = context.read<ExpenseProvider>();
       final money = context.read<MoneyProvider>();
@@ -481,7 +480,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final noAmountTpl = tr(context, 'ai_bill_no_amount');
     final failedTpl = tr(context, 'ai_bill_failed');
     final expenses = context.read<ExpenseProvider>();
-    final totalBalance = context.read<TotalBalanceProvider>();
     String reply;
     try {
       final result = await OcrService.scanBillAmount(file);
