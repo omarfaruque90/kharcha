@@ -4,7 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.widget.RemoteViews
-import com.dergo.homewidget.HomeWidgetPlugin
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 /**
  * Home-screen widget for Khorcha: shows today's spending, this month's
