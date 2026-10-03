@@ -95,13 +95,13 @@ class KharchaApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        dialogTheme: DialogThemeData(
-          shape: const RoundedRectangleBorder(
+        dialogTheme: const DialogThemeData(
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
         ),
-        bottomSheetTheme: BottomSheetThemeData(
-          shape: const RoundedRectangleBorder(
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.vertical(top: Radius.circular(20)),
           ),
@@ -130,13 +130,13 @@ class KharchaApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        dialogTheme: DialogThemeData(
-          shape: const RoundedRectangleBorder(
+        dialogTheme: const DialogThemeData(
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
         ),
-        bottomSheetTheme: BottomSheetThemeData(
-          shape: const RoundedRectangleBorder(
+        bottomSheetTheme: const BottomSheetThemeData(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.vertical(top: Radius.circular(20)),
           ),
