@@ -93,7 +93,8 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                 final dipX =
                     xFor(i0) * (1 - frac) + xFor(i0 + 1) * frac;
 
-                return SizedBox(
+                return RepaintBoundary(
+                  child: SizedBox(
                   height: barH + 56,
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -152,7 +153,8 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                       ),
                     ],
                   ),
-                );
+                ),
+              );
               },
             );
           },

@@ -246,7 +246,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ));
       // Animated success check, then reset and go home.
       setState(() => _showSuccess = true);
-      await Future.delayed(const Duration(milliseconds: 950));
+      await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       setState(() => _showSuccess = false);
       _amountCtrl.clear();
