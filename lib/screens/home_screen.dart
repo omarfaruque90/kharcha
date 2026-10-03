@@ -20,7 +20,6 @@ import 'achievements_screen.dart';
 import 'budget_planner_screen.dart';
 import 'budget_screen.dart';
 import 'calendar_screen.dart';
-import 'cash_screen.dart';
 import 'goals_screen.dart';
 import 'leaderboard_screen.dart';
 import 'notes_screen.dart';
@@ -249,15 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const LeaderboardScreen()),
-                      ),
-                    ),
-                    _QuickShortcut(
-                      icon: Icons.wallet_outlined,
-                      labelKey: 'cash_title',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const CashScreen()),
                       ),
                     ),
                     _QuickShortcut(

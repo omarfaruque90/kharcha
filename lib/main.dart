@@ -768,17 +768,24 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 320),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
+        duration: const Duration(milliseconds: 420),
+        reverseDuration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutQuint,
+        switchOutCurve: Curves.easeInQuint,
+        layoutBuilder: (currentChild, previousChildren) => Stack(
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        ),
         transitionBuilder: (Widget child, Animation<double> animation) {
-          // Direction-aware: new tab slides in from the side it was
-          // tapped from, with a soft fade + subtle scale for depth.
+          // Direction-aware: new tab glides in from the tapped side,
+          // buttery fade + gentle scale for depth.
           final slide = Tween<Offset>(
-            begin: Offset(0.12 * _slideDir, 0),
+            begin: Offset(0.10 * _slideDir, 0),
             end: Offset.zero,
           ).animate(animation);
-          final scale = Tween<double>(begin: 0.97, end: 1.0)
+          final scale = Tween<double>(begin: 0.98, end: 1.0)
               .animate(animation);
           return FadeTransition(
             opacity: animation,
