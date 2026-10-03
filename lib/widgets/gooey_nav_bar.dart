@@ -25,7 +25,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   late final AnimationController _ctrl;
   late Animation<double> _pos; // fractional tab position 0..4
 
-  static const _duration = Duration(milliseconds: 550);
+  static const _duration = Duration(milliseconds: 350);
 
   @override
   void initState() {
@@ -35,7 +35,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
       begin: widget.index.toDouble(),
       end: widget.index.toDouble(),
     ).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic));
+        CurvedAnimation(parent: _ctrl, curve: Curves.fastOutSlowIn));
   }
 
   @override
@@ -44,7 +44,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
     if (old.index != widget.index) {
       _pos = Tween<double>(begin: _pos.value, end: widget.index.toDouble())
           .animate(
-              CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic));
+              CurvedAnimation(parent: _ctrl, curve: Curves.fastOutSlowIn));
       _ctrl.forward(from: 0);
     }
   }
@@ -205,7 +205,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
     return TweenAnimationBuilder<double>(
       key: ValueKey('bubble-$index'),
       tween: Tween(begin: 0.6, end: 1.0),
-      duration: const Duration(milliseconds: 380),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.elasticOut,
       builder: (ctx, scale, child) =>
           Transform.scale(scale: scale, child: child),

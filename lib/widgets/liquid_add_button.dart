@@ -54,21 +54,28 @@ class _LiquidAddButtonState extends State<LiquidAddButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
+              // Strong halo like the reference image.
               BoxShadow(
-                color: const Color(0xFFB6C8FF)
-                    .withValues(alpha: widget.active ? 0.75 : 0.5),
-                blurRadius: widget.active ? 26 : 18,
-                spreadRadius: 2,
+                color: Colors.white.withValues(alpha: 0.55),
+                blurRadius: 22,
+                spreadRadius: 4,
               ),
               BoxShadow(
-                color: Colors.white.withValues(alpha: 0.6),
-                blurRadius: 6,
-                spreadRadius: -2,
+                color: const Color(0xFFB6C8FF)
+                    .withValues(alpha: widget.active ? 0.85 : 0.6),
+                blurRadius: widget.active ? 32 : 24,
+                spreadRadius: 3,
+              ),
+              BoxShadow(
+                color: const Color(0xFFFFAECB)
+                    .withValues(alpha: 0.35),
+                blurRadius: 40,
+                spreadRadius: 6,
               ),
             ],
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.7),
-              width: 2,
+              color: Colors.white.withValues(alpha: 0.85),
+              width: 2.5,
             ),
           ),
           child: ClipOval(
