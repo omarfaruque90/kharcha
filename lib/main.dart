@@ -188,7 +188,13 @@ ThemeData _buildTheme(Brightness brightness) {
       side: BorderSide(color: kGold.withValues(alpha: dark ? 0.45 : 0.6)),
       selectedColor: kGold,
       checkmarkColor: kDeepGreenDark,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      // Unselected chip text: explicit color, otherwise it can resolve
+      // to white on the light background in light mode.
+      labelStyle: TextStyle(
+        fontWeight: FontWeight.w500,
+        color: dark ? Colors.white : kDeepGreenDark,
+      ),
+      // Selected chip text sits on the gold background.
       secondaryLabelStyle: const TextStyle(
         color: kDeepGreenDark,
         fontWeight: FontWeight.bold,
