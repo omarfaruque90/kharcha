@@ -41,7 +41,7 @@ class LlmConfig {
   static const String bundledProvider =
       String.fromEnvironment('LLM_PROVIDER', defaultValue: 'gemini');
   static const String bundledModel =
-      String.fromEnvironment('LLM_MODEL', defaultValue: 'gemini-2.5-flash');
+      String.fromEnvironment('LLM_MODEL', defaultValue: 'gemini-3.8-flash');
 
   /// The key actually used: Settings override first, then bundled key.
   String get effectiveKey =>
@@ -59,11 +59,11 @@ class LlmConfig {
 
   String get effectiveModel {
     if (apiKey.trim().isEmpty) {
-      return bundledModel.isNotEmpty ? bundledModel : 'gemini-2.5-flash';
+      return bundledModel.isNotEmpty ? bundledModel : 'gemini-3.8-flash';
     }
     if (model.trim().isNotEmpty) return model.trim();
     final p = provider.trim().isNotEmpty ? provider.trim() : 'gemini';
-    return p == 'openai' ? 'gpt-4o-mini' : 'gemini-2.5-flash';
+    return p == 'openai' ? 'gpt-4o-mini' : 'gemini-3.8-flash';
   }
 
   String get effectiveBaseUrl {

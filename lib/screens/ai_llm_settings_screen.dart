@@ -236,7 +236,7 @@ class _AiLlmSettingsScreenState extends State<AiLlmSettingsScreen> {
                       labelText: tr(context, 'ai_cfg_model'),
                       hintText: _provider == 'openai'
                           ? 'gpt-4o-mini'
-                          : 'gemini-2.5-flash',
+                          : 'gemini-3.8-flash',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.model_training_outlined),
                     ),
