@@ -607,7 +607,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : '')));
 
     final tiles = <Widget>[
-          // ── Account ──
+          // ── Account: profile + name only (logout moves below About) ──
           if (user != null) ...[
             _sectionHeader(context, 'account_section'),
             ListTile(
@@ -618,11 +618,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               title: Text(userLabel ?? tr(context, 'auth_account')),
               subtitle: Text(tr(context, 'profile_title')),
-              trailing: IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: tr(context, 'auth_logout'),
-                onPressed: () => _confirmLogout(context),
-              ),
               onTap: () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -1050,6 +1045,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
+          // ── Logout: outside any section, below About ──
+          if (user != null) ...[
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmLogout(context),
+                icon: const Icon(Icons.logout),
+                label: Text(tr(context, 'auth_logout')),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .error
+                        .withValues(alpha: 0.5),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
     ];
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'nav_settings'))),
