@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
@@ -6,7 +8,7 @@ import '../services/profile_service.dart';
 import '../widgets/motion.dart';
 
 /// Shows the signed-in user's profile: avatar, name, email, and a
-/// change-photo flow backed by Firebase Storage.
+/// change-photo flow backed by a Firestore thumbnail (no Storage needed).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -16,23 +18,60 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploading = false;
-  String? _avatarUrl;
+  bool _loading = true;
+  String? _avatarThumb;
 
   @override
   void initState() {
     super.initState();
-    _avatarUrl = ProfileService.instance.avatarUrl;
+    _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    final thumb = await ProfileService.instance.getAvatarThumb();
+    if (!mounted) return;
+    setState(() {
+      _avatarThumb = thumb;
+      _loading = false;
+    });
+  }
+
+  ImageProvider? get _avatarImage {
+    if (_avatarThumb == null || _avatarThumb!.isEmpty) return null;
+    try {
+      return MemoryImage(base64Decode(_avatarThumb!));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _changePhoto({required bool fromCamera}) async {
     if (_uploading) return;
     setState(() => _uploading = true);
     try {
-      final url =
-          await ProfileService.instance.pickAndUploadAvatar(fromCamera: fromCamera);
+      final ok = await ProfileService.instance
+          .pickAndSaveAvatar(fromCamera: fromCamera);
       if (!mounted) return;
-      if (url != null) {
-        setState(() => _avatarUrl = url);
+      if (ok) {
+        await _loadAvatar();
+        if (!mounted) return;
+        _snack(tr(context, 'profile_upload_done'));
+      } else {
+        _snack(tr(context, 'profile_upload_failed'));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    if (_uploading) return;
+    setState(() => _uploading = true);
+    try {
+      final ok = await ProfileService.instance.removeAvatar();
+      if (!mounted) return;
+      if (ok) {
+        setState(() => _avatarThumb = null);
         _snack(tr(context, 'profile_upload_done'));
       } else {
         _snack(tr(context, 'profile_upload_failed'));
@@ -50,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickSource() async {
+    final hasAvatar = _avatarThumb != null && _avatarThumb!.isNotEmpty;
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -66,12 +106,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(tr(ctx, 'profile_choose_gallery')),
               onTap: () => Navigator.of(ctx).pop('gallery'),
             ),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: Text(tr(ctx, 'profile_remove_photo')),
+                onTap: () => Navigator.of(ctx).pop('remove'),
+              ),
           ],
         ),
       ),
     );
     if (choice == null || !mounted) return;
-    await _changePhoto(fromCamera: choice == 'camera');
+    if (choice == 'remove') {
+      await _removePhoto();
+    } else {
+      await _changePhoto(fromCamera: choice == 'camera');
+    }
   }
 
   @override
@@ -86,6 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? displayName[0].toUpperCase()
         : '?';
     final isGuest = user?.isAnonymous == true;
+    final avatarImage = _avatarImage;
 
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'profile_title'))),
@@ -98,13 +149,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 56,
-                    backgroundImage:
-                        _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                    child: _avatarUrl == null
-                        ? Text(initial,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium)
+                    backgroundImage: avatarImage,
+                    child: (_loading || avatarImage == null)
+                        ? (_loading
+                            ? const SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 3),
+                              )
+                            : Text(initial,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium))
                         : null,
                   ),
                   if (_uploading)
@@ -118,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           Center(
             child: FilledButton.tonalIcon(
-              onPressed: isGuest ? null : _pickSource,
+              onPressed: (isGuest || _uploading) ? null : _pickSource,
               icon: const Icon(Icons.edit),
               label: Text(
                 _uploading

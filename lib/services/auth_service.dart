@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'profile_service.dart';
+
 /// Authentication error with a stable [code] plus Bangla/English messages.
 class AuthException implements Exception {
   final String code;
@@ -212,6 +214,8 @@ class AuthService {
       }
     }
     await _auth.signOut();
+    // Drop the cached avatar so the next account doesn't see a stale photo.
+    ProfileService.instance.clearCache();
   }
 
   /// Normalizes a Bangladeshi phone number to E.164 (+880...).

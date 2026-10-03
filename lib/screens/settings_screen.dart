@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/backup_service.dart';
 import '../services/export_service.dart';
 import '../services/lock_service.dart';
+import '../services/profile_service.dart';
 import '../services/sync_service.dart';
 import '../services/update_service.dart';
 import 'lock_screen.dart';
@@ -26,6 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _bioSupported = false;
   String _appVersion = '';
   bool _busy = false;
+  final GlobalKey<_SettingsAvatarState> _avatarKey =
+      GlobalKey<_SettingsAvatarState>();
 
   @override
   void initState() {
@@ -220,16 +225,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           if (user != null) ...[
             ListTile(
-              leading: CircleAvatar(
-                backgroundImage: (user.photoURL?.isNotEmpty == true)
-                    ? NetworkImage(user.photoURL!)
-                    : null,
-                child: (user.photoURL?.isNotEmpty == true)
-                    ? null
-                    : Text(
-                        (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
-                            .toUpperCase(),
-                      ),
+              leading: _SettingsAvatar(
+                key: _avatarKey,
+                initial: (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
+                    .toUpperCase(),
               ),
               title: Text(userLabel ?? tr(context, 'auth_account')),
               subtitle: Text(tr(context, 'profile_title')),
@@ -243,6 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 );
                 // Refresh the avatar in case the photo was changed.
+                _avatarKey.currentState?.refresh();
                 if (mounted) setState(() {});
               },
             ),
@@ -380,6 +380,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Avatar circle for the settings profile row. Loads the Firestore thumbnail
+/// (cached in [ProfileService]) and falls back to the user's initial.
+class _SettingsAvatar extends StatefulWidget {
+  final String initial;
+  const _SettingsAvatar({super.key, required this.initial});
+
+  @override
+  State<_SettingsAvatar> createState() => _SettingsAvatarState();
+}
+
+class _SettingsAvatarState extends State<_SettingsAvatar> {
+  String? _thumb;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final thumb = await ProfileService.instance.getAvatarThumb();
+    if (mounted) setState(() => _thumb = thumb);
+  }
+
+  /// Re-fetch after returning from [ProfileScreen].
+  void refresh() => _load();
+
+  @override
+  Widget build(BuildContext context) {
+    ImageProvider? image;
+    if (_thumb != null && _thumb!.isNotEmpty) {
+      try {
+        image = MemoryImage(base64Decode(_thumb!));
+      } catch (_) {
+        image = null;
+      }
+    }
+    return CircleAvatar(
+      backgroundImage: image,
+      child: image == null ? Text(widget.initial) : null,
     );
   }
 }
