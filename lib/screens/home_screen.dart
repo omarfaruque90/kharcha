@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
-import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../db/database_helper.dart';
