@@ -986,11 +986,17 @@ class DatabaseHelper {
   }
 
   /// Inserts a user-created category. Returns the new id.
+  /// NOTE: direct insert (not _insertRecord) — this table has no
+  /// `updatedAt` column because custom categories are local-only (no sync).
   Future<String> insertCustomCategory(String name, String emoji) async {
-    return _insertRecord('custom_categories', {
+    final db = await database;
+    final id = const Uuid().v4();
+    await db.insert('custom_categories', {
+      'id': id,
       'name': name.trim(),
       'emoji': emoji.trim(),
     });
+    return id;
   }
 
   Future<int> deleteCustomCategory(String id) async {

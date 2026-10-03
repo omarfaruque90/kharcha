@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
@@ -39,16 +38,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _amountCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
-  final SpeechToText _speech = SpeechToText();
-  bool _speechReady = false;
-  String _partialWords = '';
 
   String _categoryId = 'food';
   DateTime _date = DateTime.now();
   String _payment = 'cash';
   String? _receiptPath;
   bool _showCalculator = false;
-  bool _listening = false;
   bool _showSuccess = false;
   bool _scanning = false;
   List<CustomCategory> _customCats = [];
@@ -82,7 +77,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
-    _speech.stop();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
@@ -312,128 +306,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  Future<void> _toggleVoice(String lang) async {
-    if (_listening) {
-      await _speech.stop();
-      if (mounted && _listening) {
-        setState(() {
-          _listening = false;
-          _partialWords = '';
-        });
-      }
-      return;
-    }
-    // Initialize the speech engine only once and reuse it — initializing
-    // on every tap was the main source of the mic "lag".
-    if (!_speechReady) {
-      try {
-        _speechReady = await _speech.initialize(
-          onStatus: (status) {
-            if ((status == 'done' || status == 'notListening') &&
-                mounted &&
-                _listening) {
-              setState(() {
-                _listening = false;
-                _partialWords = '';
-              });
-            }
-          },
-          onError: (_) {
-            if (mounted && _listening) {
-              setState(() {
-                _listening = false;
-                _partialWords = '';
-              });
-            }
-          },
-        );
-      } catch (_) {
-        _speechReady = false;
-      }
-    }
-    if (!_speechReady) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.get('voice_unavailable', lang))),
-      );
-      return;
-    }
-    if (!mounted) return;
-    setState(() {
-      _listening = true;
-      _partialWords = '';
-    });
-    try {
-      // listen() resolves once recognition starts; results arrive via
-      // onResult and the session end via the onStatus handler above.
-      // partialResults + short pauseFor keep the UI feeling instant.
-      await _speech.listen(
-        onResult: (result) {
-          if (!mounted) return;
-          if (result.finalResult) {
-            _applyVoiceText(result.recognizedWords, lang);
-            if (_listening) {
-              setState(() {
-                _listening = false;
-                _partialWords = '';
-              });
-            }
-          } else if (_listening) {
-            setState(() => _partialWords = result.recognizedWords);
-          }
-        },
-        listenOptions: SpeechListenOptions(
-          listenFor: const Duration(seconds: 30),
-          pauseFor: const Duration(seconds: 2),
-          partialResults: true,
-        ),
-      );
-    } catch (_) {
-      if (mounted && _listening) {
-        setState(() {
-          _listening = false;
-          _partialWords = '';
-        });
-      }
-    }
-  }
-
-  /// First spoken number → amount field (Bangla ০১২৩৪৫৬৭৮৯ and English
-  /// digits both supported); the remaining words → note field.
-  void _applyVoiceText(String text, String lang) {
-    if (text.trim().isEmpty) {
-      _voiceSnack(lang, 'voice_no_number');
-      return;
-    }
-    const bnDigits = '০১২৩৪৫৬৭৮৯';
-    final normalized = text.split('').map((ch) {
-      final idx = bnDigits.indexOf(ch);
-      return idx >= 0 ? String.fromCharCode(48 + idx) : ch;
-    }).join();
-    final match = RegExp(r'\d+(\.\d+)?').firstMatch(normalized);
-    if (match == null) {
-      _voiceSnack(lang, 'voice_no_number');
-      return;
-    }
-    _amountCtrl.text = match.group(0)!;
-    // Indices line up 1:1 (each Bangla digit maps to one ASCII digit), so
-    // the surrounding words are taken from the original text to keep
-    // their script.
-    final rest = '${text.substring(0, match.start)} ${text.substring(match.end)}'
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (rest.isNotEmpty) {
-      final current = _noteCtrl.text.trim();
-      _noteCtrl.text = current.isEmpty ? rest : '$current $rest';
-    }
-  }
-
-  void _voiceSnack(String lang, String key) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppStrings.get(key, lang))),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -501,9 +373,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(width: 8),
                 _IconSquare(
-                  icon: _listening ? Icons.mic : Icons.mic_none_outlined,
-                  active: _listening,
-                  onTap: () => _toggleVoice(lang),
+                  icon: Icons.calendar_month_outlined,
+                  active: false,
+                  onTap: () => _pickDate(lang),
                 ),
               ],
               ),
@@ -517,34 +389,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ? value.toStringAsFixed(0)
                       : _trimDecimals(value);
                 },
-              ),
-            ],
-            if (_listening) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: Colors.red.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.mic, color: Colors.red, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _partialWords.isNotEmpty
-                            ? _partialWords
-                            : tr(context, 'voice_listening'),
-                        style:
-                            const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
             const SizedBox(height: 16),
@@ -764,6 +608,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
+                    // Dark text on the gold gradient stays readable in
+                    // both light and dark mode.
+                    foregroundColor: kDeepGreenDark,
+                    iconColor: kDeepGreenDark,
                     padding:
                         const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
