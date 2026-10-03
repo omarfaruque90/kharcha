@@ -173,11 +173,6 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            tooltip: lang == 'bn' ? 'English' : 'বাংলা',
-            icon: const Icon(Icons.translate),
-            onPressed: () => settings.setLanguage(lang == 'bn' ? 'en' : 'bn'),
-          ),
-          IconButton(
             tooltip: tr(context, 'ai_title'),
             icon: const Icon(Icons.smart_toy_outlined),
             onPressed: () => Navigator.push(
