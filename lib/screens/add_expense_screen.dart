@@ -463,7 +463,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Row(
+            StaggeredEntrance(
+              child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
@@ -505,6 +506,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   onTap: () => _toggleVoice(lang),
                 ),
               ],
+              ),
             ),
             if (_showCalculator) ...[
               const SizedBox(height: 12),
@@ -546,9 +548,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            _sectionLabel(context, tr(context, 'category')),
+            StaggeredEntrance(
+              delayMs: 60,
+              child: _sectionLabel(context, tr(context, 'category')),
+            ),
             const SizedBox(height: 10),
-            GridView.builder(
+            StaggeredEntrance(
+              delayMs: 90,
+              child: GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate:
@@ -590,9 +597,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 }
                 return _addCategoryTile();
               },
+              ),
             ),
             const SizedBox(height: 16),
-            ListTile(
+            StaggeredEntrance(
+              delayMs: 120,
+              child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(Icons.calendar_today),
               title: Text(tr(context, 'date')),
@@ -603,9 +613,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
+              ),
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            StaggeredEntrance(
+              delayMs: 180,
+              child: TextFormField(
               controller: _noteCtrl,
               maxLines: 2,
               decoration: InputDecoration(
@@ -613,16 +626,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 hintText: tr(context, 'note_hint'),
                 border: const OutlineInputBorder(),
               ),
+              ),
             ),
             const SizedBox(height: 16),
-            _sectionLabel(context, tr(context, 'payment_method')),
+            StaggeredEntrance(
+              delayMs: 240,
+              child: _sectionLabel(context, tr(context, 'payment_method')),
+            ),
             const SizedBox(height: 10),
-            PaymentSelector(
+            StaggeredEntrance(
+              delayMs: 270,
+              child: PaymentSelector(
               value: _payment,
               onChanged: (value) => setState(() => _payment = value),
+              ),
             ),
             const SizedBox(height: 16),
-            _sectionLabel(context, tr(context, 'receipt_photo')),
+            StaggeredEntrance(
+              delayMs: 300,
+              child: _sectionLabel(context, tr(context, 'receipt_photo')),
+            ),
             const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -714,7 +737,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            PressableScale(
+            StaggeredEntrance(
+              delayMs: 330,
+              child: PressableScale(
               pressedScale: 0.97,
               child: Container(
                 decoration: BoxDecoration(
@@ -746,6 +771,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           ],
