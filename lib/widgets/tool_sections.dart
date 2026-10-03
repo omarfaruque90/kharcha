@@ -161,6 +161,7 @@ class ToolTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const ToolTile({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
