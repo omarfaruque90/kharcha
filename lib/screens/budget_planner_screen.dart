@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/budget.dart';
 import '../models/category.dart';
