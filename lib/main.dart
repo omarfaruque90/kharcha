@@ -851,7 +851,7 @@ class _KhorchaBottomBar extends StatelessWidget {
                             width: 2,
                           ),
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.add,
                           size: 32,
                           color: kDeepGreenDark,
