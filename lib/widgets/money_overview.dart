@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
-import '../providers/expense_provider.dart';
 import '../providers/total_balance_provider.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
@@ -104,7 +103,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final expenses = context.watch<ExpenseProvider>();
     final tb = context.watch<TotalBalanceProvider>();
 
     final now = DateTime.now();
@@ -144,21 +142,7 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   child: CircularProgressIndicator(),
                 ))
               else ...[
-                // Total assets at top.
-                Text(
-                  tr(context, 'money_total'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  formatMoney(tb.total),
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                const Divider(height: 20),
+                const Divider(height: 8),
                 // Hand cash (editable via ledger adjustment).
                 _row(
                   context,
@@ -299,30 +283,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   value: tb.lentOut,
                   theme: theme,
                 ),
-                const Divider(height: 20),
-                // Today / this week / this month spending.
-                Row(
-                  children: [
-                    _spentStat(
-                      context,
-                      theme: theme,
-                      label: tr(context, 'money_today'),
-                      value: expenses.totalOn(now),
-                    ),
-                    _spentStat(
-                      context,
-                      theme: theme,
-                      label: tr(context, 'money_week'),
-                      value: expenses.totalThisWeek(),
-                    ),
-                    _spentStat(
-                      context,
-                      theme: theme,
-                      label: tr(context, 'money_month'),
-                      value: expenses.totalThisMonth(),
-                    ),
-                  ],
-                ),
               ],
             ],
           ),
@@ -369,35 +329,6 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _spentStat(
-    BuildContext context, {
-    required ThemeData theme,
-    required String label,
-    required double value,
-  }) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            formatMoney(value),
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.error,
-            ),
-          ),
         ],
       ),
     );
