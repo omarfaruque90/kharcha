@@ -123,51 +123,85 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     final nameCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
     final priceCtrl = TextEditingController();
+    String unit = 'pcs';
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr(ctx, 'shop_new_title')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(
-                labelText: tr(ctx, 'shop_name'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(tr(ctx, 'shop_new_title')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: tr(ctx, 'shop_name'),
+                ),
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: qtyCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      decoration: InputDecoration(
+                        labelText: tr(ctx, 'shop_qty'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<String>(
+                      value: unit,
+                      decoration: InputDecoration(
+                        labelText: tr(ctx, 'shop_unit'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'pcs', child: Text('pcs')),
+                        DropdownMenuItem(
+                            value: 'kg', child: Text('kg')),
+                        DropdownMenuItem(
+                            value: 'g', child: Text('g')),
+                        DropdownMenuItem(
+                            value: 'L', child: Text('L')),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => unit = v ?? 'pcs'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true),
+                decoration: InputDecoration(
+                  labelText:
+                      '${tr(ctx, 'amount')} (${tr(ctx, 'optional')})',
+                  prefixText: '৳ ',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(tr(ctx, 'cancel')),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: qtyCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: tr(ctx, 'shop_qty'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: tr(ctx, 'amount'),
-                prefixText: '৳ ',
-              ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(tr(ctx, 'save')),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(tr(ctx, 'cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(tr(ctx, 'save')),
-          ),
-        ],
       ),
     );
 
@@ -187,6 +221,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
         id: ShoppingItem.newId(),
         name: name,
         qty: qty <= 0 ? 1 : qty,
+        unit: unit,
         price: price < 0 ? 0 : price,
       ),
     );
@@ -315,8 +350,8 @@ class _ShoppingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${tr(context, 'shop_qty')}: ${_fmtQty(item.qty)} · '
-                  '${formatMoney(item.price * item.qty)}',
+                  '${_fmtQty(item.qty)} ${item.unit}'
+                  '${item.price > 0 ? ' · ${formatMoney(item.price * item.qty)}' : ''}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface
                         .withValues(alpha: 0.6),

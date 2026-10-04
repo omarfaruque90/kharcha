@@ -163,7 +163,7 @@ class DatabaseHelper {
     final path = p.join(dir.path, dbFileNameFor(_profile));
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
@@ -196,6 +196,10 @@ class DatabaseHelper {
         }
         if (oldVersion < 8) {
           await _createV8Tables(db);
+        }
+        if (oldVersion < 9) {
+          await db.execute(
+              "ALTER TABLE shopping_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'");
         }
       },
     );
@@ -456,6 +460,7 @@ class DatabaseHelper {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         qty REAL NOT NULL DEFAULT 1,
+        unit TEXT NOT NULL DEFAULT 'pcs',
         price REAL NOT NULL DEFAULT 0,
         done INTEGER NOT NULL DEFAULT 0,
         created INTEGER NOT NULL DEFAULT 0,
