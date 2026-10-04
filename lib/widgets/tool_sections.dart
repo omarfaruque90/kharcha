@@ -29,7 +29,6 @@ import '../screens/medical_screen.dart';
 import '../screens/converter_screen.dart';
 import '../screens/tip_screen.dart';
 import '../screens/budget_planner_screen.dart';
-import '../screens/ai_chat_screen.dart';
 import '../screens/leaderboard_screen.dart';
 import '../screens/public_templates_screen.dart';
 import '../screens/tax_helper_screen.dart';
@@ -104,8 +103,6 @@ List<ToolSection> toolSections() => [
         'tools_section_insights',
         Icons.insights_outlined,
         [
-          ToolDef(Icons.chat_bubble_outline, 'ai_title',
-              () => const AiChatScreen()),
           ToolDef(Icons.bar_chart_outlined, 'nav_reports',
               () => const ReportsScreen()),
         ],

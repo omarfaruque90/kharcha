@@ -16,7 +16,6 @@ import '../widgets/monthly_balance_card.dart';
 import '../widgets/motion.dart';
 import '../widgets/spending_insights.dart';
 import '../widgets/budget_forecast_card.dart';
-import 'ai_chat_screen.dart';
 import 'achievements_screen.dart';
 import 'budget_planner_screen.dart';
 import 'budget_screen.dart';
@@ -145,16 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               );
             },
-          ),
-          IconButton(
-            tooltip: tr(context, 'ai_title'),
-            icon: const Icon(Icons.smart_toy_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AiChatScreen(),
-              ),
-            ),
           ),
         ],
       ),
