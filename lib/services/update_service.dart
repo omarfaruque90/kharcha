@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import '../app_version.dart';
 import 'package:path/path.dart' as p;
@@ -14,7 +13,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
-import '../main.dart';
 
 /// Details of a newer GitHub release.
 class UpdateInfo {
@@ -318,7 +316,7 @@ class UpdateService {
               ),
               const SizedBox(height: 16),
               Text(
-                '${tr(dctx, 'update_title')}',
+                tr(dctx, 'update_title'),
                 style: Theme.of(dctx)
                     .textTheme
                     .headlineSmall
