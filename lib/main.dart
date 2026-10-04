@@ -920,9 +920,14 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
-      bottomNavigationBar: GooeyNavBar(
-        index: _index,
-        onTap: _goTo,
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          canvasColor: Colors.transparent,
+        ),
+        child: GooeyNavBar(
+          index: _index,
+          onTap: _goTo,
+        ),
       ),
       ),
     );

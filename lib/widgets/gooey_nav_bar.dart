@@ -80,9 +80,17 @@ class _GooeyNavBarState extends State<GooeyNavBar>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Tab items + sliding indicator — NO background bar,
-              // fully transparent, icons float directly.
+              // Dark pill bar (reference design) — clean, no border,
+              // no highlight, just the dark fill with center notch.
               Positioned.fill(
+                top: 18,
+                child: CustomPaint(
+                  painter: _PillBarPainter(),
+                ),
+              ),
+              // Tab items + sliding indicator.
+              Positioned.fill(
+                top: 18,
                 child: AnimatedBuilder(
                   animation: _pos,
                   builder: (ctx, _) {
@@ -408,4 +416,49 @@ class _AbstractLogoPainter extends CustomPainter {
   bool shouldRepaint(
           covariant _AbstractLogoPainter oldDelegate) =>
       oldDelegate.orbitAngle != orbitAngle;
+}
+
+/// Clean dark pill bar with center notch — no border, no highlight.
+class _PillBarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    const r = 30.0;
+    const notchW = 96.0;
+    const notchDepth = 26.0;
+    final cx = w / 2;
+
+    final path = Path();
+    path.moveTo(r, 0);
+    path.lineTo(cx - notchW / 2 - 14, 0);
+    path.cubicTo(
+      cx - notchW / 2 + 8, 0,
+      cx - notchW / 2 + 12, notchDepth,
+      cx, notchDepth,
+    );
+    path.cubicTo(
+      cx + notchW / 2 - 12, notchDepth,
+      cx + notchW / 2 - 8, 0,
+      cx + notchW / 2 + 14, 0,
+    );
+    path.lineTo(w - r, 0);
+    path.quadraticBezierTo(w, 0, w, r);
+    path.lineTo(w, h - r);
+    path.quadraticBezierTo(w, h, w - r, h);
+    path.lineTo(r, h);
+    path.quadraticBezierTo(0, h, 0, h - r);
+    path.lineTo(0, r);
+    path.quadraticBezierTo(0, 0, r, 0);
+    path.close();
+
+    // Solid dark fill only — no border, no highlight.
+    canvas.drawPath(
+      path,
+      Paint()..color = const Color(0xFF1E1E1E),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
