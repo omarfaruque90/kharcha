@@ -1,148 +1,143 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
-import '../l10n/app_strings.dart';
-
-/// Premium dark navbar — exact replica of the reference:
-/// floating dark pill with concave center notch, oversized royal-blue
-/// orb with abstract white logo, glowing neon-green sliding indicator,
-/// and fluid icon morph animations on tap. Transparent background.
+/// Bottom navigation bar matching the reference design exactly:
+/// dark pill bar, 5 tabs, large blue center orb breaking the top,
+/// white abstract logo, thin outline icons, green glowing indicator
+/// at the bottom edge under the active tab.
 class GooeyNavBar extends StatefulWidget {
   final int index;
   final ValueChanged<int> onTap;
 
-  const GooeyNavBar({super.key, required this.index, required this.onTap});
+  const GooeyNavBar({
+    super.key,
+    required this.index,
+    required this.onTap,
+  });
 
   @override
   State<GooeyNavBar> createState() => _GooeyNavBarState();
 }
 
 class _GooeyNavBarState extends State<GooeyNavBar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late Animation<double> _pos; // fractional tab position 0..4
-
-  static const _duration = Duration(milliseconds: 350);
+    with TickerProviderStateMixin {
+  late AnimationController _posCtrl;
+  late Animation<double> _pos;
+  double _currentPos = 0;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: _duration);
-    _pos = Tween<double>(
-      begin: widget.index.toDouble(),
-      end: widget.index.toDouble(),
-    ).animate(CurvedAnimation(
-        parent: _ctrl,
-        curve: Curves.elasticOut,
-        reverseCurve: Curves.fastOutSlowIn));
+    _currentPos = widget.index.toDouble();
+    _posCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _pos = Tween<double>(begin: _currentPos, end: _currentPos).animate(
+      CurvedAnimation(parent: _posCtrl, curve: Curves.easeOutQuint),
+    );
   }
 
   @override
-  void didUpdateWidget(GooeyNavBar old) {
-    super.didUpdateWidget(old);
-    if (old.index != widget.index) {
-      _pos = Tween<double>(begin: _pos.value, end: widget.index.toDouble())
-          .animate(CurvedAnimation(
-              parent: _ctrl,
-              curve: const _SnappyCurve(),
-              reverseCurve: Curves.fastOutSlowIn));
-      _ctrl.forward(from: 0);
+  void didUpdateWidget(GooeyNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _pos = Tween<double>(
+        begin: _currentPos,
+        end: widget.index.toDouble(),
+      ).animate(
+        CurvedAnimation(parent: _posCtrl, curve: Curves.easeOutQuint),
+      );
+      _posCtrl.forward(from: 0);
+      _currentPos = widget.index.toDouble();
     }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _posCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 0: Home, 1: History, 2: Add, 3: Reports, 4: More
-    final items = [
-      _NavItem(Icons.home_outlined, Icons.home_rounded, 'nav_home'),
-      _NavItem(Icons.receipt_long_outlined, Icons.receipt_long_rounded,
-          'nav_history'),
-      null, // center orb
-      _NavItem(Icons.bar_chart_outlined, Icons.bar_chart_rounded,
-          'nav_reports'),
-      _NavItem(Icons.grid_view_outlined, Icons.grid_view_rounded,
-          'nav_more'),
-    ];
-
+    // Khorcha tabs mapped to reference icon styles:
+    // 0: Home (line chart), 1: History (wallet), 2: Add (blue orb),
+    // 3: Reports (storefront), 4: More (briefcase).
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
         child: SizedBox(
-          height: 84,
+          height: 96,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Dark pill bar (reference design) — clean, no border,
-              // no highlight, just the dark fill with center notch.
+              // Dark pill bar.
               Positioned.fill(
-                top: 18,
-                child: CustomPaint(
-                  painter: _PillBarPainter(),
+                top: 28,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(28),
+                  ),
                 ),
               ),
-              // Tab items + sliding indicator.
+              // Tab items + sliding green indicator.
               Positioned.fill(
-                top: 18,
+                top: 28,
                 child: AnimatedBuilder(
                   animation: _pos,
                   builder: (ctx, _) {
                     return LayoutBuilder(
-                      builder: (ctx, constraints) {
-                        final w = constraints.maxWidth;
+                      builder: (ctx, cons) {
+                        final w = cons.maxWidth;
+                        // 5 slots; slot centers at (i + 0.5) / 5 * w.
                         final slotW = w / 5;
-                        final indicatorX =
-                            slotW * _pos.value + slotW / 2;
+                        final indX =
+                            (_pos.value + 0.5) * slotW;
                         return Stack(
                           children: [
-                            Row(
-                              children: [
-                                for (int i = 0; i < 5; i++)
-                                  if (i == 2)
-                                    SizedBox(width: slotW)
-                                  else
-                                    SizedBox(
-                                      width: slotW,
-                                      child: _MorphTabButton(
-                                        item: items[i]!,
-                                        selected:
-                                            widget.index == i,
-                                        onTap: () =>
-                                            widget.onTap(i),
-                                      ),
+                            // Green glowing indicator at bottom edge.
+                            Positioned(
+                              left: indX - 14,
+                              bottom: 0,
+                              child: Container(
+                                width: 28,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00E676),
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF00E676)
+                                          .withValues(alpha: 0.8),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
                                     ),
-                              ],
-                            ),
-                            // Glowing neon-green sliding indicator.
-                            if (widget.index != 2)
-                              Positioned(
-                                left: indicatorX - 14,
-                                bottom: 6,
-                                child: Container(
-                                  width: 28,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF00FF88),
-                                    borderRadius:
-                                        BorderRadius.circular(2),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF00FF88)
-                                            .withValues(alpha: 0.8),
-                                        blurRadius: 10,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
+                            ),
+                            // 5 tab buttons.
+                            Row(
+                              children: List.generate(5, (i) {
+                                if (i == 2) {
+                                  return const Expanded(
+                                      child: SizedBox());
+                                }
+                                final active =
+                                    widget.index == i;
+                                return Expanded(
+                                  child: _TabButton(
+                                    active: active,
+                                    index: i,
+                                    onTap: () =>
+                                        widget.onTap(i),
+                                  ),
+                                );
+                              }),
+                            ),
                           ],
                         );
                       },
@@ -150,10 +145,12 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                   },
                 ),
               ),
-              // Center oversized royal-blue orb with abstract logo.
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.topCenter,
+              // Blue center orb breaking the top.
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: Center(
                   child: _CenterOrb(
                     onTap: () => widget.onTap(2),
                   ),
@@ -167,130 +164,72 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   }
 }
 
-/// Snappy easing curve for the indicator slide.
-class _SnappyCurve extends Curve {
-  const _SnappyCurve();
-  @override
-  double transformInternal(double t) {
-    // Fast start, slight overshoot, settle.
-    const s = 1.2;
-    return 1 + (s + 1) * math.pow(t - 1, 3) + s * math.pow(t - 1, 2);
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String labelKey;
-  _NavItem(this.icon, this.activeIcon, this.labelKey);
-}
-
-/// Tab button with fluid morph animation on tap:
-/// scale bounce + slight rotation + icon morph.
-class _MorphTabButton extends StatefulWidget {
-  final _NavItem item;
-  final bool selected;
+/// Single tab button with thin outline icon + small label.
+class _TabButton extends StatelessWidget {
+  final bool active;
+  final int index;
   final VoidCallback onTap;
 
-  const _MorphTabButton({
-    required this.item,
-    required this.selected,
+  const _TabButton({
+    required this.active,
+    required this.index,
     required this.onTap,
   });
 
   @override
-  State<_MorphTabButton> createState() => _MorphTabButtonState();
-}
-
-class _MorphTabButtonState extends State<_MorphTabButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _morphCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _morphCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 550),
-    );
-  }
-
-  @override
-  void dispose() {
-    _morphCtrl.dispose();
-    super.dispose();
-  }
-
-  void _handleTap() {
-    _morphCtrl.forward(from: 0);
-    widget.onTap();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final color = widget.selected
-        ? Colors.white
-        : Colors.white.withValues(alpha: 0.4);
+    // Reference icon styles: 0 = line chart, 1 = wallet,
+    // 3 = storefront, 4 = briefcase.
+    IconData icon;
+    String label;
+    switch (index) {
+      case 0:
+        icon = Icons.show_chart_rounded;
+        label = 'Home';
+        break;
+      case 1:
+        icon = Icons.account_balance_wallet_outlined;
+        label = 'History';
+        break;
+      case 3:
+        icon = Icons.storefront_outlined;
+        label = 'Reports';
+        break;
+      default:
+        icon = Icons.business_center_outlined;
+        label = 'More';
+    }
+    final color = active ? Colors.white : const Color(0xFF8E8E93);
     return GestureDetector(
-      onTap: _handleTap,
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedBuilder(
-            animation: _morphCtrl,
-            builder: (ctx, _) {
-              final t = _morphCtrl.value;
-              // Dramatic morph matching video: strong tilt + bounce + wobble.
-              final scale =
-                  1.0 + 0.45 * math.sin(t * math.pi) * (1 - t * 0.3);
-              final rotation =
-                  0.6 * math.sin(t * math.pi * 1.5) * (1 - t);
-              final wobble =
-                  0.12 * math.sin(t * math.pi * 4) * (1 - t);
-              final squashX =
-                  1.0 + 0.2 * math.sin(t * math.pi * 2) * (1 - t);
-              final squashY =
-                  1.0 - 0.18 * math.sin(t * math.pi * 2) * (1 - t);
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..rotateZ(rotation + wobble)
-                  ..scaleByDouble(
-                      scale * squashX, scale * squashY, 1.0, 1.0),
-                child: Icon(
-                  widget.selected
-                      ? widget.item.activeIcon
-                      : widget.item.icon,
-                  color: color,
-                  size: 26,
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 3),
-          Text(
-            tr(context, widget.item.labelKey),
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: widget.selected
-                  ? FontWeight.w600
-                  : FontWeight.normal,
+      child: SizedBox(
+        height: 68,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 26),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight:
+                    active ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
-            maxLines: 1,
-          ),
-          const SizedBox(height: 10),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Oversized royal-blue orb with abstract white logo
-/// (larger circle + smaller orbiting dot).
+/// Large blue orb with white abstract overlapping-circles logo.
 class _CenterOrb extends StatefulWidget {
   final VoidCallback onTap;
+
   const _CenterOrb({required this.onTap});
 
   @override
@@ -299,29 +238,24 @@ class _CenterOrb extends StatefulWidget {
 
 class _CenterOrbState extends State<_CenterOrb>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _pressCtrl;
-  late final AnimationController _orbitCtrl;
+  late AnimationController _pressCtrl;
+  late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
     _pressCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
-      lowerBound: 0.0,
-      upperBound: 0.1,
+      duration: const Duration(milliseconds: 150),
     );
-    // Continuous slow orbit for the small dot.
-    _orbitCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
+    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _pressCtrl.dispose();
-    _orbitCtrl.dispose();
     super.dispose();
   }
 
@@ -332,130 +266,61 @@ class _CenterOrbState extends State<_CenterOrb>
       onTapUp: (_) => _pressCtrl.reverse(),
       onTapCancel: () => _pressCtrl.reverse(),
       onTap: widget.onTap,
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_pressCtrl, _orbitCtrl]),
-        builder: (ctx, _) {
-          final scale = 1.0 - _pressCtrl.value;
-          return Transform.scale(
-            scale: scale,
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF2B5CE6), // royal blue
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2B5CE6)
-                        .withValues(alpha: 0.6),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  width: 1,
-                ),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF2E5BFF),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2E5BFF).withValues(alpha: 0.4),
+                blurRadius: 16,
+                spreadRadius: 2,
               ),
-              child: CustomPaint(
-                painter: _AbstractLogoPainter(
-                  orbitAngle:
-                      _orbitCtrl.value * 2 * math.pi,
-                ),
-              ),
-            ),
-          );
-        },
+            ],
+          ),
+          child: CustomPaint(
+            painter: _AbstractLogoPainter(),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Abstract white logo: larger circle + smaller orbiting dot.
+/// White abstract logo: overlapping circles like the reference.
 class _AbstractLogoPainter extends CustomPainter {
-  final double orbitAngle;
-  _AbstractLogoPainter({required this.orbitAngle});
-
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final white = Paint()..color = Colors.white;
-    final whiteDim =
-        Paint()..color = Colors.white.withValues(alpha: 0.7);
+    final c = Offset(size.width / 2, size.height / 2);
+    final paint = Paint()..color = Colors.white;
 
-    // Larger circle (slightly off-center).
+    // Large circle bottom-left.
     canvas.drawCircle(
-      center + const Offset(-3, 2),
-      11,
-      white,
+      c + const Offset(-7, 8),
+      13,
+      paint,
     );
-    // Smaller orbiting dot.
-    const orbitR = 17.0;
-    final dotPos = Offset(
-      center.dx + orbitR * math.cos(orbitAngle),
-      center.dy + orbitR * math.sin(orbitAngle),
-    );
-    canvas.drawCircle(dotPos, 5.5, whiteDim);
-    // Tiny accent dot.
+    // Medium circle top-right (slightly transparent overlap).
     canvas.drawCircle(
-      Offset(
-        center.dx + 8 * math.cos(-orbitAngle * 1.5),
-        center.dy + 8 * math.sin(-orbitAngle * 1.5),
-      ),
-      2.5,
-      white,
+      c + const Offset(9, -7),
+      10,
+      paint..color = Colors.white.withValues(alpha: 0.85),
     );
-  }
-
-  @override
-  bool shouldRepaint(
-          covariant _AbstractLogoPainter oldDelegate) =>
-      oldDelegate.orbitAngle != orbitAngle;
-}
-
-/// Clean dark pill bar with center notch — no border, no highlight.
-class _PillBarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    const r = 30.0;
-    const notchW = 96.0;
-    const notchDepth = 26.0;
-    final cx = w / 2;
-
-    final path = Path();
-    path.moveTo(r, 0);
-    path.lineTo(cx - notchW / 2 - 14, 0);
-    path.cubicTo(
-      cx - notchW / 2 + 8, 0,
-      cx - notchW / 2 + 12, notchDepth,
-      cx, notchDepth,
+    // Small dot top-left.
+    canvas.drawCircle(
+      c + const Offset(-13, -11),
+      4,
+      paint..color = Colors.white,
     );
-    path.cubicTo(
-      cx + notchW / 2 - 12, notchDepth,
-      cx + notchW / 2 - 8, 0,
-      cx + notchW / 2 + 14, 0,
-    );
-    path.lineTo(w - r, 0);
-    path.quadraticBezierTo(w, 0, w, r);
-    path.lineTo(w, h - r);
-    path.quadraticBezierTo(w, h, w - r, h);
-    path.lineTo(r, h);
-    path.quadraticBezierTo(0, h, 0, h - r);
-    path.lineTo(0, r);
-    path.quadraticBezierTo(0, 0, r, 0);
-    path.close();
-
-    // Solid dark fill only — no border, no highlight.
-    canvas.drawPath(
-      path,
-      Paint()..color = const Color(0xFF1E1E1E),
+    // Small dot bottom-right.
+    canvas.drawCircle(
+      c + const Offset(14, 10),
+      3.5,
+      paint,
     );
   }
 
