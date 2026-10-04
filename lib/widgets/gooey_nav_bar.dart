@@ -252,7 +252,8 @@ class _MorphTabButtonState extends State<_MorphTabButton>
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
                   ..rotateZ(rotation)
-                  ..scaleByDouble(scale * squashX, scale * squashY),
+                  ..scaleByDouble(
+                      scale * squashX, scale * squashY, 1.0, 1.0),
                 child: Icon(
                   widget.selected
                       ? widget.item.activeIcon
