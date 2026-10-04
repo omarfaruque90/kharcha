@@ -102,7 +102,7 @@ class HeroBalanceCard extends StatelessWidget {
                           const SizedBox(height: 8),
                           _AnimatedMoney(
                             value: balance,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.5,
