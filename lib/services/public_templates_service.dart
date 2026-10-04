@@ -36,7 +36,7 @@ class PublicTemplatesService {
           .orderBy('likes', descending: true)
           .limit(50)
           .get();
-      return snap.docs.map((doc) {
+      final result = snap.docs.map((doc) {
         final data = doc.data();
         final rawBudgets = data['budgets'];
         final budgets = <Map<String, dynamic>>[];
