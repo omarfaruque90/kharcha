@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Khorcha Firestore Security Rules
+// Deploy: Firebase Console → Firestore Database → Rules → paste → Publish
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Public budget templates ──
+    // Read: anyone (even logged-out users can browse templates)
+    // Create: any authenticated user (email/google/guest)
+    // Update: anyone can increment likes; no delete from client
+    match /public_templates/{templateId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['name', 'budgets', 'likes', 'authorName'])
+        && request.resource.data.name is string
+        && request.resource.data.budgets is list
+        && request.resource.data.likes == 0;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['likes']);
+      allow delete: if false;
+    }
+
+    // ── Per-user synced data ──
+    // Users can only read/write their own documents
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Leaderboards ──
+    match /leaderboards/{boardId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+  }
+}
