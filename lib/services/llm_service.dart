@@ -16,13 +16,14 @@ import 'package:http/http.dart' as http;
 /// The API key is never logged.
 class LlmConfig {
   /// 'gemini', 'openai' (OpenAI-compatible), or 'nvidia' (NVIDIA NIM).
+  /// Default is 'nvidia' with bundled key — works out of the box.
   String provider;
   String apiKey;
   String model;
   String baseUrl;
 
   LlmConfig({
-    this.provider = 'gemini',
+    this.provider = 'nvidia',
     this.apiKey = '',
     this.model = '',
     this.baseUrl = '',
