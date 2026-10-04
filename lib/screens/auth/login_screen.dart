@@ -168,26 +168,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                StaggeredEntrance(
-                  delayMs: 520,
-                  child: PressableScale(
-                    child: OutlinedButton.icon(
-                      onPressed: _busy
-                          ? null
-                          : () => _run(AuthService
-                              .instance.signInAnonymously),
-                      icon: const Icon(Icons.person_outline),
-                      label: Text(tr(context, 'auth_guest_btn')),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
