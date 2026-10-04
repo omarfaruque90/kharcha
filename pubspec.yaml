@@ -1,7 +1,7 @@
 name: kharcha
 description: "Kharcha — দৈনিক খরচের হিসাব (Daily Expense Tracker). A simple offline expense tracker with Bangla + English UI."
 publish_to: "none"
-version: 0.0.1+24
+version: 0.0.1+25
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
