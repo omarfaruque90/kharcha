@@ -49,8 +49,14 @@ class LeaderboardService {
   /// or `''` when not signed in / on failure.
   static Future<String> createBoard(String name) async {
     try {
-      final uid = _uid;
-      if (uid == null) return '';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('not_logged_in');
+      }
+      if (user.isAnonymous) {
+        throw Exception('guest_not_allowed');
+      }
+      final uid = user.uid;
       final trimmed = name.trim();
       if (trimmed.isEmpty) return '';
 
@@ -73,7 +79,21 @@ class LeaderboardService {
         return code;
       }
       return '';
-    } catch (_) {
+    } catch (e) {
+      // Re-throw with specific error so UI can show helpful message.
+      if (e.toString().contains('not_logged_in')) {
+        throw Exception('not_logged_in');
+      }
+      if (e.toString().contains('guest_not_allowed')) {
+        throw Exception('guest_not_allowed');
+      }
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('permission_denied');
+      }
+      if (e.toString().contains('unavailable') ||
+          e.toString().contains('network')) {
+        throw Exception('network_error');
+      }
       return '';
     }
   }

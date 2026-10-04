@@ -81,14 +81,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     if (!mounted) return;
 
     _snack(tr(context, 'lb_creating'));
-    final code = await LeaderboardService.createBoard(name);
-    if (!mounted) return;
-    if (code.isEmpty) {
-      _snack(tr(context, 'lb_create_fail'), error: true);
-      return;
+    try {
+      final code = await LeaderboardService.createBoard(name);
+      if (!mounted) return;
+      if (code.isEmpty) {
+        _snack(tr(context, 'lb_create_fail'), error: true);
+        return;
+      }
+      _refresh();
+      await _showCodeDialog(code);
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
+      if (msg.contains('guest_not_allowed')) {
+        _snack(tr(context, 'lb_guest_error'), error: true);
+      } else if (msg.contains('permission_denied')) {
+        _snack(tr(context, 'lb_permission_error'), error: true);
+      } else if (msg.contains('network_error')) {
+        _snack(tr(context, 'lb_network_error'), error: true);
+      } else {
+        _snack(tr(context, 'lb_create_fail'), error: true);
+      }
     }
-    _refresh();
-    await _showCodeDialog(code);
   }
 
   /// Shows the new board's code big, with a copy button.
