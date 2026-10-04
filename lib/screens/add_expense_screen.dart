@@ -408,7 +408,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Package AZ: attach the current GPS location to this expense.
   Future<void> _attachLocation() async {
-    final lang = context.read<SettingsProvider>().language;
     setState(() => _locating = true);
     try {
       var permission = await Geolocator.checkPermission();

@@ -121,6 +121,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final title = _titleCtrl.text.trim();
+    final splitNote = '${tr(context, 'split_prefix')}: $title';
     try {
       // My own share → a normal expense.
       await context.read<ExpenseProvider>().add(
@@ -128,7 +129,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
               amount: meAmount,
               categoryId: 'others',
               date: DateTime.now(),
-              note: '${tr(context, 'split_prefix')}: $title',
+              note: splitNote,
               paymentMethod: 'cash',
             ),
           );
@@ -143,7 +144,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
             amount: amount,
             kind: _rows[i].debtKind,
             date: DateTime.now(),
-            note: '${tr(context, 'split_prefix')}: $title',
+            note: splitNote,
             settled: false,
           ),
         );

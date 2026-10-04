@@ -479,6 +479,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final addedTpl = tr(context, 'ai_bill_added');
     final noAmountTpl = tr(context, 'ai_bill_no_amount');
     final failedTpl = tr(context, 'ai_bill_failed');
+    final billScanTpl = tr(context, 'bill_scan');
+    final billMerchantTpl = tr(context, 'bill_merchant');
     final expenses = context.read<ExpenseProvider>();
     String reply;
     try {
@@ -500,8 +502,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
           categoryId: categoryId,
           date: DateTime.now(),
           note: merchant.isEmpty
-              ? tr(context, 'bill_scan')
-              : '${tr(context, 'bill_merchant')}: $merchant',
+              ? billScanTpl
+              : '$billMerchantTpl: $merchant',
           paymentMethod: 'cash',
           currency: 'BDT',
           bdtAmount: amount,
