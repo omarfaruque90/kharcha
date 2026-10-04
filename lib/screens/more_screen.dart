@@ -18,7 +18,7 @@ class MoreScreen extends StatelessWidget {
         title: Text(tr(context, 'more')),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
         children: [
           // Tool sections.
           for (var s = 0; s < sections.length; s++) ...[

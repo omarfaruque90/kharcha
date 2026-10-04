@@ -121,7 +121,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                             (widget.index == 2 ? addR : bubbleR),
                         bottom: widget.index == 2
                             ? barH - addR + 14
-                            : barH - bubbleR + 10,
+                            : 2, // Bubble contained within bar — border stays inside navbar
                         child: _bubble(context, widget.index,
                             bubbleR, addR, accent, dark),
                       ),

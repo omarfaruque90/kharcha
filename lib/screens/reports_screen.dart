@@ -370,7 +370,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
         children: [
           // Package U: Year in review — always visible gold button.
           StaggeredEntrance(

@@ -213,7 +213,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           // Clearance so the bottom bar never covers the last row.
           const SliverToBoxAdapter(
-            child: SizedBox(height: 96),
+            child: SizedBox(height: 120),
           ),
         ],
       ),
