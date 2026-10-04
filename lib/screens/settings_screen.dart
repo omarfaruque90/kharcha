@@ -30,6 +30,7 @@ import 'ai_llm_settings_screen.dart';
 import 'categories_screen.dart';
 import 'places_screen.dart';
 import 'profile_screen.dart';
+import 'settings_section_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -605,66 +606,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Expandable section: tap the header to collapse/expand.
   /// Items hide inside when collapsed.
-  final Map<String, bool> _expanded = {};
-
+  /// Section tile: tap to navigate to the section's detail screen.
   Widget _expandableSection(
       BuildContext context, String key, List<Widget> children) {
-    final isOpen = _expanded[key] ?? true;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          onTap: () => setState(() => _expanded[key] = !isOpen),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    _sectionIcon(key),
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    tr(context, key),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                AnimatedRotation(
-                  turns: isOpen ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: const Icon(Icons.expand_more),
-                ),
-              ],
-            ),
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color:
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          _sectionIcon(key),
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+      title: Text(
+        tr(context, key),
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                SettingsSectionScreen(sectionKey: key, tiles: children),
           ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-          child: isOpen
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+        );
+      },
     );
   }
 
