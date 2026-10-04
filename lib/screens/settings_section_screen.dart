@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
-import '../providers/settings_provider.dart';
-import '../services/auth_service.dart';
 import '../widgets/motion.dart';
-import 'profile_screen.dart';
 
 /// Detail screen for a single Settings section.
 /// Tapping a section in Settings navigates here with pre-built tiles.
