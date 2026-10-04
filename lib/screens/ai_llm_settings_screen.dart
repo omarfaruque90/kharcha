@@ -43,7 +43,8 @@ class _AiLlmSettingsScreenState extends State<AiLlmSettingsScreen> {
     final cfg = await LlmConfig.load();
     if (!mounted) return;
     setState(() {
-      _provider = cfg.effectiveProvider == 'openai' ? 'openai' : 'gemini';
+      final ep = cfg.effectiveProvider;
+      _provider = (ep == 'openai' || ep == 'nvidia') ? ep : 'gemini';
       _keyCtrl.text = cfg.apiKey;
       _modelCtrl.text = cfg.model;
       _baseUrlCtrl.text = cfg.baseUrl;
@@ -199,6 +200,11 @@ class _AiLlmSettingsScreenState extends State<AiLlmSettingsScreen> {
                         value: 'openai',
                         label: Text(tr(context, 'ai_cfg_openai')),
                         icon: const Icon(Icons.api_outlined),
+                      ),
+                      ButtonSegment(
+                        value: 'nvidia',
+                        label: Text(tr(context, 'ai_cfg_nvidia')),
+                        icon: const Icon(Icons.memory_outlined),
                       ),
                     ],
                     selected: {_provider},

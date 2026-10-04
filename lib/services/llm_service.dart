@@ -15,7 +15,7 @@ import 'package:http/http.dart' as http;
 /// 2. Bundled key baked at compile time via --dart-define=LLM_API_KEY.
 /// The API key is never logged.
 class LlmConfig {
-  /// 'gemini' or 'openai' (OpenAI-compatible).
+  /// 'gemini', 'openai' (OpenAI-compatible), or 'nvidia' (NVIDIA NIM).
   String provider;
   String apiKey;
   String model;
@@ -63,6 +63,7 @@ class LlmConfig {
     }
     if (model.trim().isNotEmpty) return model.trim();
     final p = provider.trim().isNotEmpty ? provider.trim() : 'gemini';
+    if (p == 'nvidia') return 'meta/muse-glimmer-30b';
     return p == 'openai' ? 'gpt-4o-mini' : 'gemini-3.8-flash';
   }
 
@@ -70,6 +71,8 @@ class LlmConfig {
     if (baseUrl.trim().isNotEmpty) {
       return baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     }
+    final p = provider.trim().isNotEmpty ? provider.trim() : 'gemini';
+    if (p == 'nvidia') return 'https://integrate.api.nvidia.com/v1';
     return 'https://api.openai.com/v1';
   }
 
@@ -196,7 +199,8 @@ class LlmService {
       return const LlmReply(text: null, toolCalls: []);
     }
     try {
-      if (config.effectiveProvider == 'openai') {
+      final prov = config.effectiveProvider;
+      if (prov == 'openai' || prov == 'nvidia') {
         return await _chatOpenAi(
           config: config,
           history: history,
