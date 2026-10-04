@@ -28,7 +28,6 @@ import '../utils/formatters.dart';
 import 'lock_screen.dart';
 import 'ai_llm_settings_screen.dart';
 import 'categories_screen.dart';
-import 'places_screen.dart';
 import 'profile_screen.dart';
 import 'settings_section_screen.dart';
 
@@ -880,16 +879,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           // ── Money ──
           _expandableSection(context, 'money_section', [
-          ListTile(
-            leading: const Icon(Icons.place_outlined),
-            title: Text(tr(context, 'places_title')),
-            subtitle: Text(tr(context, 'places_sub')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PlacesScreen()),
-            ),
-          ),
           ListTile(
             leading: const Icon(Icons.speed_outlined),
             title: Text(tr(context, 'daily_limit_title')),

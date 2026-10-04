@@ -24,7 +24,6 @@ import '../screens/fuel_screen.dart';
 import '../screens/shopping_screen.dart';
 import '../screens/gifts_screen.dart';
 import '../screens/projects_screen.dart';
-import '../screens/expense_map_screen.dart';
 import '../screens/medical_screen.dart';
 import '../screens/converter_screen.dart';
 import '../screens/tip_screen.dart';
@@ -35,7 +34,6 @@ import '../screens/public_templates_screen.dart';
 import '../screens/tax_helper_screen.dart';
 import '../screens/dues_screen.dart';
 import '../screens/notes_screen.dart';
-import '../screens/places_screen.dart';
 
 /// One money-tool shortcut: icon, label key, and the screen it opens.
 class ToolDef {
@@ -135,14 +133,10 @@ List<ToolSection> toolSections() => [
               () => const MedicalScreen()),
           ToolDef(Icons.work_outline, 'projects_title',
               () => const ProjectsScreen()),
-          ToolDef(Icons.map_outlined, 'expense_map_title',
-              () => const ExpenseMapScreen()),
           ToolDef(Icons.timer_outlined, 'challenge_title',
               () => const ChallengeScreen()),
           ToolDef(Icons.emoji_events_outlined, 'ach_title',
               () => const AchievementsScreen()),
-          ToolDef(Icons.location_on_outlined, 'places_title',
-              () => const PlacesScreen()),
           ToolDef(Icons.leaderboard_outlined, 'leaderboard_title',
               () => const LeaderboardScreen()),
           ToolDef(Icons.public_outlined, 'templates_public',
