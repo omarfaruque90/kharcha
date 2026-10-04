@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
+import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
