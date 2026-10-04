@@ -5,6 +5,7 @@ import 'motion.dart';
 import '../screens/budget_screen.dart';
 import '../screens/calendar_screen.dart';
 import '../screens/debts_screen.dart';
+import '../screens/discount_tool_screen.dart';
 import '../screens/goals_screen.dart';
 import '../screens/income_screen.dart';
 import '../screens/receipts_screen.dart';
@@ -119,6 +120,8 @@ List<ToolSection> toolSections() => [
               () => const ConverterScreen()),
           ToolDef(Icons.percent_outlined, 'tip_title',
               () => const TipScreen()),
+          ToolDef(Icons.discount_outlined, 'discount_title',
+              () => const DiscountToolScreen()),
           ToolDef(Icons.local_gas_station_outlined, 'fuel_title',
               () => const FuelScreen()),
           ToolDef(Icons.shopping_cart_outlined, 'shop_title',
