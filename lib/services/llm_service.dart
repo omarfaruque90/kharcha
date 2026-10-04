@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import 'custom_ai_model_store.dart';
+
 // ---------------------------------------------------------------------------
 // Config — stored in secure storage, NEVER in plain settings.
 // ---------------------------------------------------------------------------
@@ -43,9 +45,24 @@ class LlmConfig {
   static const String bundledModel =
       String.fromEnvironment('LLM_MODEL', defaultValue: 'gemini-3.8-flash');
 
-  /// The key actually used: Settings override first, then bundled key.
-  String get effectiveKey =>
-      apiKey.trim().isNotEmpty ? apiKey.trim() : bundledKey;
+  /// Bundled NVIDIA fallback — used when no key is configured anywhere.
+  /// WARNING: This key is visible in the app binary. Rotate it regularly
+  /// via the NVIDIA dashboard and prefer --dart-define=LLM_API_KEY.
+  static const String _bundledNvidiaKey =
+      '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';
+  static const String _nvidiaBaseUrl =
+      'https://integrate.api.nvidia.com/v1';
+  static const String _nvidiaModel = 'meta/muse-glimmer-30b';
+
+  /// The key actually used: Settings override first, then bundled key,
+  /// then NVIDIA fallback (if provider is nvidia).
+  String get effectiveKey {
+    if (apiKey.trim().isNotEmpty) return apiKey.trim();
+    if (bundledKey.isNotEmpty) return bundledKey;
+    final p = effectiveProvider;
+    if (p == 'nvidia') return _bundledNvidiaKey;
+    return '';
+  }
 
   /// Provider/model/baseUrl overrides only apply together with an override
   /// key; otherwise the bundled compile-time values are used. This avoids
@@ -79,8 +96,22 @@ class LlmConfig {
   bool get isConfigured => effectiveKey.isNotEmpty;
 
   /// Loads config from secure storage. Never throws.
+  /// If a custom AI model is active, its config takes precedence.
   static Future<LlmConfig> load() async {
     try {
+      // Check for active custom model first.
+      try {
+        final custom =
+            await CustomAiModelStore.instance.getActive();
+        if (custom != null) {
+          return LlmConfig(
+            provider: custom.provider,
+            apiKey: custom.apiKey,
+            model: custom.model,
+            baseUrl: custom.baseUrl,
+          );
+        }
+      } catch (_) {}
       final provider = await _storage.read(key: _kProvider) ?? 'gemini';
       final apiKey = await _storage.read(key: _kApiKey) ?? '';
       final model = await _storage.read(key: _kModel) ?? '';

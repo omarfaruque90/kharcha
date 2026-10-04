@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_strings.dart';
 import '../services/llm_service.dart';
 import '../widgets/motion.dart';
+import 'custom_ai_models_screen.dart';
 
 /// Settings for the LLM-powered AI assistant (Package: real AI).
 /// The user brings their own API key (Gemini or OpenAI-compatible).
@@ -155,6 +156,25 @@ class _AiLlmSettingsScreenState extends State<AiLlmSettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  Card(
+                    child: ListTile(
+                      leading:
+                          const Icon(Icons.model_training_outlined),
+                      title: Text(tr(context, 'ai_models_title')),
+                      subtitle:
+                          Text(tr(context, 'ai_models_sub')),
+                      trailing:
+                          const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const CustomAiModelsScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
