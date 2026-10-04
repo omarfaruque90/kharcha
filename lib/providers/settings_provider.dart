@@ -116,7 +116,8 @@ class SettingsProvider extends ChangeNotifier {
       value == accentEmerald ||
       value == accentBlue ||
       value == accentPurple ||
-      value == accentOrange;
+      value == accentOrange ||
+      value == accentCustom;
 
   Future<void> load() async {
     final db = DatabaseHelper.instance;

@@ -126,7 +126,7 @@ class NotificationService {
           await DatabaseHelper.instance.getSetting('language') ?? 'bn';
       final now = tz.TZDateTime.now(tz.local);
       for (final r in reminders) {
-        final id = (r.id ?? r.title).hashCode & 0x7fffffff;
+        final id = _stableId(r.id ?? r.title);
         await _plugin.cancel(id: id);
         final day = _clampDay(r.dayOfMonth, now.year, now.month);
         var scheduled = tz.TZDateTime(tz.local, now.year, now.month, day, 9);
@@ -186,5 +186,16 @@ class NotificationService {
   static int _clampDay(int day, int year, int month) {
     final lastDay = DateTime(year, month + 1, 0).day;
     return day.clamp(1, lastDay).toInt();
+  }
+
+  /// Stable string hash (FNV-1a 32-bit). Dart's String.hashCode is randomized
+  /// per process, so it can't be used for persistent notification IDs.
+  static int _stableId(String s) {
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) {
+      hash ^= s.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash & 0x7fffffff;
   }
 }

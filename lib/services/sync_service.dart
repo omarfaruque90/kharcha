@@ -38,11 +38,20 @@ class SyncService {
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
       _collectionSubscriptions = [];
 
-  /// True while remote changes are being applied to SQLite.
+  /// Refcount of in-flight remote-change applications.
   /// DatabaseHelper checks this so remote-applied writes are NOT
-  /// pushed back to Firestore (no sync loops).
-  bool _applyingRemote = false;
-  bool get applyingRemote => _applyingRemote;
+  /// pushed back to Firestore (no sync loops). A counter (not a boolean)
+  /// so overlapping sync operations can't prematurely clear the guard.
+  int _applyingRemote = 0;
+  bool get applyingRemote => _applyingRemote > 0;
+
+  /// Increments the remote-apply guard. Must be paired with [_endApplying].
+  void _beginApplying() => _applyingRemote++;
+
+  /// Decrements the remote-apply guard.
+  void _endApplying() {
+    if (_applyingRemote > 0) _applyingRemote--;
+  }
 
   /// Broadcast stream emitting after remote changes were applied locally.
   final StreamController<void> _remoteChanges =
@@ -63,11 +72,14 @@ class SyncService {
       _firestore.collection('users').doc(uid).collection(name);
 
   /// Offline persistence is default on Android; set it explicitly once,
-  /// before any Firestore operation runs.
+  /// before any Firestore operation runs. Never throws — sync must not
+  /// silently die because settings failed.
   Future<void> _ensurePersistence() async {
     if (_persistenceSet) return;
     _persistenceSet = true;
-    _firestore.settings = const Settings(persistenceEnabled: true);
+    try {
+      _firestore.settings = const Settings(persistenceEnabled: true);
+    } catch (_) {}
   }
 
   /// Starts syncing for [uid]:
@@ -212,7 +224,7 @@ class SyncService {
         if (id != null) localById[id] = item;
       }
       final snapshot = await col.get();
-      _applyingRemote = true;
+      _beginApplying();
       try {
         for (final doc in snapshot.docs) {
           final remote = fromFirestore(doc.id, doc.data());
@@ -226,7 +238,7 @@ class SyncService {
           }
         }
       } finally {
-        _applyingRemote = false;
+        _endApplying();
       }
 
       // 2. Push: upload merged local state (idempotent; covers rows
@@ -255,16 +267,29 @@ class SyncService {
     final db = DatabaseHelper.instance;
     final col = _collection(uid);
 
+    // 0. Push tombstoned deletes first (prevents resurrection).
+    final tombstones = await db.getTombstones('expense');
+    for (final id in tombstones) {
+      try {
+        await col.doc(id).delete();
+      } catch (_) {}
+    }
+    if (tombstones.isNotEmpty) {
+      await db.clearTombstones('expense');
+    }
+
     // 1. Pull: merge remote docs into SQLite (last-write-wins on updatedAt).
+    // Skip tombstoned IDs to prevent resurrection.
     final localById = <String, Expense>{};
     for (final e in await db.getAllExpenses()) {
       final id = e.id;
       if (id != null) localById[id] = e;
     }
     final snapshot = await col.get();
-    _applyingRemote = true;
+    _beginApplying();
     try {
       for (final doc in snapshot.docs) {
+        if (tombstones.contains(doc.id)) continue;
         final remote = Expense.fromFirestore(doc.id, doc.data());
         final existing = localById[remote.id];
         if (existing == null ||
@@ -274,7 +299,7 @@ class SyncService {
         }
       }
     } finally {
-      _applyingRemote = false;
+      _endApplying();
     }
 
     // 2. Push: upload merged local state (idempotent; covers rows
@@ -289,7 +314,7 @@ class SyncService {
   ) async {
     final db = DatabaseHelper.instance;
     var changed = false;
-    _applyingRemote = true;
+    _beginApplying();
     try {
       for (final change in snap.docChanges) {
         try {
@@ -314,7 +339,7 @@ class SyncService {
         }
       }
     } finally {
-      _applyingRemote = false;
+      _endApplying();
     }
     if (changed && !_remoteChanges.isClosed) {
       _remoteChanges.add(null);
@@ -330,7 +355,7 @@ class SyncService {
     required Future<void> Function(String id) deleteLocal,
   }) async {
     var changed = false;
-    _applyingRemote = true;
+    _beginApplying();
     try {
       for (final change in snap.docChanges) {
         try {
@@ -353,7 +378,7 @@ class SyncService {
         }
       }
     } finally {
-      _applyingRemote = false;
+      _endApplying();
     }
     if (changed && !_remoteChanges.isClosed) {
       _remoteChanges.add(null);
@@ -419,6 +444,8 @@ class SyncService {
     }
     _collectionSubscriptions.clear();
     _uid = null;
+    // Reset the remote-apply guard so a stale count can't leak across users.
+    _applyingRemote = 0;
     final db = DatabaseHelper.instance;
     await db.wipeLocalExpenses();
     await db.wipeLocalIncomes();
@@ -428,5 +455,7 @@ class SyncService {
     await db.wipeLocalCustomPlaces();
     await db.wipeLocalCustomPayments();
     await db.wipeLocalBillReminders();
+    await db.wipeLocalWishlist();
+    await db.clearTombstones('expense');
   }
 }

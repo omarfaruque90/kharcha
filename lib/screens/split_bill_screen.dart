@@ -121,7 +121,8 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final title = _titleCtrl.text.trim();
-    final splitNote = '${tr(context, 'split_prefix')}: $title';
+    // Language-independent marker so the Splits filter works in all languages.
+    final splitNote = '[split] $title';
     try {
       // My own share → a normal expense.
       await context.read<ExpenseProvider>().add(

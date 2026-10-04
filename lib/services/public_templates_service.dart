@@ -155,22 +155,30 @@ class PublicTemplatesService {
     String monthKey,
   ) async {
     try {
-      final db = DatabaseHelper.instance;
-      for (final existing in await db.getBudgetsForMonth(monthKey)) {
-        final id = existing.id;
-        if (id != null) await db.deleteBudget(id);
-      }
+      // Validate FIRST — never delete existing budgets for an invalid
+      // template.
       final rawBudgets = template['budgets'];
-      if (rawBudgets is! List) return;
+      if (rawBudgets is! List || rawBudgets.isEmpty) return;
+      final valid = <Map<String, dynamic>>[];
       for (final item in rawBudgets) {
         if (item is! Map<String, dynamic>) continue;
         final category = (item['category'] ?? '').toString();
         final amount = (item['amount'] as num?)?.toDouble() ?? 0;
         if (category.isEmpty || amount <= 0) continue;
+        valid.add({'category': category, 'amount': amount});
+      }
+      if (valid.isEmpty) return;
+
+      final db = DatabaseHelper.instance;
+      for (final existing in await db.getBudgetsForMonth(monthKey)) {
+        final id = existing.id;
+        if (id != null) await db.deleteBudget(id);
+      }
+      for (final item in valid) {
         await db.insertBudget(Budget(
-          categoryId: category,
+          categoryId: item['category'] as String,
           monthKey: monthKey,
-          limitAmount: amount,
+          limitAmount: (item['amount'] as num).toDouble(),
         ));
       }
     } catch (_) {}

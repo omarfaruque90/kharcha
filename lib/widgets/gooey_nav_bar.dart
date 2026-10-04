@@ -58,8 +58,11 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accentName = context.watch<SettingsProvider>().accent;
-    final accent = kAccents[accentName] ?? kGold;
+    final settings = context.watch<SettingsProvider>();
+    final accentName = settings.accent;
+    final accent = accentName == 'custom'
+        ? settings.customColor
+        : (kAccents[accentName] ?? kGold);
     final dark = theme.brightness == Brightness.dark;
 
     // Bar: solid deep green like the video's solid purple.

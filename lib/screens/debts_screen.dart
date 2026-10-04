@@ -36,12 +36,14 @@ class DebtsScreen extends StatefulWidget {
 enum _DebtFilter { all, lent, borrowed, settled, splits }
 
 /// Note prefix written by the split-bill feature (kind='lent').
-const _splitPrefix = 'Split:';
+/// Language-independent marker — never localized.
+const _splitPrefix = '[split]';
 
 class _DebtsScreenState extends State<DebtsScreen> {
   List<Debt> _debts = [];
   bool _loaded = false;
   _DebtFilter _filter = _DebtFilter.all;
+  final Set<String> _settling = {}; // debt IDs currently being settled
 
   @override
   void initState() {
@@ -85,9 +87,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
       case _DebtFilter.splits:
         // Split debts still belong to All/Lent; this case only keeps the
         // switch exhaustive — the splits view is built from _splitGroups.
-        return list
-            .where((d) => d.note.trim().startsWith(_splitPrefix))
-            .toList();
+        return list.where((d) {
+          final note = d.note.trim();
+          return note.startsWith(_splitPrefix) ||
+              note.startsWith('Split:') ||
+              note.startsWith('ভাগ:');
+        }).toList();
       case _DebtFilter.all:
         return list;
     }
@@ -99,8 +104,17 @@ class _DebtsScreenState extends State<DebtsScreen> {
     final groups = <String, List<Debt>>{};
     for (final d in _debts) {
       final note = d.note.trim();
-      if (!note.startsWith(_splitPrefix)) continue;
-      final title = note.substring(_splitPrefix.length).trim();
+      String? title;
+      if (note.startsWith(_splitPrefix)) {
+        title = note.substring(_splitPrefix.length).trim();
+      } else if (note.startsWith('Split:')) {
+        // Legacy English prefix.
+        title = note.substring('Split:'.length).trim();
+      } else if (note.startsWith('ভাগ:')) {
+        // Legacy Bangla prefix.
+        title = note.substring('ভাগ:'.length).trim();
+      }
+      if (title == null) continue;
       groups.putIfAbsent(title, () => []).add(d);
     }
     final out = groups.entries
@@ -124,9 +138,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       appBar: AppBar(
         title: Text(tr(context, 'debts_title')),
       ),
-      floatingActionButton: _debts.isEmpty
-          ? null
-          : FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,
           builder: (_) => const _DebtDialog(),
@@ -532,6 +544,10 @@ class _DebtTile extends StatelessWidget {
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   Future<void> _settle(BuildContext context, Debt debt) async {
+    final id = debt.id;
+    if (id == null || _settling.contains(id)) return;
+    _settling.add(id);
+    try {
     // Capture context-dependent values before any async gap.
     final expenses = context.read<ExpenseProvider>();
     final money = context.read<MoneyProvider>();
@@ -568,6 +584,9 @@ class _DebtTile extends StatelessWidget {
     messenger.showSnackBar(
       SnackBar(content: Text(settledMsg)),
     );
+    } finally {
+      _settling.remove(id);
+    }
   }
 
   void _confirmDelete(BuildContext context, Debt debt) {
@@ -617,6 +636,7 @@ class _DebtDialogState extends State<_DebtDialog> {
   String _kind = 'lent';
   DateTime _date = DateTime.now();
   DateTime? _dueDate;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -800,8 +820,14 @@ class _DebtDialogState extends State<_DebtDialog> {
               ],
             ),
             child: FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.check),
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
               label: Text(tr(context, 'save')),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.transparent,
@@ -824,18 +850,24 @@ class _DebtDialogState extends State<_DebtDialog> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
-    await DatabaseHelper.instance.insertDebt(Debt(
-      id: Debt.newId(),
-      person: _personCtrl.text.trim(),
-      amount: double.parse(_amountCtrl.text.trim()),
-      kind: _kind,
-      date: _date,
-      dueDate: _dueDate,
-      note: _noteCtrl.text.trim(),
-      settled: false,
-      updatedAt: DateTime.now(),
-    ));
+    setState(() => _saving = true);
+    try {
+      await DatabaseHelper.instance.insertDebt(Debt(
+        id: Debt.newId(),
+        person: _personCtrl.text.trim(),
+        amount: double.parse(_amountCtrl.text.trim()),
+        kind: _kind,
+        date: _date,
+        dueDate: _dueDate,
+        note: _noteCtrl.text.trim(),
+        settled: false,
+        updatedAt: DateTime.now(),
+      ));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }

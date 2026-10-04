@@ -22,6 +22,12 @@ class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
   bool _loaded = false;
 
+  /// IDs of expenses whose wallet was deducted on THIS device.
+  /// Only these get a wallet refund on delete — synced-down expenses
+  /// never touched this device's wallet, so refunding them would
+  /// create phantom credit.
+  final Set<String> _deductedLocally = {};
+
   /// Set by main.dart so wallet refunds stay in sync on delete.
   TotalBalanceProvider? totalBalance;
 
@@ -61,6 +67,9 @@ class ExpenseProvider extends ChangeNotifier {
       try {
         await totalBalance!.deductForExpense(
             saved.paymentMethod, saved.bdtAmount ?? saved.amount);
+        // Mark as deducted on this device so delete() refunds correctly.
+        final did = saved.id;
+        if (did != null) _deductedLocally.add(did);
       } catch (_) {}
     } else if (saved.paymentMethod == 'cash') {
       // Fallback if TotalBalanceProvider isn't wired (shouldn't happen).
@@ -118,7 +127,9 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
     // Refund the removed expense back to its wallet so the total
     // balance stays correct (add deducts, delete refunds).
-    if (removed != null) {
+    // ONLY refund if the wallet was deducted on this device — synced-down
+    // expenses never touched this device's wallet.
+    if (removed != null && _deductedLocally.remove(id)) {
       try {
         await totalBalance?.refundForExpense(
           removed.paymentMethod,
@@ -140,15 +151,14 @@ class ExpenseProvider extends ChangeNotifier {
         .map((e) => e.id)
         .whereType<String>()
         .toList();
+    var count = 0;
     for (final id in ids) {
       try {
-        await DatabaseHelper.instance.deleteExpense(id);
+        await remove(id); // remove() refunds the wallet
+        count++;
       } catch (_) {}
     }
-    _expenses.removeWhere((e) =>
-        e.date.year == month.year && e.date.month == month.month);
-    notifyListeners();
-    return ids.length;
+    return count;
   }
 
   /// Deletes all expenses of [categoryId] in [month]. Returns count removed.
@@ -161,17 +171,14 @@ class ExpenseProvider extends ChangeNotifier {
         .map((e) => e.id)
         .whereType<String>()
         .toList();
+    var count = 0;
     for (final id in ids) {
       try {
-        await DatabaseHelper.instance.deleteExpense(id);
+        await remove(id); // remove() refunds the wallet
+        count++;
       } catch (_) {}
     }
-    _expenses.removeWhere((e) =>
-        e.categoryId == categoryId &&
-        e.date.year == month.year &&
-        e.date.month == month.month);
-    notifyListeners();
-    return ids.length;
+    return count;
   }
 
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -252,15 +259,14 @@ class ExpenseProvider extends ChangeNotifier {
         .map((e) => e.id)
         .whereType<String>()
         .toList();
+    var count = 0;
     for (final id in ids) {
       try {
-        await DatabaseHelper.instance.deleteExpense(id);
+        await remove(id); // remove() refunds the wallet
+        count++;
       } catch (_) {}
     }
-    _expenses.removeWhere(
-        (e) => !e.date.isBefore(start) && !e.date.isAfter(end));
-    notifyListeners();
-    return ids.length;
+    return count;
   }
 
   /// Deletes all expenses of [categoryId] in [start]..[end]. Returns count.
@@ -274,16 +280,13 @@ class ExpenseProvider extends ChangeNotifier {
         .map((e) => e.id)
         .whereType<String>()
         .toList();
+    var count = 0;
     for (final id in ids) {
       try {
-        await DatabaseHelper.instance.deleteExpense(id);
+        await remove(id); // remove() refunds the wallet
+        count++;
       } catch (_) {}
     }
-    _expenses.removeWhere((e) =>
-        e.categoryId == categoryId &&
-        !e.date.isBefore(start) &&
-        !e.date.isAfter(end));
-    notifyListeners();
-    return ids.length;
+    return count;
   }
 }

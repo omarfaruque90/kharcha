@@ -692,15 +692,69 @@ class DatabaseHelper {
     final count =
         await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
     if (!SyncService.instance.applyingRemote) {
+      // Record tombstone so a fresh pull doesn't resurrect this record.
+      await _addTombstone('expense', id);
       await SyncService.instance.pushDelete(id);
     }
     return count;
   }
 
+  /// Records a deleted record ID (tombstone) to prevent resurrection on sync.
+  Future<void> _addTombstone(String type, String id) async {
+    try {
+      final key = 'tombstones_$type';
+      final raw = await getSetting(key);
+      final ids = <String>{};
+      if (raw != null && raw.isNotEmpty) {
+        ids.addAll(raw.split(',').where((s) => s.isNotEmpty));
+      }
+      ids.add(id);
+      await setSetting(key, ids.join(','));
+    } catch (_) {}
+  }
+
+  /// Returns tombstoned IDs for [type].
+  Future<Set<String>> getTombstones(String type) async {
+    try {
+      final raw = await getSetting('tombstones_$type');
+      if (raw == null || raw.isEmpty) return {};
+      return raw.split(',').where((s) => s.isNotEmpty).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Clears tombstones for [type] after successful sync.
+  Future<void> clearTombstones(String type) async {
+    try {
+      await setSetting('tombstones_$type', '');
+    } catch (_) {}
+  }
+
   /// Upserts a remote expense into SQLite without touching the cloud.
   /// The caller (SyncService) holds the [SyncService.applyingRemote] guard.
+  /// Preserves device-local columns (receiptPath, project_id, lat, lng)
+  /// that are not synced to Firestore.
   Future<void> upsertExpense(Expense expense) async {
     final db = await database;
+    // Preserve local-only columns from the existing row.
+    if (expense.id != null) {
+      final existing = await db.query(
+        'expenses',
+        columns: ['receiptPath', 'project_id', 'lat', 'lng'],
+        where: 'id = ?',
+        whereArgs: [expense.id],
+      );
+      if (existing.isNotEmpty) {
+        final row = existing.first;
+        expense = expense.copyWith(
+          receiptPath: row['receiptPath'] as String?,
+          projectId: row['project_id'] as String? ?? '',
+          lat: (row['lat'] as num?)?.toDouble(),
+          lng: (row['lng'] as num?)?.toDouble(),
+        );
+      }
+    }
     await db.insert(
       'expenses',
       expense.toMap(),

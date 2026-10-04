@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
+import '../models/cash_entry.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../providers/money_provider.dart';
+import '../providers/total_balance_provider.dart';
 import 'notification_center.dart';
 
 /// Auto-generates real expenses / incomes from active recurring templates,
@@ -63,6 +67,8 @@ class RecurringService {
           note: note,
           paymentMethod: template.paymentMethod,
         ));
+        // Deduct from wallet (mirrors ExpenseProvider.add wallet logic).
+        await _deductWallet(db, template.paymentMethod, template.amount);
       }
       await db.updateRecurringExpense(
         template.copyWith(lastAddedMonth: currentKey),
@@ -99,5 +105,38 @@ class RecurringService {
         );
       } catch (_) {}
     }
+  }
+
+  /// Deducts an expense amount from the matching wallet.
+  /// Mirrors TotalBalanceProvider.deductForExpense for the static context.
+  static Future<void> _deductWallet(
+      DatabaseHelper db, String paymentMethod, double amount) async {
+    if (amount <= 0) return;
+    try {
+      final w = TotalBalanceProvider.walletForPayment(paymentMethod);
+      if (w == null) return;
+      if (w == 'cash') {
+        await db.insertCashEntry(CashEntry(
+          id: CashEntry.newId(),
+          amount: amount,
+          type: 'out',
+          note: 'recurring',
+          date: DateTime.now(),
+        ));
+      } else {
+        final raw = await db.getSetting('wallet_balances');
+        final map = <String, double>{};
+        if (raw != null && raw.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(raw) as Map<String, dynamic>;
+            decoded.forEach((k, v) {
+              map[k] = (v as num).toDouble();
+            });
+          } catch (_) {}
+        }
+        map[w] = (map[w] ?? 0) - amount;
+        await db.setSetting('wallet_balances', jsonEncode(map));
+      }
+    } catch (_) {}
   }
 }

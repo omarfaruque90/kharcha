@@ -124,17 +124,20 @@ Future<void> _runUpdateCheck() async {
 }
 
 List<int>? _parseVersion(String v) {
-  final m = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?').firstMatch(v.trim());
+  // Accepts "1.2.3", "0.0.0.4" and short forms like "0.1" (-> [0, 1, 0, 0]).
+  final m = RegExp(r'^(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?')
+      .firstMatch(v.trim());
   if (m == null) return null;
   return [
     int.parse(m.group(1)!),
     int.parse(m.group(2)!),
     int.parse(m.group(3) ?? '0'),
+    int.parse(m.group(4) ?? '0'),
   ];
 }
 
 bool _isNewer(List<int> remote, List<int> local) {
-  for (var i = 0; i < 3; i++) {
+  for (var i = 0; i < 4; i++) {
     if (remote[i] != local[i]) return remote[i] > local[i];
   }
   return false;
@@ -152,6 +155,18 @@ Future<void> _showUpdateNotification(String version) async {
     await plugin.initialize(
       settings: const InitializationSettings(android: androidSettings),
     );
+    // Create the channel explicitly — the worker isolate can't rely on
+    // the main isolate having created it.
+    const channel = AndroidNotificationChannel(
+      'khorcha_updates',
+      'Khorcha Updates',
+      description: 'Notun app version ashle janiye dey',
+      importance: Importance.high,
+    );
+    await plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
     await plugin.show(
       id: 9001,
       title: AppStrings.get('update_available_title', lang),
