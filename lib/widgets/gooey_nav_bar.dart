@@ -357,8 +357,8 @@ class _CenterOrbState extends State<_CenterOrb>
                   ),
                 ],
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  width: 1.5,
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
                 ),
               ),
               child: CustomPaint(
@@ -461,12 +461,6 @@ class _NotchBarPainter extends CustomPainter {
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     canvas.drawPath(path, fillPaint);
-
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = Colors.white.withValues(alpha: 0.1);
-    canvas.drawPath(path, borderPaint);
   }
 
   @override
