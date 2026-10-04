@@ -67,8 +67,8 @@ class _GooeyNavBarState extends State<GooeyNavBar>
       null, // center orb
       _NavItem(Icons.bar_chart_outlined, Icons.bar_chart_rounded,
           'nav_reports'),
-      _NavItem(Icons.settings_outlined, Icons.settings_rounded,
-          'nav_settings'),
+      _NavItem(Icons.grid_view_outlined, Icons.grid_view_rounded,
+          'nav_more'),
     ];
 
     return SafeArea(
