@@ -76,7 +76,7 @@ class _QuickTemplatesState extends State<QuickTemplates> {
     final demos = [
       ExpenseTemplate(
         id: ExpenseTemplate.newId(),
-        name: bn ? 'দুপুরের খাবার' : 'Lunch',
+        name: tr(context, 'template_lunch'),
         amount: 150,
         categoryId: 'food',
         payment: 'cash',
@@ -85,7 +85,7 @@ class _QuickTemplatesState extends State<QuickTemplates> {
       ),
       ExpenseTemplate(
         id: ExpenseTemplate.newId(),
-        name: bn ? 'যাতায়াত' : 'Transport',
+        name: tr(context, 'template_transport'),
         amount: 100,
         categoryId: 'transport',
         payment: 'cash',

@@ -499,7 +499,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
           amount: amount,
           categoryId: categoryId,
           date: DateTime.now(),
-          note: merchant.isEmpty ? 'Bill scan' : 'Bill: $merchant',
+          note: merchant.isEmpty
+              ? tr(context, 'bill_scan')
+              : '${tr(context, 'bill_merchant')}: $merchant',
           paymentMethod: 'cash',
           currency: 'BDT',
           bdtAmount: amount,
@@ -606,7 +608,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 22),
-            tooltip: 'Clear chat',
+            tooltip: tr(context, 'clear_chat'),
             onPressed: () => _confirmClearChat(context),
           ),
         ],

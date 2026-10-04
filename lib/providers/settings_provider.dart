@@ -146,10 +146,10 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setCustomColor(Color color) async {
-    _customColor = color.value;
+    _customColor = color.toARGB32();
     _accent = accentCustom;
     await DatabaseHelper.instance
-        .setSetting('custom_color', color.value.toString());
+        .setSetting('custom_color', color.toARGB32().toString());
     await DatabaseHelper.instance.setSetting('accent', accentCustom);
     notifyListeners();
   }

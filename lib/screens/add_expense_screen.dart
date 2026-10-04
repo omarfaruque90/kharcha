@@ -430,9 +430,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(lang == 'bn'
-              ? 'লোকেশন যোগ হয়েছে'
-              : 'Location attached'),
+          content: Text(tr(context, 'location_added')),
         ),
       );
     } catch (_) {

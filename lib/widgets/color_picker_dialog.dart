@@ -58,7 +58,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
           itemCount: _colors.length,
           itemBuilder: (ctx, i) {
             final c = _colors[i];
-            final selected = c.value == _selected.value;
+            final selected = c.toARGB32() == _selected.toARGB32();
             return GestureDetector(
               onTap: () => setState(() => _selected = c),
               child: Container(

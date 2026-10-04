@@ -75,7 +75,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           amount: item.price * item.qty,
           categoryId: 'shopping',
           date: DateTime.now(),
-          note: 'Shopping: ${item.name}',
+          note: '${tr(context, 'shopping_prefix')}: ${item.name}',
           paymentMethod: 'cash',
         ),
       );

@@ -80,7 +80,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             amount: s.amount,
             categoryId: 'bills',
             date: now,
-            note: 'Subscription: ${s.name}',
+            note: '${tr(context, 'subscription_prefix')}: ${s.name}',
             paymentMethod: 'cash',
           ),
         );

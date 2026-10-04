@@ -86,8 +86,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             lastDay: DateTime(2040, 12, 31),
             focusedDay: _focusedDay,
             calendarFormat: CalendarFormat.month,
-            availableCalendarFormats: const {
-              CalendarFormat.month: 'Month',
+            availableCalendarFormats: {
+              CalendarFormat.month: tr(context, 'month'),
             },
             eventLoader: (day) => byDay[_dayKey(day)] ?? const <Expense>[],
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),

@@ -106,7 +106,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
               amount: w.targetPrice,
               categoryId: 'shopping',
               date: DateTime.now(),
-              note: 'Wishlist: ${w.name}',
+              note: '${tr(context, 'wishlist_prefix')}: ${w.name}',
               paymentMethod: 'cash',
             ),
           );

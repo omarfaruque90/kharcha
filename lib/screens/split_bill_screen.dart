@@ -128,7 +128,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
               amount: meAmount,
               categoryId: 'others',
               date: DateTime.now(),
-              note: 'Split: $title',
+              note: '${tr(context, 'split_prefix')}: $title',
               paymentMethod: 'cash',
             ),
           );
@@ -143,7 +143,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
             amount: amount,
             kind: _rows[i].debtKind,
             date: DateTime.now(),
-            note: 'Split: $title',
+            note: '${tr(context, 'split_prefix')}: $title',
             settled: false,
           ),
         );
