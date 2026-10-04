@@ -172,7 +172,7 @@ class _SnappyCurve extends Curve {
   @override
   double transformInternal(double t) {
     // Fast start, slight overshoot, settle.
-    final s = 1.2;
+    const s = 1.2;
     return 1 + (s + 1) * math.pow(t - 1, 3) + s * math.pow(t - 1, 2);
   }
 }
@@ -252,7 +252,7 @@ class _MorphTabButtonState extends State<_MorphTabButton>
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
                   ..rotateZ(rotation)
-                  ..scale(scale * squashX, scale * squashY),
+                  ..scaleByDouble(scale * squashX, scale * squashY),
                 child: Icon(
                   widget.selected
                       ? widget.item.activeIcon
@@ -390,7 +390,7 @@ class _AbstractLogoPainter extends CustomPainter {
       white,
     );
     // Smaller orbiting dot.
-    final orbitR = 17.0;
+    const orbitR = 17.0;
     final dotPos = Offset(
       center.dx + orbitR * math.cos(orbitAngle),
       center.dy + orbitR * math.sin(orbitAngle),
