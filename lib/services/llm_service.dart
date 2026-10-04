@@ -80,7 +80,7 @@ class LlmConfig {
     }
     if (model.trim().isNotEmpty) return model.trim();
     final p = provider.trim().isNotEmpty ? provider.trim() : 'gemini';
-    if (p == 'nvidia') return 'meta/muse-glimmer-30b';
+    if (p == 'nvidia') return _nvidiaModel;
     return p == 'openai' ? 'gpt-4o-mini' : 'gemini-3.8-flash';
   }
 
@@ -89,7 +89,7 @@ class LlmConfig {
       return baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     }
     final p = provider.trim().isNotEmpty ? provider.trim() : 'gemini';
-    if (p == 'nvidia') return 'https://integrate.api.nvidia.com/v1';
+    if (p == 'nvidia') return _nvidiaBaseUrl;
     return 'https://api.openai.com/v1';
   }
 
