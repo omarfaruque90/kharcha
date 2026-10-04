@@ -53,10 +53,59 @@ class PublicTemplatesService {
           'authorName': (data['authorName'] ?? '').toString(),
         };
       }).toList(growable: false);
+      // If Firestore is empty, show built-in starter templates.
+      if (result.isEmpty) return _builtInTemplates();
+      return result;
     } catch (_) {
-      // Offline / rules not deployed yet: show an empty list.
-      return const [];
+      // Offline / rules not deployed yet: show built-in templates.
+      return _builtInTemplates();
     }
+  }
+
+  /// Built-in starter templates shown when Firestore has none.
+  List<Map<String, dynamic>> _builtInTemplates() {
+    return [
+      {
+        'id': 'builtin_student',
+        'name': 'Student Budget',
+        'budgets': [
+          {'category': 'food', 'amount': 3000},
+          {'category': 'transport', 'amount': 1500},
+          {'category': 'education', 'amount': 2000},
+          {'category': 'entertainment', 'amount': 1000},
+        ],
+        'likes': 128,
+        'authorName': 'Khorcha Team',
+        'builtIn': true,
+      },
+      {
+        'id': 'builtin_family',
+        'name': 'Family Budget',
+        'budgets': [
+          {'category': 'food', 'amount': 15000},
+          {'category': 'housing', 'amount': 12000},
+          {'category': 'transport', 'amount': 4000},
+          {'category': 'health', 'amount': 3000},
+          {'category': 'education', 'amount': 5000},
+        ],
+        'likes': 96,
+        'authorName': 'Khorcha Team',
+        'builtIn': true,
+      },
+      {
+        'id': 'builtin_saver',
+        'name': 'Saver Budget',
+        'budgets': [
+          {'category': 'food', 'amount': 8000},
+          {'category': 'transport', 'amount': 2500},
+          {'category': 'savings', 'amount': 10000},
+          {'category': 'entertainment', 'amount': 1500},
+        ],
+        'likes': 84,
+        'authorName': 'Khorcha Team',
+        'builtIn': true,
+      },
+    ];
   }
 
   /// Increments the like counter on one template (anonymous-friendly
