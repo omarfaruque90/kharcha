@@ -11,6 +11,7 @@ import '../models/income.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/total_balance_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/brand_gradient_card.dart';
 import '../widgets/branded_date_picker.dart';
@@ -56,6 +57,10 @@ class _DebtsScreenState extends State<DebtsScreen> {
         _debts = debts;
         _loaded = true;
       });
+      // Refresh Home's "Lent out" amount.
+      try {
+        await context.read<TotalBalanceProvider>().refresh();
+      } catch (_) {}
     } catch (_) {
       // Keep whatever data is on screen (possibly empty) and stop the
       // spinner so a DB failure can't leave the screen hanging.
