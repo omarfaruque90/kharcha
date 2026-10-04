@@ -104,4 +104,29 @@ class ProfileService {
     _cachedThumb = null;
     _cacheLoaded = false;
   }
+
+  /// Date of birth (ISO date string, e.g. "1995-03-14"), or null if unset.
+  Future<String?> getBirthDate() async {
+    try {
+      final doc = _userDoc();
+      if (doc == null) return null;
+      final snap = await doc.get();
+      final v = snap.data()?['birthDate'];
+      return (v is String && v.isNotEmpty) ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves the date of birth. Returns `true` on success.
+  Future<bool> setBirthDate(String isoDate) async {
+    try {
+      final doc = _userDoc();
+      if (doc == null) return false;
+      await doc.set({'birthDate': isoDate}, SetOptions(merge: true));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

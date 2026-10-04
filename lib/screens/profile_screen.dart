@@ -20,11 +20,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploading = false;
   bool _loading = true;
   String? _avatarThumb;
+  String? _birthDate;
 
   @override
   void initState() {
     super.initState();
     _loadAvatar();
+    _loadBirthDate();
+  }
+
+  Future<void> _loadBirthDate() async {
+    final dob = await ProfileService.instance.getBirthDate();
+    if (mounted) setState(() => _birthDate = dob);
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final initial = _birthDate != null
+        ? DateTime.tryParse(_birthDate!) ?? DateTime(now.year - 25)
+        : DateTime(now.year - 25);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    final iso =
+        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    final ok = await ProfileService.instance.setBirthDate(iso);
+    if (ok && mounted) setState(() => _birthDate = iso);
   }
 
   Future<void> _loadAvatar() async {
@@ -205,6 +230,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? displayName
                 : tr(context, 'auth_account')),
             subtitle: email != null ? Text(email) : null,
+          ),
+          ListTile(
+            leading: const Icon(Icons.cake_outlined),
+            title: Text(tr(context, 'profile_birth_date')),
+            subtitle: Text(_birthDate ?? tr(context, 'profile_birth_date_hint')),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: isGuest ? null : _pickBirthDate,
           ),
         ],
       ),
