@@ -92,19 +92,9 @@ class StatsNotification {
       final today = await _totalForToday();
       final month = await _totalForMonth();
 
-      final title =
-          AppStrings.get('stats_notif_title', lang) == 'stats_notif_title'
-              ? (lang == 'bn' ? 'খরচের সারসংক্ষেপ' : 'Khorcha')
-              : AppStrings.get('stats_notif_title', lang);
+      final title = AppStrings.get('stats_notif_title', lang);
 
       var body = AppStrings.get('stats_notif_body', lang);
-      if (!body.contains('{today}') || !body.contains('{month}')) {
-        // tr keys not yet wired in app_strings.dart (coordinator owns that
-        // file): fall back to the inline template so the feature works.
-        body = lang == 'bn'
-            ? 'আজ {today} • এই মাস {month}'
-            : 'Today {today} • Month {month}';
-      }
       body = body
           .replaceAll('{today}', formatMoney(today))
           .replaceAll('{month}', formatMoney(month));

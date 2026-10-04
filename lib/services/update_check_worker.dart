@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../db/database_helper.dart';
+import '../l10n/app_strings.dart';
 import 'drive_backup_service.dart';
 import 'geofence_service.dart';
 import 'gift_reminder_service.dart';
@@ -143,6 +145,8 @@ bool _isNewer(List<int> remote, List<int> local) {
 /// NotificationService instance is not reachable from here.
 Future<void> _showUpdateNotification(String version) async {
   try {
+    final lang =
+        await DatabaseHelper.instance.getSetting('language') ?? 'bn';
     final plugin = FlutterLocalNotificationsPlugin();
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -151,8 +155,9 @@ Future<void> _showUpdateNotification(String version) async {
     );
     await plugin.show(
       id: 9001,
-      title: 'Khorcha আপডেট এসেছে',
-      body: 'নতুন ভার্সন v$version এসেছে। আপডেট করতে এখানে ট্যাপ করো।',
+      title: AppStrings.get('update_available_title', lang),
+      body: AppStrings.get('update_available_body', lang)
+          .replaceAll('{version}', version),
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'khorcha_updates',

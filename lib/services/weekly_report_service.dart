@@ -78,12 +78,15 @@ class WeeklyReportService {
       // custom category names with emoji fall back to the localized
       // built-in name.
       final topCat = CustomCategoryRegistry.displayName(topId, lang);
-      final title = lang == 'bn' ? '📊 সাপ্তাহিক রিপোর্ট' : '📊 Weekly report';
-      final body = lang == 'bn'
-          ? 'গত সপ্তাহ: ${formatMoney(lastTotal)} · টপ: $topCat'
-              '${deltaText != null ? ' ($deltaText আগের সপ্তাহের তুলনায়)' : ''}'
-          : 'Last week: ${formatMoney(lastTotal)} · top: $topCat'
-              '${deltaText != null ? ' ($deltaText vs prior week)' : ''}';
+      final title = AppStrings.get('weekly_report_title', lang);
+      final deltaSuffix = deltaText != null
+          ? AppStrings.get('weekly_report_delta', lang)
+              .replaceAll('{delta}', deltaText)
+          : '';
+      final body = AppStrings.get('weekly_report_body', lang)
+          .replaceAll('{total}', formatMoney(lastTotal))
+          .replaceAll('{top}', topCat)
+          .replaceAll('{delta}', deltaSuffix);
 
       try {
         // push() logs to the in-app center AND fires the tray notification

@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/database_helper.dart';
+import '../l10n/app_strings.dart';
 import '../models/custom_category.dart';
 import '../utils/formatters.dart';
 import 'notification_center.dart';
@@ -92,10 +93,11 @@ class MonthlyReportService {
       // emoji fall back to the localized built-in name.
       final topCat = CustomCategoryRegistry.displayName(topId, lang);
 
-      final title = lang == 'bn' ? 'মাসিক রিপোর্ট' : 'Monthly report';
-      final body = lang == 'bn'
-          ? '$monthName · ${formatMoney(total)} খরচ · টপ: $topCat'
-          : '$monthName · spent ${formatMoney(total)} · Top: $topCat';
+      final title = AppStrings.get('monthly_report_title', lang);
+      final body = AppStrings.get('monthly_report_body', lang)
+          .replaceAll('{month}', monthName)
+          .replaceAll('{total}', formatMoney(total))
+          .replaceAll('{top}', topCat);
 
       try {
         // push() logs to the in-app center AND fires the tray notification

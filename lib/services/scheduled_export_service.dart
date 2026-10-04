@@ -71,12 +71,9 @@ class ScheduledExportService {
       await file.writeAsBytes(bytes);
 
       final monthLabel = monthLong(lastMonth, lang);
-      final title = lang == 'bn'
-          ? '📄 মাসিক রিপোর্ট প্রস্তুত'
-          : '📄 Monthly report ready';
-      final body = lang == 'bn'
-          ? '$monthLabel স্টেটমেন্ট PDF সংরক্ষিত হয়েছে'
-          : '$monthLabel statement PDF saved';
+      final title = AppStrings.get('export_ready_title', lang);
+      final body = AppStrings.get('export_ready_body', lang)
+          .replaceAll('{month}', monthLabel);
 
       // Phone notification + in-app notification center entry.
       // Tapping the tray notification opens the app (payload-less); sharing

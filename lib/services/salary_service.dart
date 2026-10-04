@@ -78,10 +78,9 @@ class SalaryService {
 
       await db.setSetting(monthKey, '1');
 
-      final title = lang == 'bn' ? 'বেতন এসেছে!' : 'Salary received!';
-      final body = lang == 'bn'
-          ? '${formatMoney(distributed)} সেভিংসে গেছে'
-          : '${formatMoney(distributed)} moved to savings';
+      final title = AppStrings.get('salary_received_title', lang);
+      final body = AppStrings.get('salary_received_body', lang)
+          .replaceAll('{amount}', formatMoney(distributed));
       await NotificationService.showNow(title: title, body: body);
       await NotificationCenter.push(
         title: title,

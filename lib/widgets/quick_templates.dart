@@ -70,9 +70,6 @@ class _QuickTemplatesState extends State<QuickTemplates> {
 
   /// 2 demo templates — the only pre-set content in the app.
   Future<void> _seedDemoTemplates() async {
-    final lang =
-        context.read<SettingsProvider>().language;
-    final bn = lang == 'bn';
     final demos = [
       ExpenseTemplate(
         id: ExpenseTemplate.newId(),
