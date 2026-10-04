@@ -157,7 +157,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                   Expanded(
                     flex: 2,
                     child: DropdownButtonFormField<String>(
-                      value: unit,
+                      initialValue: unit,
                       decoration: InputDecoration(
                         labelText: tr(ctx, 'shop_unit'),
                         border: const OutlineInputBorder(),
