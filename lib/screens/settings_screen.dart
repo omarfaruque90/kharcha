@@ -578,40 +578,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Named section header — every settings group gets one.
-  Widget _sectionHeader(BuildContext context, String key) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary
-                  .withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              _sectionIcon(key),
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            tr(context, key),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
   IconData _sectionIcon(String key) {
     switch (key) {
       case 'account_section':
@@ -637,6 +603,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Expandable section: tap the header to collapse/expand.
+  /// Items hide inside when collapsed.
+  final Map<String, bool> _expanded = {};
+
+  Widget _expandableSection(
+      BuildContext context, String key, List<Widget> children) {
+    final isOpen = _expanded[key] ?? true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _expanded[key] = !isOpen),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    _sectionIcon(key),
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    tr(context, key),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: isOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: isOpen
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -654,49 +685,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final tiles = <Widget>[
           // ── Account: profile + name only (logout moves below About) ──
-          if (user != null) ...[
-            _sectionHeader(context, 'account_section'),
-            ListTile(
-              leading: _SettingsAvatar(
-                key: _avatarKey,
-                initial: (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
-                    .toUpperCase(),
+          if (user != null)
+            _expandableSection(context, 'account_section', [
+              ListTile(
+                leading: _SettingsAvatar(
+                  key: _avatarKey,
+                  initial: (userLabel?.isNotEmpty == true ? userLabel![0] : '?')
+                      .toUpperCase(),
+                ),
+                title: Text(userLabel ?? tr(context, 'auth_account')),
+                subtitle: Text(tr(context, 'profile_title')),
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                  // Refresh the avatar in case the photo was changed.
+                  _avatarKey.currentState?.refresh();
+                  if (mounted) setState(() {});
+                },
               ),
-              title: Text(userLabel ?? tr(context, 'auth_account')),
-              subtitle: Text(tr(context, 'profile_title')),
-              onTap: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                );
-                // Refresh the avatar in case the photo was changed.
-                _avatarKey.currentState?.refresh();
-                if (mounted) setState(() {});
-              },
-            ),
-            const Divider(),
-          ],
+            ]),
           // ── General ──
-          _sectionHeader(context, 'general_section'),
-          ListTile(
-            leading: const Icon(Icons.translate),
-            title: Text(tr(context, 'language')),
-            subtitle: Text(_languageNames[lang] ?? lang),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showLanguagePicker(context, settings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.category_outlined),
-            title: Text(tr(context, 'customize_categories')),
-            subtitle: Text(tr(context, 'customize_categories_sub')),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const CategoriesScreen()),
+          _expandableSection(context, 'general_section', [
+            ListTile(
+              leading: const Icon(Icons.translate),
+              title: Text(tr(context, 'language')),
+              subtitle: Text(_languageNames[lang] ?? lang),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showLanguagePicker(context, settings),
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.category_outlined),
+              title: Text(tr(context, 'customize_categories')),
+              subtitle: Text(tr(context, 'customize_categories_sub')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const CategoriesScreen()),
+              ),
+            ),
+          ]),
           // ── Appearance ──
-          _sectionHeader(context, 'appearance_section'),
+          _expandableSection(context, 'appearance_section', [
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: Text(tr(context, 'appearance')),
@@ -874,9 +905,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          const Divider(),
+          ]),
           // ── Money ──
-          _sectionHeader(context, 'money_section'),
+          _expandableSection(context, 'money_section', [
           ListTile(
             leading: const Icon(Icons.place_outlined),
             title: Text(tr(context, 'places_title')),
@@ -934,8 +965,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (mounted) setState(() => _autoPdf = v);
             },
           ),
-          const Divider(),
-          _sectionHeader(context, 'profile_section'),
+          ]),
+          _expandableSection(context, 'profile_section', [
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: Text(tr(context, 'profile_current')),
@@ -947,8 +978,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.swap_horiz),
             onTap: () => _showProfileSwitcher(context),
           ),
-          const Divider(),
-          _sectionHeader(context, 'security_section'),
+          ]),
+          _expandableSection(context, 'security_section', [
           SwitchListTile(
             secondary: const Icon(Icons.lock_outline),
             title: Text(tr(context, 'lock_title')),
@@ -973,8 +1004,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (mounted) setState(() => _bioEnabled = v);
               },
             ),
-          const Divider(),
-          _sectionHeader(context, 'ai_settings_section'),
+          ]),
+          _expandableSection(context, 'ai_settings_section', [
           ListTile(
             leading: const Icon(Icons.smart_toy_outlined),
             title: Text(tr(context, 'ai_settings_title')),
@@ -984,8 +1015,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const AiLlmSettingsScreen()),
             ),
           ),
-          const Divider(),
-          _sectionHeader(context, 'data_section'),
+          ]),
+          _expandableSection(context, 'data_section', [
           ListTile(
             leading: const Icon(Icons.backup_outlined),
             title: Text(tr(context, 'backup_now')),
@@ -1081,8 +1112,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(tr(context, 'check_updates')),
             onTap: _busy ? null : _checkForUpdates,
           ),
-          const Divider(),
-          _sectionHeader(context, 'about'),
+          ]),
+          _expandableSection(context, 'about', [
           ListTile(
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -1103,6 +1134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
+          ]),
           // ── Logout: outside any section, below About ──
           if (user != null) ...[
             const Divider(),
