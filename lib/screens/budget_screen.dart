@@ -97,11 +97,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   ? user!.displayName!
                   : (user?.email ?? tr(context, 'auth_guest_label'));
               try {
-                await PublicTemplatesService.instance
+                final ok = await PublicTemplatesService.instance
                     .publish(name, budgets, author);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(tr(context, 'pt_shared'))),
+                    SnackBar(
+                        content: Text(tr(context,
+                            ok ? 'pt_shared' : 'pt_share_failed'))),
                   );
                 }
               } catch (_) {

@@ -120,7 +120,10 @@ class PublicTemplatesService {
   }
 
   /// Publishes the user's budget list as a public template.
-  Future<void> publish(
+  /// Returns true on success, false if the write failed (e.g. Firestore
+  /// rules, network). Errors are NOT swallowed so the UI can report
+  /// the real outcome.
+  Future<bool> publish(
     String name,
     List<Budget> budgets,
     String authorName,
@@ -138,7 +141,10 @@ class PublicTemplatesService {
         'authorName': authorName.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Replaces the local budgets of [monthKey] with the template's
