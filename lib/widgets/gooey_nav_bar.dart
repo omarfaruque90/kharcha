@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
-import '../main.dart';
-import '../providers/settings_provider.dart';
-import 'liquid_add_button.dart';
 
-/// Gooey sliding-notch bottom nav, like the reference video:
-/// a floating deep-green pill whose concave dip glides from tab to tab,
-/// carrying a bubble with the selected icon. Colors follow the theme's
-/// accent choice.
+/// Premium dark navbar matching the reference design:
+/// floating dark pill with concave center notch, elevated blue orb
+/// for the Add action, and a sliding green indicator under the
+/// selected tab. Icon + label per tab.
 class GooeyNavBar extends StatefulWidget {
   final int index;
   final ValueChanged<int> onTap;
@@ -25,7 +21,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   late final AnimationController _ctrl;
   late Animation<double> _pos; // fractional tab position 0..4
 
-  static const _duration = Duration(milliseconds: 250);
+  static const _duration = Duration(milliseconds: 300);
 
   @override
   void initState() {
@@ -34,8 +30,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
     _pos = Tween<double>(
       begin: widget.index.toDouble(),
       end: widget.index.toDouble(),
-    ).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.fastOutSlowIn));
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.fastOutSlowIn));
   }
 
   @override
@@ -57,273 +52,312 @@ class _GooeyNavBarState extends State<GooeyNavBar>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final settings = context.watch<SettingsProvider>();
-    final accentName = settings.accent;
-    final accent = accentName == 'custom'
-        ? settings.customColor
-        : (kAccents[accentName] ?? kGold);
-    final dark = theme.brightness == Brightness.dark;
-
-    // Bar: solid deep green like the video's solid purple.
-    final barColor = dark ? const Color(0xFF0E2F25) : kDeepGreen;
-    final iconColor = Colors.white.withValues(alpha: 0.72);
+    // 0: Home, 1: History, 2: Add, 3: Reports, 4: More
+    final items = [
+      _NavItem(Icons.home_outlined, Icons.home_rounded, 'nav_home'),
+      _NavItem(Icons.receipt_long_outlined, Icons.receipt_long_rounded,
+          'nav_history'),
+      null, // center orb
+      _NavItem(Icons.bar_chart_outlined, Icons.bar_chart_rounded,
+          'nav_reports'),
+      _NavItem(Icons.settings_outlined, Icons.settings_rounded,
+          'nav_settings'),
+    ];
 
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: LayoutBuilder(
-          builder: (ctx, c) {
-            final barW = c.maxWidth;
-            const barH = 72.0;
-            const sidePad = 16.0;
-            // Reference image 1: selected tab sits in a bubble cradled
-            // deep in the sliding dip. Reference image 2: the + orb is
-            // always big, raised high above the bar with a strong glow.
-            const bubbleR = 34.0; // 68px tab bubbles
-            const addR = 44.0; // 88px + orb — always big
-            final tabW = (barW - sidePad * 2) / 5;
-            double xFor(int i) => sidePad + tabW * (i + 0.5);
-
-            return AnimatedBuilder(
-              animation: _pos,
-              builder: (ctx, _) {
-                // Interpolate the dip x between neighboring tab centers.
-                final p = _pos.value.clamp(0.0, 4.0);
-                final i0 = p.floor().clamp(0, 3);
-                final frac = p - i0;
-                final dipX =
-                    xFor(i0) * (1 - frac) + xFor(i0 + 1) * frac;
-
-                return RepaintBoundary(
-                  child: SizedBox(
-                  height: barH + 56,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Bar with the sliding dip.
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: CustomPaint(
-                          size: Size(barW, barH),
-                          painter: _BarPainter(
-                            dipX: dipX,
-                            color: barColor,
-                            accent: accent,
-                          ),
-                        ),
-                      ),
-                      // Bubble carrying the selected icon, cradled deep
-                      // in the dip like the reference: half in, half out.
-                      // The + orb stays big and raised like image 2.
-                      Positioned(
-                        left: dipX -
-                            (widget.index == 2 ? addR : bubbleR),
-                        bottom: widget.index == 2
-                            ? barH - addR + 14
-                            : 2, // Bubble contained within bar — border stays inside navbar
-                        child: _bubble(context, widget.index,
-                            bubbleR, addR, accent, dark),
-                      ),
-                      // Tap targets + unselected icons/labels.
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: barH,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: sidePad),
-                          child: Row(
-                            children: [
-                              _tab(context, 0, Icons.home_outlined,
-                                  'nav_home', iconColor, accent, theme),
-                              _tab(context, 1, Icons.history_outlined,
-                                  'nav_history', iconColor, accent, theme),
-                              _tab(context, 2, Icons.add, 'nav_add',
-                                  iconColor, accent, theme),
-                              _tab(context, 3,
-                                  Icons.bar_chart_outlined,
-                                  'nav_reports', iconColor, accent, theme),
-                              _tab(context, 4, Icons.more_horiz,
-                                  'more', iconColor, accent, theme),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+        child: SizedBox(
+          height: 76,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // The dark pill bar with center notch.
+              Positioned.fill(
+                top: 10,
+                child: CustomPaint(
+                  painter: _NotchBarPainter(),
+                ),
+              ),
+              // Tab items + sliding indicator.
+              Positioned.fill(
+                top: 10,
+                child: AnimatedBuilder(
+                  animation: _pos,
+                  builder: (ctx, _) {
+                    return LayoutBuilder(
+                      builder: (ctx, constraints) {
+                        final w = constraints.maxWidth;
+                        final slotW = w / 5;
+                        final indicatorX =
+                            slotW * _pos.value + slotW / 2;
+                        return Stack(
+                          children: [
+                            Row(
+                              children: [
+                                for (int i = 0; i < 5; i++)
+                                  if (i == 2)
+                                    SizedBox(width: slotW)
+                                  else
+                                    SizedBox(
+                                      width: slotW,
+                                      child: _TabButton(
+                                        item: items[i]!,
+                                        selected:
+                                            widget.index == i,
+                                        onTap: () =>
+                                            widget.onTap(i),
+                                      ),
+                                    ),
+                              ],
+                            ),
+                            // Sliding green indicator.
+                            if (widget.index != 2)
+                              Positioned(
+                                left: indicatorX - 12,
+                                bottom: 8,
+                                child: Container(
+                                  width: 24,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF22C55E),
+                                    borderRadius:
+                                        BorderRadius.circular(2),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF22C55E)
+                                            .withValues(alpha: 0.6),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              // Center elevated blue orb (Add).
+              Positioned.fill(
+                child: Center(
+                  child: _CenterOrb(
+                    onTap: () => widget.onTap(2),
                   ),
                 ),
-              );
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _tab(BuildContext context, int i, IconData icon,
-      String labelKey, Color iconColor, Color accent, ThemeData theme) {
-    final isSel = widget.index == i;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => widget.onTap(i),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // The selected slot stays empty — the bubble covers it.
-            // Smooth fade so the icon doesn't pop.
-            AnimatedOpacity(
-              opacity: isSel ? 0 : 1,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(icon, size: 24, color: iconColor),
-            ),
-            const SizedBox(height: 3),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 250),
-              style: theme.textTheme.labelSmall!.copyWith(
-                color: isSel ? accent : iconColor.withValues(alpha: 0.85),
-                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                fontSize: 11,
               ),
-              child: Text(tr(context, labelKey)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bubble(BuildContext context, int index, double r,
-      double addR, Color accent, bool dark) {
-    // Center tab: the liquid-marble add button — always big (88px),
-    // raised high with a strong glow like reference image 2.
-    if (index == 2) {
-      return LiquidAddButton(
-        size: addR * 2,
-        onTap: () => widget.onTap(2),
-        active: true,
-      );
-    }
-    const icons = {
-      0: Icons.home,
-      1: Icons.history,
-      3: Icons.bar_chart,
-      4: Icons.more_horiz,
-    };
-    // Pop-in scale when the bubble arrives at a new tab.
-    return TweenAnimationBuilder<double>(
-      key: ValueKey('bubble-$index'),
-      tween: Tween(begin: 0.6, end: 1.0),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.elasticOut,
-      builder: (ctx, scale, child) =>
-          Transform.scale(scale: scale, child: child),
-      child: Container(
-        width: r * 2,
-        height: r * 2,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: dark
-                ? [const Color(0xFF1B4A3B), const Color(0xFF0E2F25)]
-                : [kDeepGreen, kDeepGreenDark],
+            ],
           ),
-          border: Border.all(
-            color: accent.withValues(alpha: 0.65),
-            width: 2.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: 0.4),
-              blurRadius: 16,
-              spreadRadius: 2,
-            ),
-          ],
         ),
-        child: Icon(icons[index], size: 28, color: accent),
       ),
     );
   }
 }
 
-/// Paints the floating pill with a smooth concave dip at [dipX],
-/// plus a soft accent glow along the dip's rim.
-class _BarPainter extends CustomPainter {
-  final double dipX;
-  final Color color;
-  final Color accent;
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String labelKey;
+  _NavItem(this.icon, this.activeIcon, this.labelKey);
+}
 
-  _BarPainter(
-      {required this.dipX, required this.color, required this.accent});
+class _TabButton extends StatelessWidget {
+  final _NavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    const r = 26.0; // corner radius — pill like the reference
-    const dipR = 52.0; // dip half-width: wide smooth U like image 1
-    const dipD = 34.0; // dip depth
-    const s = dipR + 22; // smooth zone half-width
-
-    final path = Path();
-    path.moveTo(r, 0);
-    path.lineTo(dipX - s, 0);
-    // Glide down into the valley...
-    path.cubicTo(
-      dipX - s * 0.55, 0,
-      dipX - dipR * 0.72, dipD,
-      dipX, dipD,
+  Widget build(BuildContext context) {
+    final color = selected
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.45);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedScale(
+            scale: selected ? 1.12 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              selected ? item.activeIcon : item.icon,
+              color: color,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            tr(context, item.labelKey),
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight:
+                  selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+            maxLines: 1,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
-    // ...and back up.
-    path.cubicTo(
-      dipX + dipR * 0.72, dipD,
-      dipX + s * 0.55, 0,
-      dipX + s, 0,
-    );
-    path.lineTo(size.width - r, 0);
-    path.quadraticBezierTo(size.width, 0, size.width, r);
-    path.lineTo(size.width, size.height - r);
-    path.quadraticBezierTo(
-        size.width, size.height, size.width - r, size.height);
-    path.lineTo(r, size.height);
-    path.quadraticBezierTo(0, size.height, 0, size.height - r);
-    path.lineTo(0, r);
-    path.quadraticBezierTo(0, 0, r, 0);
-    path.close();
+  }
+}
 
-    canvas.drawShadow(
-        path, Colors.black.withValues(alpha: 0.4), 14, false);
-    canvas.drawPath(path, Paint()..color = color);
+class _CenterOrb extends StatefulWidget {
+  final VoidCallback onTap;
+  const _CenterOrb({required this.onTap});
 
-    // Accent glow tracing the dip's rim.
-    final glow = Path()
-      ..moveTo(dipX - s, 0)
-      ..cubicTo(
-        dipX - s * 0.55, 0,
-        dipX - dipR * 0.72, dipD,
-        dipX, dipD,
-      )
-      ..cubicTo(
-        dipX + dipR * 0.72, dipD,
-        dipX + s * 0.55, 0,
-        dipX + s, 0,
-      );
-    canvas.drawPath(
-      glow,
-      Paint()
-        ..color = accent.withValues(alpha: 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
+  @override
+  State<_CenterOrb> createState() => _CenterOrbState();
+}
+
+class _CenterOrbState extends State<_CenterOrb>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.0,
+      upperBound: 0.12,
     );
   }
 
   @override
-  bool shouldRepaint(_BarPainter old) =>
-      old.dipX != dipX || old.color != color || old.accent != accent;
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _pressCtrl.forward(),
+      onTapUp: (_) => _pressCtrl.reverse(),
+      onTapCancel: () => _pressCtrl.reverse(),
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _pressCtrl,
+        builder: (ctx, _) {
+          final scale = 1.0 - _pressCtrl.value;
+          return Transform.scale(
+            scale: scale,
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF3B82F6),
+                    Color(0xFF2563EB),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6)
+                        .withValues(alpha: 0.5),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Paints the dark pill bar with a smooth concave notch in the center
+/// where the orb sits.
+class _NotchBarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    const r = 28.0; // corner radius
+    const notchW = 88.0; // notch width
+    const notchDepth = 22.0; // how deep the dip goes
+    final cx = w / 2;
+
+    final path = Path();
+    // Start top-left after corner.
+    path.moveTo(r, 0);
+    // Top edge to notch start.
+    path.lineTo(cx - notchW / 2 - 12, 0);
+    // Smooth concave curve down into the notch.
+    path.cubicTo(
+      cx - notchW / 2 + 6, 0,
+      cx - notchW / 2 + 10, notchDepth,
+      cx, notchDepth,
+    );
+    path.cubicTo(
+      cx + notchW / 2 - 10, notchDepth,
+      cx + notchW / 2 - 6, 0,
+      cx + notchW / 2 + 12, 0,
+    );
+    // Top edge to top-right corner.
+    path.lineTo(w - r, 0);
+    path.quadraticBezierTo(w, 0, w, r);
+    path.lineTo(w, h - r);
+    path.quadraticBezierTo(w, h, w - r, h);
+    path.lineTo(r, h);
+    path.quadraticBezierTo(0, h, 0, h - r);
+    path.lineTo(0, r);
+    path.quadraticBezierTo(0, 0, r, 0);
+    path.close();
+
+    // Bar fill: dark with subtle vertical gradient.
+    final fillPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF2A2A2A),
+          Color(0xFF1A1A1A),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawPath(path, fillPaint);
+
+    // Subtle top highlight border.
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.white.withValues(alpha: 0.12);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
