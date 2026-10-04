@@ -306,7 +306,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           // Clearance so the bottom bar never covers the last card.
           const SliverToBoxAdapter(
-            child: SizedBox(height: 96),
+            child: SizedBox(height: 120),
           ),
         ],
       ),
