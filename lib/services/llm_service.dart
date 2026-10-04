@@ -4,8 +4,6 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
-import 'custom_ai_model_store.dart';
-
 // ---------------------------------------------------------------------------
 // Config — stored in secure storage, NEVER in plain settings.
 // ---------------------------------------------------------------------------
@@ -96,22 +94,8 @@ class LlmConfig {
   bool get isConfigured => effectiveKey.isNotEmpty;
 
   /// Loads config from secure storage. Never throws.
-  /// If a custom AI model is active, its config takes precedence.
   static Future<LlmConfig> load() async {
     try {
-      // Check for active custom model first.
-      try {
-        final custom =
-            await CustomAiModelStore.instance.getActive();
-        if (custom != null) {
-          return LlmConfig(
-            provider: custom.provider,
-            apiKey: custom.apiKey,
-            model: custom.model,
-            baseUrl: custom.baseUrl,
-          );
-        }
-      } catch (_) {}
       final provider = await _storage.read(key: _kProvider) ?? 'gemini';
       final apiKey = await _storage.read(key: _kApiKey) ?? '';
       final model = await _storage.read(key: _kModel) ?? '';
