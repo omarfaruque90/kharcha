@@ -121,27 +121,34 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
               ),
             ),
             for (final id in available)
-              ListTile(
-                leading: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: categoryById(id)
-                        .color
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+              Builder(builder: (ctx) {
+                final custom = CustomCategoryRegistry.byId(id);
+                final emoji =
+                    (custom?.emoji.isNotEmpty == true) ? custom!.emoji : null;
+                final cat = categoryById(id);
+                return ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: cat.color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: emoji != null
+                        ? Text(emoji,
+                            style: const TextStyle(fontSize: 20))
+                        : Icon(
+                            cat.icon,
+                            size: 18,
+                            color: cat.color,
+                          ),
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    categoryById(id).icon,
-                    size: 18,
-                    color: categoryById(id).color,
-                  ),
-                ),
-                title: Text(
-                    CustomCategoryRegistry.displayName(id, lang)),
-                onTap: () => Navigator.pop(c, id),
-              ),
+                  title: Text(
+                      CustomCategoryRegistry.displayName(id, lang)),
+                  onTap: () => Navigator.pop(c, id),
+                );
+              }),
             const SizedBox(height: 16),
           ],
         ),
