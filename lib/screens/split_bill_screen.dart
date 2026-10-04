@@ -38,7 +38,6 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
   final TextEditingController _totalCtrl = TextEditingController();
   final List<_PersonRow> _rows = [];
   bool _saving = false;
-  String _debtKind = 'lent'; // 'lent' (diyechi) or 'borrowed' (niyechi)
 
   @override
   void initState() {
@@ -142,7 +141,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
           Debt(
             person: name,
             amount: amount,
-            kind: _debtKind,
+            kind: _rows[i].debtKind,
             date: DateTime.now(),
             note: 'Split: $title',
             settled: false,
@@ -201,27 +200,6 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Lent / Borrowed selector.
-            StaggeredEntrance(
-              child: SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(
-                    value: 'lent',
-                    icon: const Icon(Icons.handshake_outlined),
-                    label: Text(tr(context, 'debt_lent')),
-                  ),
-                  ButtonSegment(
-                    value: 'borrowed',
-                    icon: const Icon(Icons.call_received_outlined),
-                    label: Text(tr(context, 'debt_borrowed')),
-                  ),
-                ],
-                selected: {_debtKind},
-                onSelectionChanged: (s) =>
-                    setState(() => _debtKind = s.first),
-              ),
-            ),
-            const SizedBox(height: 12),
             StaggeredEntrance(
               child: TextFormField(
                 controller: _titleCtrl,
@@ -611,6 +589,40 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
               ),
             ),
           ),
+          // Per-person Lent/Borrowed selector (not for "me").
+          if (!r.isMe)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SegmentedButton<String>(
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontSize: 12),
+                  ),
+                ),
+                segments: [
+                  ButtonSegment(
+                    value: 'lent',
+                    icon: const Icon(Icons.handshake_outlined, size: 16),
+                    label: Text(tr(context, 'debt_lent'),
+                        softWrap: false, maxLines: 1),
+                  ),
+                  ButtonSegment(
+                    value: 'borrowed',
+                    icon:
+                        const Icon(Icons.call_received_outlined, size: 16),
+                    label: Text(tr(context, 'debt_borrowed'),
+                        softWrap: false, maxLines: 1),
+                  ),
+                ],
+                selected: {r.debtKind},
+                onSelectionChanged: (s) =>
+                    setState(() => r.debtKind = s.first),
+              ),
+            ),
         ],
       ),
     );
@@ -636,6 +648,7 @@ class _PersonRow {
   final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController amountCtrl = TextEditingController();
   bool isMe;
+  String debtKind = 'lent'; // 'lent' (they owe me) or 'borrowed' (I owe them)
 
   _PersonRow({this.isMe = false});
 }
