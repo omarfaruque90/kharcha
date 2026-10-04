@@ -164,7 +164,8 @@ class _GooeyNavBarState extends State<GooeyNavBar>
 }
 
 /// Single tab button with thin outline icon + small label.
-class _TabButton extends StatelessWidget {
+/// Plays a bounce/morph micro-animation when tapped.
+class _TabButton extends StatefulWidget {
   final bool active;
   final int index;
   final VoidCallback onTap;
@@ -176,12 +177,78 @@ class _TabButton extends StatelessWidget {
   });
 
   @override
+  State<_TabButton> createState() => _TabButtonState();
+}
+
+class _TabButtonState extends State<_TabButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _tilt;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+    // Bounce: overshoot then settle.
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.35)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 35,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.35, end: 0.9)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.9, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 35,
+      ),
+    ]).animate(_ctrl);
+    // Tilt: rotate slightly then wobble back.
+    _tilt = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 0.3)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 35,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.3, end: -0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -0.15, end: 0.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 35,
+      ),
+    ]).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _ctrl.forward(from: 0);
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Reference icon styles: 0 = line chart, 1 = wallet,
     // 3 = storefront, 4 = briefcase.
     IconData icon;
     String label;
-    switch (index) {
+    switch (widget.index) {
       case 0:
         icon = Icons.show_chart_rounded;
         label = 'Home';
@@ -198,24 +265,37 @@ class _TabButton extends StatelessWidget {
         icon = Icons.business_center_outlined;
         label = 'More';
     }
-    final color = active ? Colors.white : const Color(0xFF8E8E93);
+    final color =
+        widget.active ? Colors.white : const Color(0xFF8E8E93);
     return GestureDetector(
-      onTap: onTap,
+      onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         height: 68,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 26),
+            AnimatedBuilder(
+              animation: _ctrl,
+              builder: (ctx, _) {
+                return Transform.rotate(
+                  angle: _tilt.value,
+                  child: Transform.scale(
+                    scale: _scale.value,
+                    child: Icon(icon, color: color, size: 26),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 color: color,
                 fontSize: 11,
-                fontWeight:
-                    active ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: widget.active
+                    ? FontWeight.w600
+                    : FontWeight.w400,
               ),
             ),
           ],
