@@ -131,3 +131,108 @@ class KSection {
     );
   }
 }
+
+/// iOS Human Interface Guidelines inspired palette.
+/// Grouped-background style: gray system background, white cards,
+/// borderless filled inputs. Brand gold stays the accent.
+class KIOS {
+  // Light mode
+  static const Color lightBackground = Color(0xFFF2F2F7);
+  static const Color lightCard = Colors.white;
+  static const Color lightInputFill = Color(0xFFE9E9EE);
+  static const Color lightSeparator = Color(0x1F3C3C43); // ~12% separator
+  static const Color lightSecondaryText = Color(0xFF8E8E93);
+
+  // Dark mode
+  static const Color darkBackground = Colors.black;
+  static const Color darkCard = Color(0xFF1C1C1E);
+  static const Color darkInputFill = Color(0xFF2C2C2E);
+  static const Color darkSeparator = Color(0x1FE5E5EA);
+  static const Color darkSecondaryText = Color(0xFF98989F);
+
+  static const double cardRadius = 16;
+  static const double inputRadius = 12;
+  static const double buttonRadius = 12;
+
+  /// Secondary (de-emphasized) text color, iOS system gray.
+  static Color secondaryText(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkSecondaryText
+          : lightSecondaryText;
+
+  /// Hairline separator color for grouped rows.
+  static Color separator(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkSeparator
+          : lightSeparator;
+
+  /// iOS section title: 20px semibold, tight tracking, label color.
+  static TextStyle sectionTitle(BuildContext context) => TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
+
+  /// iOS grouped row label: 15px semibold, label color.
+  static TextStyle rowLabel(BuildContext context) => TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
+
+  /// iOS-style card decoration: no elevation, clean fill.
+  /// Use on top of the grouped background for the classic iOS look.
+  static BoxDecoration card(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return BoxDecoration(
+      color: dark ? darkCard : lightCard,
+      borderRadius: BorderRadius.circular(cardRadius),
+    );
+  }
+
+  /// iOS-style grouped section: white card containing divided rows.
+  static Widget groupedSection(
+    BuildContext context, {
+    String? header,
+    required List<Widget> children,
+  }) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final List<Widget> rows = [];
+    for (var i = 0; i < children.length; i++) {
+      rows.add(children[i]);
+      if (i < children.length - 1) {
+        rows.add(Divider(
+          height: 1,
+          indent: 52,
+          color: dark ? darkSeparator : lightSeparator,
+        ));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (header != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 16, 8),
+            child: Text(
+              header.toUpperCase(),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: dark ? darkSecondaryText : lightSecondaryText,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: card(context),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: rows),
+        ),
+      ],
+    );
+  }
+}

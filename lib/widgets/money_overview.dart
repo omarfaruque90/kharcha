@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../providers/total_balance_provider.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
@@ -107,227 +108,247 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
 
     final mobileTotal = ['bkash', 'nagad', 'rocket', 'upay']
         .fold<double>(0, (s, id) => s + tb.walletOf(id));
+    final secondary = KIOS.secondaryText(context);
+    const walletIds = ['bkash', 'nagad', 'rocket', 'upay'];
 
     return StaggeredEntrance(
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // iOS section header: 20px semibold.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 18, 8, 10),
+              child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       tr(context, 'money_overview'),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: KIOS.sectionTitle(context),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.refresh_outlined, size: 20),
+                    color: secondary,
                     tooltip: tr(context, 'refresh'),
                     onPressed: () =>
                         context.read<TotalBalanceProvider>().refresh(),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (!tb.isLoaded)
-                const Center(
-                    child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
-                ))
-              else ...[
-                const Divider(height: 8),
-                // Hand cash (editable via ledger adjustment).
-                _row(
-                  context,
-                  icon: Icons.wallet_outlined,
-                  iconColor: kGold,
-                  label: tr(context, 'cash_wallet'),
-                  value: tb.cash,
-                  theme: theme,
-                  onEdit: () async {
-                    final v = await _askAmount(
-                      context,
-                      tr(context, 'cash_set_balance'),
-                      tr(context, 'cash_new_balance'),
-                      tb.cash,
-                    );
-                    if (v != null && context.mounted) {
-                      await context.read<TotalBalanceProvider>().setCash(v);
-                    }
-                  },
-                ),
-                // Mobile banking group (expandable).
-                InkWell(
-                  onTap: () =>
-                      setState(() => _mobileExpanded = !_mobileExpanded),
-                  borderRadius: BorderRadius.circular(8),
+            ),
+            if (!tb.isLoaded)
+              const Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        Icon(Icons.smartphone_outlined,
-                            size: 18,
-                            color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: Text(tr(context, 'wallet_mobile'))),
-                        Text(
-                          formatMoney(mobileTotal),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600),
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ))
+            else ...[
+              _hairline(context),
+              // Hand cash (editable via ledger adjustment).
+              _row(
+                context,
+                icon: Icons.wallet_outlined,
+                iconColor: kGold,
+                label: tr(context, 'cash_wallet'),
+                value: tb.cash,
+                theme: theme,
+                onEdit: () async {
+                  final v = await _askAmount(
+                    context,
+                    tr(context, 'cash_set_balance'),
+                    tr(context, 'cash_new_balance'),
+                    tb.cash,
+                  );
+                  if (v != null && context.mounted) {
+                    await context.read<TotalBalanceProvider>().setCash(v);
+                  }
+                },
+              ),
+              _hairline(context),
+              // Mobile banking group (expandable).
+              InkWell(
+                onTap: () =>
+                    setState(() => _mobileExpanded = !_mobileExpanded),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.smartphone_outlined,
+                          size: 20, color: secondary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tr(context, 'wallet_mobile'),
+                          style: KIOS.rowLabel(context),
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          _mobileExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
-                          size: 18,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ],
-                    ),
+                      ),
+                      Text(
+                        formatMoney(mobileTotal),
+                        style: KIOS.rowLabel(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        _mobileExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 20,
+                        color: secondary,
+                      ),
+                    ],
                   ),
                 ),
-                if (_mobileExpanded)
+              ),
+              if (_mobileExpanded)
+                for (var i = 0; i < walletIds.length; i++) ...[
+                  // 30 (indent) + 10 (dot) + 12 (gap) = 52, aligned
+                  // with the other row dividers.
+                  _hairline(context, indent: 22),
                   Padding(
-                    padding: const EdgeInsets.only(left: 28),
-                    child: Column(
-                      children: [
-                        for (final id in [
-                          'bkash',
-                          'nagad',
-                          'rocket',
-                          'upay'
-                        ])
-                          _row(
-                            context,
-                            icon: Icons.circle,
-                            iconColor: _walletColors[id],
-                            iconSize: 10,
-                            label: _walletLabel(context, id),
-                            value: tb.walletOf(id),
-                            theme: theme,
-                            onEdit: () async {
-                              final v = await _askAmount(
-                                context,
-                                _walletLabel(context, id),
-                                tr(context, 'wallet_balance_hint'),
-                                tb.walletOf(id),
-                              );
-                              if (v != null && context.mounted) {
-                                await context
-                                    .read<TotalBalanceProvider>()
-                                    .setWallet(id, v);
-                              }
-                            },
-                          ),
-                      ],
+                    padding: const EdgeInsets.only(left: 30),
+                    child: _row(
+                      context,
+                      icon: Icons.circle,
+                      iconColor: _walletColors[walletIds[i]],
+                      iconSize: 10,
+                      label: _walletLabel(context, walletIds[i]),
+                      value: tb.walletOf(walletIds[i]),
+                      theme: theme,
+                      padding:
+                          const EdgeInsets.fromLTRB(0, 10, 16, 10),
+                      onEdit: () async {
+                        final v = await _askAmount(
+                          context,
+                          _walletLabel(context, walletIds[i]),
+                          tr(context, 'wallet_balance_hint'),
+                          tb.walletOf(walletIds[i]),
+                        );
+                        if (v != null && context.mounted) {
+                          await context
+                              .read<TotalBalanceProvider>()
+                              .setWallet(walletIds[i], v);
+                        }
+                      },
                     ),
                   ),
-                // Card.
-                _row(
-                  context,
-                  icon: Icons.credit_card_outlined,
-                  iconColor: _walletColors['card'],
-                  label: _walletLabel(context, 'card'),
-                  value: tb.walletOf('card'),
-                  theme: theme,
-                  onEdit: () async {
-                    final v = await _askAmount(
-                      context,
-                      _walletLabel(context, 'card'),
-                      tr(context, 'wallet_balance_hint'),
-                      tb.walletOf('card'),
-                    );
-                    if (v != null && context.mounted) {
-                      await context
-                          .read<TotalBalanceProvider>()
-                          .setWallet('card', v);
-                    }
-                  },
-                ),
-                // Other bank.
-                _row(
-                  context,
-                  icon: Icons.account_balance_outlined,
-                  iconColor: _walletColors['bank'],
-                  label: _walletLabel(context, 'bank'),
-                  value: tb.walletOf('bank'),
-                  theme: theme,
-                  onEdit: () async {
-                    final v = await _askAmount(
-                      context,
-                      _walletLabel(context, 'bank'),
-                      tr(context, 'wallet_balance_hint'),
-                      tb.walletOf('bank'),
-                    );
-                    if (v != null && context.mounted) {
-                      await context
-                          .read<TotalBalanceProvider>()
-                          .setWallet('bank', v);
-                    }
-                  },
-                ),
-                // Lent out (auto from debts).
-                _row(
-                  context,
-                  icon: Icons.handshake_outlined,
-                  label: tr(context, 'money_lent_out'),
-                  value: tb.lentOut,
-                  theme: theme,
-                ),
-                // Borrowed (auto from debts).
-                _row(
-                  context,
-                  icon: Icons.call_received_outlined,
-                  label: tr(context, 'money_borrowed'),
-                  value: tb.borrowed,
-                  theme: theme,
-                ),
-              ],
+                ],
+              _hairline(context),
+              // Card.
+              _row(
+                context,
+                icon: Icons.credit_card_outlined,
+                iconColor: _walletColors['card'],
+                label: _walletLabel(context, 'card'),
+                value: tb.walletOf('card'),
+                theme: theme,
+                onEdit: () async {
+                  final v = await _askAmount(
+                    context,
+                    _walletLabel(context, 'card'),
+                    tr(context, 'wallet_balance_hint'),
+                    tb.walletOf('card'),
+                  );
+                  if (v != null && context.mounted) {
+                    await context
+                        .read<TotalBalanceProvider>()
+                        .setWallet('card', v);
+                  }
+                },
+              ),
+              _hairline(context),
+              // Other bank.
+              _row(
+                context,
+                icon: Icons.account_balance_outlined,
+                iconColor: _walletColors['bank'],
+                label: _walletLabel(context, 'bank'),
+                value: tb.walletOf('bank'),
+                theme: theme,
+                onEdit: () async {
+                  final v = await _askAmount(
+                    context,
+                    _walletLabel(context, 'bank'),
+                    tr(context, 'wallet_balance_hint'),
+                    tb.walletOf('bank'),
+                  );
+                  if (v != null && context.mounted) {
+                    await context
+                        .read<TotalBalanceProvider>()
+                        .setWallet('bank', v);
+                  }
+                },
+              ),
+              _hairline(context),
+              // Lent out (auto from debts).
+              _row(
+                context,
+                icon: Icons.handshake_outlined,
+                label: tr(context, 'money_lent_out'),
+                value: tb.lentOut,
+                theme: theme,
+              ),
+              _hairline(context),
+              // Borrowed (auto from debts).
+              _row(
+                context,
+                icon: Icons.call_received_outlined,
+                label: tr(context, 'money_borrowed'),
+                value: tb.borrowed,
+                theme: theme,
+              ),
+              const SizedBox(height: 12),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
+  /// iOS hairline divider between grouped rows.
+  Widget _hairline(BuildContext context, {double indent = 52}) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: indent,
+      color: KIOS.separator(context),
+    );
+  }
+
+  /// iOS grouped list row: 20px icon, 15px semibold label and value.
   Widget _row(
     BuildContext context, {
     required IconData icon,
     Color? iconColor,
-    double iconSize = 18,
+    double iconSize = 20,
     required String label,
     required double value,
     required ThemeData theme,
+    EdgeInsetsGeometry padding =
+        const EdgeInsets.fromLTRB(16, 12, 16, 12),
     VoidCallback? onEdit,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: padding,
       child: Row(
         children: [
           Icon(icon,
               size: iconSize,
-              color: iconColor ?? theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label)),
+              color: iconColor ?? KIOS.secondaryText(context)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: KIOS.rowLabel(context)),
+          ),
           Text(
             formatMoney(value),
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: KIOS.rowLabel(context),
           ),
           if (onEdit != null) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             InkWell(
               onTap: onEdit,
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(6),
                 child: Icon(
                   Icons.edit_outlined,
                   size: 16,

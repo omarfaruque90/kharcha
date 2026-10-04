@@ -47,23 +47,24 @@ ThemeData buildAmoledTheme(Color accent) {
       },
     ),
     cardTheme: const CardThemeData(
-      color: Colors.black,
-      elevation: 2,
+      color: Color(0xFF1C1C1E),
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(20)),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
+      margin: EdgeInsets.zero,
     ),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       centerTitle: false,
       elevation: 0,
-      scrolledUnderElevation: 1,
-      backgroundColor: Colors.black,
+      scrolledUnderElevation: 0,
+      backgroundColor: Color(0xFF000000),
       foregroundColor: Colors.white,
       titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.4,
-        color: accent,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: Colors.white,
       ),
     ),
     chipTheme: ChipThemeData(
@@ -115,29 +116,31 @@ ThemeData buildAmoledTheme(Color accent) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.04),
+      fillColor: const Color(0xFF2C2C2E),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: accent, width: 2),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: accent, width: 1.5),
       ),
       floatingLabelStyle: const TextStyle(
         color: accentText,
         fontWeight: FontWeight.w600,
       ),
+      hintStyle: const TextStyle(color: Color(0xFF98989F)),
     ),
     listTileTheme: const ListTileThemeData(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(14)),
+        borderRadius: BorderRadius.all(Radius.circular(12)),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -145,15 +148,15 @@ ThemeData buildAmoledTheme(Color accent) {
       indicatorColor: accent.withValues(alpha: 0.28),
     ),
     dialogTheme: const DialogThemeData(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF1C1C1E),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(20)),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF1C1C1E),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
     ),
     snackBarTheme: SnackBarThemeData(

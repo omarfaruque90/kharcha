@@ -6,11 +6,11 @@ import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/budget.dart';
 import '../models/custom_category.dart';
-import '../models/category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart' show monthKeyOf;
 import '../providers/settings_provider.dart';
 import '../services/budget_forecast.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
@@ -66,50 +66,33 @@ class _BudgetForecastCardState extends State<BudgetForecastCard> {
         return StaggeredEntrance(
           delayMs: 220,
           child: Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: Colors.red.withValues(alpha: 0.35),
-                width: 1,
-              ),
-            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        tr(context, 'forecast_title'),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    tr(context, 'forecast_title'),
+                    style: KIOS.sectionTitle(context),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   for (final w in warnings)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         children: [
                           Container(
-                            width: 32,
-                            height: 32,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
                               color: kGold.withValues(alpha: 0.16),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
-                              child: _categoryIcon(w.categoryId),
+                              child: _categoryIcon(context, w.categoryId),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               _warningText(context, lang, w),
@@ -130,13 +113,19 @@ class _BudgetForecastCardState extends State<BudgetForecastCard> {
 
   /// Category icon: user emoji for custom categories, otherwise the
   /// built-in icon — same pattern as [ExpenseTile].
-  Widget _categoryIcon(String categoryId) {
+  Widget _categoryIcon(BuildContext context, String categoryId) {
     final custom = CustomCategoryRegistry.byId(categoryId);
     if (custom != null && custom.emoji.isNotEmpty) {
       return Text(custom.emoji, style: const TextStyle(fontSize: 18));
     }
     final cat = categoryById(categoryId);
-    return Icon(cat.icon, size: 17, color: kGoldDark);
+    return Icon(
+      cat.icon,
+      size: 17,
+      color: Theme.of(context).brightness == Brightness.dark
+          ? kGoldLight
+          : kGoldDark,
+    );
   }
 
   String _warningText(

@@ -6,6 +6,7 @@ import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
@@ -131,19 +132,18 @@ class _MonthlyBalanceCardState extends State<MonthlyBalanceCard> {
                   Expanded(
                     child: Text(
                       tr(context, 'month_start_title'),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: KIOS.sectionTitle(context),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 20),
+                    color: KIOS.secondaryText(context),
                     tooltip: tr(context, 'month_start_title'),
                     onPressed: _edit,
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               if (_loading)
                 const Center(
                     child: Padding(
@@ -242,7 +242,7 @@ class _MonthlyBalanceCardState extends State<MonthlyBalanceCard> {
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: KIOS.secondaryText(context),
             ),
           ),
           const SizedBox(height: 2),

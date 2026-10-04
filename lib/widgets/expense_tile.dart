@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
-import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
@@ -13,7 +12,9 @@ import '../services/currency_service.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
-/// One row in the expense list. Tap to edit, swipe left to delete.
+/// One row in the expense list. iOS mail-style row: category icon in a
+/// rounded tinted square, 15px semibold title, 13px secondary subtitle,
+/// 16px semibold amount right-aligned. Tap to edit, swipe left to delete.
 class ExpenseTile extends StatelessWidget {
   final Expense expense;
 
@@ -76,24 +77,48 @@ class ExpenseTile extends StatelessWidget {
       child: PressableScale(
         pressedScale: 0.98,
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: cat.color.withValues(alpha: 0.15),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          minVerticalPadding: 2,
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: cat.color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
             child: custom != null && custom.emoji.isNotEmpty
                 ? Text(custom.emoji, style: const TextStyle(fontSize: 20))
                 : Icon(cat.icon, color: cat.color, size: 20),
           ),
           title: Text(
-              CustomCategoryRegistry.displayName(expense.categoryId, lang)),
-          subtitle: Text(subtitle.toString()),
+            CustomCategoryRegistry.displayName(expense.categoryId, lang),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            subtitle.toString(),
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.35,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           trailing: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 formatMoney(expense.bdtAmount ?? expense.amount),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                   color: theme.colorScheme.primary,
                 ),
               ),

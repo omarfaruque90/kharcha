@@ -563,81 +563,93 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           Form(
             key: _formKey,
             child: ListView(
-          padding: const EdgeInsets.all(16),
+          // 120px bottom clearance above the navbar.
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
           children: [
             StaggeredEntrance(
-              child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
+              // iOS-style premium amount: small caption, huge centered
+              // digits, currency chip below. Borderless (theme) inputs —
+              // the amount field itself stays transparent so it reads
+              // as a hero display, not a boxed field.
+              child: Column(
+                children: [
+                  Text(
+                    tr(context, 'amount'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextFormField(
                     controller: _amountCtrl,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                      letterSpacing: -0.5,
+                      color: theme.colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
-                      labelText: tr(context, 'amount'),
+                      filled: false,
                       hintText: tr(context, 'amount_hint'),
+                      hintStyle: theme.textTheme.displaySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.5),
+                      ),
                       prefixText:
                           '${CurrencyService.symbols[_currency] ?? '৳'} ',
-                      prefixStyle:
-                          theme.textTheme.headlineSmall?.copyWith(
+                      prefixStyle: theme.textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.primary,
                       ),
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 18),
+                      errorStyle: const TextStyle(fontSize: 12),
                     ),
                     validator: validateAmount,
                   ),
-                ),
-                const SizedBox(width: 8),
-                // Package V: currency of the entered amount.
-                Container(
-                  height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: kGold.withValues(alpha: 0.55),
+                  const SizedBox(height: 10),
+                  // Package V: currency of the entered amount.
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: theme.inputDecorationTheme.fillColor ??
+                          theme.colorScheme.surfaceContainerHighest,
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    color:
-                        theme.colorScheme.surfaceContainerHighest,
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _currency,
-                      borderRadius: BorderRadius.circular(12),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      items: [
-                        for (final code in CurrencyService.supported)
-                          DropdownMenuItem(
-                            value: code,
-                            child: Text(
-                              '${CurrencyService.symbols[code]} $code',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _currency,
+                        borderRadius: BorderRadius.circular(12),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        items: [
+                          for (final code in CurrencyService.supported)
+                            DropdownMenuItem(
+                              value: code,
+                              child: Text(
+                                '${CurrencyService.symbols[code]} $code',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => _currency = v);
-                      },
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _currency = v);
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             StaggeredEntrance(
               delayMs: 60,
               child: Row(
@@ -647,7 +659,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   IconButton(
                     tooltip: tr(context, 'customize_categories'),
                     icon: const Icon(Icons.tune, size: 20),
-                    color: kGoldDark,
+                    color: theme.colorScheme.primary,
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -657,7 +669,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             StaggeredEntrance(
               delayMs: 90,
               child: GridView.builder(
@@ -747,32 +759,51 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             StaggeredEntrance(
               delayMs: 120,
-              child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.calendar_today),
-              title: Text(tr(context, 'date')),
-              subtitle: Text(dateLabel),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: () => _pickDate(lang),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
+              // iOS grouped row: borderless filled container, theme radius.
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.inputDecorationTheme.fillColor ??
+                      theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
+                  leading: Icon(
+                    Icons.calendar_today,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: Text(tr(context, 'date')),
+                  subtitle: Text(
+                    dateLabel,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.edit_calendar,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _pickDate(lang),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             StaggeredEntrance(
               delayMs: 180,
               child: TextFormField(
               controller: _noteCtrl,
               maxLines: 2,
+              // Borderless filled input comes from the theme.
               decoration: InputDecoration(
                 labelText: tr(context, 'note'),
                 hintText: tr(context, 'note_hint'),
-                border: const OutlineInputBorder(),
               ),
               // Package BG: debounce the note and suggest a category from
               // past learning. (Learning itself happens centrally in
@@ -812,12 +843,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             StaggeredEntrance(
               delayMs: 240,
               child: _sectionLabel(context, tr(context, 'payment_method')),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             StaggeredEntrance(
               delayMs: 270,
               child: PaymentSelector(
@@ -825,16 +856,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               onChanged: (value) => setState(() => _payment = value),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             // Package AP: optional project assignment.
             StaggeredEntrance(
               delayMs: 285,
               child: DropdownButtonFormField<String>(
                 key: ValueKey(_projectId),
                 initialValue: _projectId,
+                // Borderless filled input comes from the theme.
                 decoration: InputDecoration(
                   labelText: tr(context, 'project_label'),
-                  border: const OutlineInputBorder(),
                 ),
                 items: [
                   DropdownMenuItem(
@@ -851,12 +882,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 onChanged: (v) => setState(() => _projectId = v ?? ''),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             StaggeredEntrance(
               delayMs: 300,
               child: _sectionLabel(context, tr(context, 'receipt_photo')),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -1025,51 +1056,30 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             StaggeredEntrance(
               delayMs: 330,
               child: PressableScale(
-              pressedScale: 0.97,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [kGoldLight, kGold, kGoldDark],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kGold.withValues(alpha: 0.4),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: FilledButton.icon(
-                  onPressed: _saving ? null : () => _save(lang),
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check),
-                  label: Text(tr(context, 'save')),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    // Dark text on the gold gradient stays readable in
-                    // both light and dark mode.
-                    foregroundColor: kDeepGreenDark,
-                    iconColor: kDeepGreenDark,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                pressedScale: 0.97,
+                // Full-width FilledButton — the theme's filledButtonTheme
+                // handles the gold accent, shape and typography.
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : () => _save(lang),
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.check),
+                    label: Text(tr(context, 'save')),
+                    style: FilledButton.styleFrom(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
-              ),
               ),
             ),
           ],
@@ -1143,17 +1153,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
+          // iOS clean look: borderless unselected tiles, gold ring +
+          // gold tint for the selected state.
           color: selected
-              ? color.withValues(alpha: 0.18)
+              ? kGold.withValues(alpha: 0.14)
               : theme.colorScheme.surfaceContainerHighest,
           border: Border.all(
-            color: selected ? color : theme.colorScheme.outlineVariant,
-            width: selected ? 2 : 1,
+            color: selected ? kGold : Colors.transparent,
+            width: selected ? 2 : 0,
           ),
           boxShadow: [
             BoxShadow(
-              color:
-                  selected ? color.withValues(alpha: 0.35) : Colors.transparent,
+              color: selected
+                  ? kGold.withValues(alpha: 0.25)
+                  : Colors.transparent,
               blurRadius: selected ? 10 : 0,
               offset: const Offset(0, 3),
             ),
@@ -1168,7 +1181,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 11),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight:
+                      selected ? FontWeight.bold : FontWeight.w500,
+                  color: selected
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1244,16 +1264,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  /// Premium section header: small caps gold, letterspaced.
+  /// iOS section header: 17px semibold in the label color.
   Widget _sectionLabel(BuildContext context, String text) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text,
       style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 1.2,
-        color: dark ? kGoldLight : kGoldDark,
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }

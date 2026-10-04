@@ -5,11 +5,15 @@ import '../main.dart';
 import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 
-/// Premium fintech hero balance card: layered deep-green gradient with a
-/// cheap decorative pattern (two translucent circles + a big ৳ watermark,
-/// painted once — [CustomPainter.shouldRepaint] is false), an animated
-/// count-up on the balance, and a quick-stats chip row (today / this week /
-/// month savings) underneath.
+/// Brand hero balance card: layered deep-green gradient (brand canvas)
+/// with a static decorative pattern (two translucent circles + a big ৳
+/// watermark, painted once — [CustomPainter.shouldRepaint] is false),
+/// an animated count-up on the balance, and a quick-stats chip row
+/// (today / this week / month savings) underneath.
+///
+/// iOS-clean type: generous whitespace, 36px semibold gold number
+/// (kGoldLight on the deep-green canvas per the gold usage rules),
+/// small tracked-caps label above it.
 ///
 /// Performance notes:
 /// - The pattern painter never repaints (static decoration).
@@ -60,7 +64,7 @@ class HeroBalanceCard extends StatelessWidget {
         child: CustomPaint(
           painter: const _HeroPatternPainter(),
           child: Padding(
-            padding: const EdgeInsets.all(KSpacing.l),
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -88,17 +92,21 @@ class HeroBalanceCard extends StatelessWidget {
                         children: [
                           Text(
                             tr(context, 'balance_title'),
-                            style: KType.label(context).copyWith(
-                              color:
-                                  kGoldLight.withValues(alpha: 0.9),
-                              letterSpacing: 1.6,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.4,
+                              color: kGoldLight.withValues(alpha: 0.85),
                             ),
                           ),
-                          const SizedBox(height: KSpacing.xxs),
+                          const SizedBox(height: 8),
                           _AnimatedMoney(
                             value: balance,
-                            style: KType.display(context).copyWith(
-                              color: Colors.white,
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
+                              color: kGoldLight,
                             ),
                           ),
                         ],
@@ -106,7 +114,7 @@ class HeroBalanceCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: KSpacing.m),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
@@ -191,9 +199,9 @@ class _StatChip extends StatelessWidget {
                 child: Text(
                   label,
                   style: KType.label(context).copyWith(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     letterSpacing: 0.4,
-                    color: kGoldLight.withValues(alpha: 0.85),
+                    color: kGoldLight.withValues(alpha: 0.8),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -206,9 +214,9 @@ class _StatChip extends StatelessWidget {
             formatMoney(value),
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 13.5,
-              letterSpacing: 0.2,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              letterSpacing: -0.2,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

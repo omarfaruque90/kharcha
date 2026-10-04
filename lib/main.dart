@@ -335,25 +335,32 @@ ColorScheme _brandScheme(Brightness brightness, String accent,
           ? Colors.white
           : kDeepGreenDark;
   if (brightness == Brightness.dark) {
-    // Deep green hero: dark-green surfaces with accent primary accents,
-    // matching the 3D expense logo.
+    // iOS dark: pure black background, #1C1C1E cards, accent primary.
+    // Brand gold stays the accent — the jewelry, not the canvas.
     return base.copyWith(
       primary: accentColor,
       onPrimary: onAccent,
       secondary: kEmerald,
-      surface: kDeepGreenSurface,
-      surfaceContainerLowest: kDeepGreenDark,
-      surfaceContainerLow: kDeepGreenSurface,
-      surfaceContainer: kDeepGreenSurface,
-      surfaceContainerHigh: kDeepGreenCard,
-      surfaceContainerHighest: kDeepGreenCard,
+      surface: const Color(0xFF1C1C1E),
+      surfaceContainerLowest: const Color(0xFF0A0A0C),
+      surfaceContainerLow: const Color(0xFF1C1C1E),
+      surfaceContainer: const Color(0xFF1C1C1E),
+      surfaceContainerHigh: const Color(0xFF2C2C2E),
+      surfaceContainerHighest: const Color(0xFF3A3A3C),
     );
   }
-  // Light mode: clean white with deep green headers + accent highlights.
+  // iOS light: #F2F2F7 grouped background, white cards, deep green
+  // headers + gold accent highlights.
   return base.copyWith(
     primary: kDeepGreen,
     onPrimary: Colors.white,
     secondary: accentDark,
+    surface: Colors.white,
+    surfaceContainerLowest: Colors.white,
+    surfaceContainerLow: const Color(0xFFF7F7F9),
+    surfaceContainer: const Color(0xFFF2F2F7),
+    surfaceContainerHigh: const Color(0xFFE9E9EE),
+    surfaceContainerHighest: const Color(0xFFE4E4E9),
   );
 }
 
@@ -380,30 +387,41 @@ ThemeData _buildTheme(Brightness brightness, String accent,
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    // iOS grouped background.
+    scaffoldBackgroundColor:
+        dark ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
+    // iOS cards: white / #1C1C1E, 16px radius, soft shadow in light.
+    cardTheme: CardThemeData(
+      elevation: dark ? 0 : 1.5,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      surfaceTintColor: Colors.transparent,
+      color: dark ? const Color(0xFF1C1C1E) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      margin: EdgeInsets.zero,
+    ),
+    // iOS navigation bar: clean, semibold title in label color.
+    appBarTheme: AppBarTheme(
+      centerTitle: false,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: dark
+          ? const Color(0xFF000000).withValues(alpha: 0.85)
+          : const Color(0xFFF2F2F7).withValues(alpha: 0.85),
+      foregroundColor: scheme.onSurface,
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: scheme.onSurface,
+      ),
+    ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: FastPageTransitionsBuilder(),
         TargetPlatform.iOS: FastPageTransitionsBuilder(),
       },
-    ),
-    cardTheme: CardThemeData(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-    ),
-    appBarTheme: AppBarTheme(
-      centerTitle: false,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      backgroundColor: scheme.surface,
-      foregroundColor: scheme.onSurface,
-      titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.4,
-        color: dark ? accentColor : kDeepGreen,
-      ),
     ),
     chipTheme: ChipThemeData(
       shape: RoundedRectangleBorder(
@@ -455,26 +473,41 @@ ThemeData _buildTheme(Brightness brightness, String accent,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
+      // iOS style: borderless, filled light-gray inputs.
       filled: true,
       fillColor: dark
-          ? Colors.white.withValues(alpha: 0.04)
-          : kDeepGreen.withValues(alpha: 0.05),
+          ? const Color(0xFF2C2C2E)
+          : const Color(0xFFE9E9EE),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(14)),
-        borderSide: BorderSide(color: accentColor, width: 2),
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        borderSide: BorderSide(color: accentColor, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: scheme.error, width: 1.5),
       ),
       floatingLabelStyle: TextStyle(
         color: accentText,
         fontWeight: FontWeight.w600,
+      ),
+      hintStyle: TextStyle(
+        color: dark
+            ? const Color(0xFF98989F)
+            : const Color(0xFF8E8E93),
       ),
     ),
     listTileTheme: const ListTileThemeData(
@@ -483,14 +516,24 @@ ThemeData _buildTheme(Brightness brightness, String accent,
         borderRadius: BorderRadius.all(Radius.circular(14)),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
+      backgroundColor:
+          dark ? const Color(0xFF1C1C1E) : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(20)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      titleTextStyle: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+        color: scheme.onSurface,
       ),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor:
+          dark ? const Color(0xFF1C1C1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -500,9 +543,54 @@ ThemeData _buildTheme(Brightness brightness, String accent,
       ),
     ),
     dividerTheme: DividerThemeData(
-      color: accentColor.withValues(alpha: 0.25),
-      thickness: 1,
+      color: dark
+          ? const Color(0x1FE5E5EA)
+          : const Color(0x143C3C43),
+      thickness: 0.5,
+      space: 0,
     ),
+    // iOS-style switches.
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return Colors.white;
+        return dark ? const Color(0xFF48484A) : Colors.white;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return accentColor;
+        return dark
+            ? const Color(0xFF39393D)
+            : const Color(0xFFE4E4E9);
+      }),
+      trackOutlineColor:
+          const WidgetStatePropertyAll(Colors.transparent),
+    ),
+    // iOS-like text hierarchy: tighter tracking, semibold titles.
+    textTheme: ThemeData.light().textTheme.copyWith(
+          displayLarge: const TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5),
+          headlineSmall: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.3),
+          titleLarge: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2),
+          titleMedium: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1),
+          bodyLarge:
+              const TextStyle(fontSize: 17, letterSpacing: -0.1),
+          bodyMedium:
+              const TextStyle(fontSize: 15, letterSpacing: -0.1),
+          labelLarge: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1),
+        ),
   );
 }
 

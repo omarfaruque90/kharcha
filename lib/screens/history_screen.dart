@@ -7,6 +7,7 @@ import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import '../widgets/expense_tile.dart';
 import '../widgets/motion.dart';
@@ -74,6 +75,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
+                      showCheckmark: false,
                       label: Text(tr(context, 'all')),
                       selected: _categoryId == null,
                       onSelected: (_) => setState(() => _categoryId = null),
@@ -84,6 +86,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
+                        showCheckmark: false,
                         label: Text(AppStrings.categoryName(c.id, lang)),
                         avatar: Icon(c.icon, size: 16),
                         selected: _categoryId == c.id,
@@ -95,6 +98,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
+                        showCheckmark: false,
                         label: Text(cc.name),
                         avatar: cc.emoji.isNotEmpty
                             ? Text(cc.emoji,
@@ -170,40 +174,69 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   final items = groups[day]!;
                   final dayTotal = items.fold(
                       0.0, (sum, e) => sum + (e.bdtAmount ?? e.amount));
+                  final dark =
+                      Theme.of(context).brightness == Brightness.dark;
                   return StaggeredEntrance(
                     key: ValueKey('day-${day.millisecondsSinceEpoch}'),
                     delayMs: (i * 70).clamp(0, 280).toInt(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // iOS section header: 13px uppercase secondary gray.
                         Padding(
                           padding:
-                              const EdgeInsets.fromLTRB(20, 16, 20, 6),
+                              const EdgeInsets.fromLTRB(20, 18, 20, 6),
                           child: Row(
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                _dayHeader(day, lang),
-                                style:
-                                    theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.8,
+                                _dayHeader(day, lang).toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.6,
+                                  color: dark
+                                      ? KIOS.darkSecondaryText
+                                      : KIOS.lightSecondaryText,
                                 ),
                               ),
                               Text(
                                 formatMoney(dayTotal),
-                                style:
-                                    theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.4,
-                                  color: theme.colorScheme.primary,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        for (final e in items) ExpenseTile(expense: e),
+                        // iOS grouped card: white card with hairline
+                        // dividers between rows.
+                        Container(
+                          margin:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: KIOS.card(context),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              for (var j = 0; j < items.length; j++) ...[
+                                ExpenseTile(expense: items[j]),
+                                if (j < items.length - 1)
+                                  Divider(
+                                    height: 1,
+                                    indent: 68,
+                                    endIndent: 0,
+                                    color: dark
+                                        ? KIOS.darkSeparator
+                                        : KIOS.lightSeparator,
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   );

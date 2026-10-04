@@ -177,32 +177,32 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 0),
               child: MoneyOverviewCard(),
             ),
           ),
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 0),
               child: MonthlyBalanceCard(),
             ),
           ),
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 0),
               child: SpendingInsights(),
             ),
           ),
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: EdgeInsets.fromLTRB(16, 24, 16, 0),
               child: BudgetForecastCard(),
             ),
           ),
           // Quick shortcuts the user wants pinned on home.
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 0, 0),
+              padding: const EdgeInsets.fromLTRB(16, 24, 0, 0),
               child: SizedBox(
                 height: 96,
                 child: ListView(
@@ -294,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (budget != null && budget.limitAmount > 0)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                 child: StaggeredEntrance(
                   delayMs: 120,
                   child: _MonthlyBudgetProgress(
@@ -352,7 +352,13 @@ class _QuickShortcut extends StatelessWidget {
                   color: kGold.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: kGoldDark, size: 20),
+                child: Icon(
+                  icon,
+                  color: theme.brightness == Brightness.dark
+                      ? kGoldLight
+                      : kGoldDark,
+                  size: 20,
+                ),
               ),
               const SizedBox(height: 6),
               Flexible(
@@ -414,9 +420,10 @@ class _MonthlyBudgetProgress extends StatelessWidget {
                 Expanded(
                   child: Text(
                     tr(context, 'monthly_budget'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.6,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),

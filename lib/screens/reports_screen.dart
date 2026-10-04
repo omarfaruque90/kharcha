@@ -11,7 +11,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/app_strings.dart';
 import '../main.dart';
-import '../models/category.dart';
 import '../models/custom_category.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
@@ -98,6 +97,39 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   String get _periodKey =>
       '${_period.name}-${_selectedMonth.millisecondsSinceEpoch}';
+
+  /// iOS-style section header: 20px semibold in the label color.
+  static TextStyle _headerStyle(ThemeData theme) => TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+        color: theme.colorScheme.onSurface,
+      );
+
+  /// Subtle iOS-style share-of-total progress bar for category rows.
+  static Widget _shareBar(
+      double value, double total, Color color, ThemeData theme) {
+    final frac = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
+    return Container(
+      height: 5,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FractionallySizedBox(
+          widthFactor: frac,
+          child: Container(
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -409,9 +441,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     Text(
                       tr(context, 'last_6_months'),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: _headerStyle(theme),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -440,7 +470,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     const EdgeInsets.only(right: 8),
                                 child: Text(
                                   formatCompact(value),
-                                  style: const TextStyle(fontSize: 10),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: theme
+                                        .colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ),
@@ -457,7 +491,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   padding: const EdgeInsets.only(top: 8),
                                   child: Text(
                                     monthShort(months[i].month, lang),
-                                    style: const TextStyle(fontSize: 10),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: theme
+                                          .colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                 );
                               },
@@ -502,9 +540,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     Text(
                       tr(context, 'export_title'),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: _headerStyle(theme),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -555,9 +591,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         Expanded(
                           child: Text(
                             tr(context, 'by_category'),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: _headerStyle(theme),
                           ),
                         ),
                         // Package AK: compare toggle (this month vs last month).
@@ -604,6 +638,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 selected: _period == p,
                                 onSelected: (_) =>
                                     setState(() => _period = p),
+                                // iOS segmented-control feel: no checkmark,
+                                // gold pill when selected (theme handles the
+                                // rest via chipTheme).
+                                showCheckmark: false,
                                 selectedColor: kGold,
                                 labelStyle: TextStyle(
                                   color: _period == p
@@ -738,45 +776,87 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         key: ValueKey(
                             '$_periodKey-${sortedCats[li].key}'),
                         delayMs: (li * 40).clamp(0, 200).toInt(),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 4),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onLongPress: () => _confirmClearCategory(
-                                context, sortedCats[li].key),
-                            child: Row(
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: categoryById(sortedCats[li].key).color,
-                                  shape: BoxShape.circle,
+                        // iOS grouped list: hairline dividers between rows,
+                        // subtle share-of-total progress bar under each name.
+                        child: Column(
+                          children: [
+                            if (li > 0)
+                              Divider(
+                                height: 1,
+                                thickness: 0.5,
+                                indent: 46,
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onLongPress: () => _confirmClearCategory(
+                                  context, sortedCats[li].key),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            categoryById(sortedCats[li].key)
+                                                .color
+                                                .withValues(alpha: 0.15),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        categoryById(sortedCats[li].key)
+                                            .icon,
+                                        size: 18,
+                                        color: categoryById(
+                                                sortedCats[li].key)
+                                            .color,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            CustomCategoryRegistry
+                                                .displayName(
+                                                    sortedCats[li].key,
+                                                    lang),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          _shareBar(
+                                            sortedCats[li].value,
+                                            monthTotal,
+                                            categoryById(
+                                                    sortedCats[li].key)
+                                                .color,
+                                            theme,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      formatMoney(sortedCats[li].value),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                categoryById(sortedCats[li].key).icon,
-                                size: 16,
-                                color: categoryById(sortedCats[li].key).color,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  CustomCategoryRegistry.displayName(
-                                      sortedCats[li].key, lang),
-                                ),
-                              ),
-                              Text(
-                                formatMoney(sortedCats[li].value),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -839,9 +919,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               Text(
                 tr(context, 'mood_insights'),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: _headerStyle(theme),
               ),
               const SizedBox(height: 12),
               Row(
@@ -967,7 +1045,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(width: 16),
-            _cmpLegendDot(Colors.grey),
+            _cmpLegendDot(theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
             Text(
               _ctr(lang, 'cmp_last_month'),
@@ -1029,7 +1107,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     const SizedBox(height: 4),
                     _cmpBar(catTotals[ids[ci]] ?? 0, maxV, kGold),
                     const SizedBox(height: 3),
-                    _cmpBar(prevTotals[ids[ci]] ?? 0, maxV, Colors.grey),
+                    _cmpBar(prevTotals[ids[ci]] ?? 0, maxV,
+                        theme.colorScheme.onSurfaceVariant),
                   ],
                 ),
               ),

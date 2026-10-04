@@ -7,6 +7,7 @@ import '../models/custom_category.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/design_tokens.dart';
 import '../utils/formatters.dart';
 import 'motion.dart';
 
@@ -31,43 +32,37 @@ class SpendingInsights extends StatelessWidget {
     return StaggeredEntrance(
       delayMs: 150,
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.auto_awesome, color: kGold, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    tr(context, 'insights_title'),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              Text(
+                tr(context, 'insights_title'),
+                style: KIOS.sectionTitle(context),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               for (final insight in insights)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
                     children: [
                       Container(
-                        width: 32,
-                        height: 32,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
                           color: kGold.withValues(alpha: 0.16),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(insight.icon, size: 17, color: kGoldDark),
+                        child: Icon(
+                          insight.icon,
+                          size: 17,
+                          color: theme.brightness == Brightness.dark
+                              ? kGoldLight
+                              : kGoldDark,
+                        ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           insight.text,
