@@ -880,18 +880,23 @@ class _MainShellState extends State<MainShell> {
         if (!didPop && _index != 0) _goHome();
       },
       child: Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        reverseDuration: const Duration(milliseconds: 180),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        layoutBuilder: (currentChild, previousChildren) => Stack(
-          children: [
-            ...previousChildren,
-            if (currentChild != null) currentChild,
-          ],
-        ),
-        transitionBuilder: (Widget child, Animation<double> animation) {
+      // No bottomNavigationBar — navbar floats directly over content
+      // via Stack, so there is no extra background area behind it.
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            reverseDuration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (currentChild, previousChildren) => Stack(
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            ),
+            transitionBuilder:
+                (Widget child, Animation<double> animation) {
           // Direction-aware: new tab glides in from the tapped side,
           // buttery fade + gentle scale for depth.
           final slide = Tween<Offset>(
@@ -919,15 +924,18 @@ class _MainShellState extends State<MainShell> {
             const MoreScreen(),
           ],
         ),
-      ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          canvasColor: Colors.transparent,
-        ),
-        child: GooeyNavBar(
-          index: _index,
-          onTap: _goTo,
-        ),
+          ),
+          // Floating navbar — no separate background area.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GooeyNavBar(
+              index: _index,
+              onTap: _goTo,
+            ),
+          ),
+        ],
       ),
       ),
     );
