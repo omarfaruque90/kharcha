@@ -703,20 +703,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SegmentedButton<String>(
-                style: const ButtonStyle(
+                style: ButtonStyle(
                   visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontSize: 12),
+                  ),
                 ),
                 segments: [
                   ButtonSegment(
                       value: 'system',
-                      label: Text(tr(context, 'theme_system'))),
+                      label: Text(tr(context, 'theme_system'),
+                          softWrap: false, maxLines: 1)),
                   ButtonSegment(
-                      value: 'light', label: Text(tr(context, 'theme_light'))),
+                      value: 'light',
+                      label: Text(tr(context, 'theme_light'),
+                          softWrap: false, maxLines: 1)),
                   ButtonSegment(
-                      value: 'dark', label: Text(tr(context, 'theme_dark'))),
+                      value: 'dark',
+                      label: Text(tr(context, 'theme_dark'),
+                          softWrap: false, maxLines: 1)),
                   ButtonSegment(
                       value: 'scheduled',
-                      label: Text(tr(context, 'theme_scheduled'))),
+                      label: Text(tr(context, 'theme_scheduled'),
+                          softWrap: false, maxLines: 1)),
                 ],
                 selected: {settings.themeChoice},
                 onSelectionChanged: (s) =>
