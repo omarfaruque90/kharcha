@@ -662,6 +662,7 @@ class _AddSavingsDialog extends StatefulWidget {
 class _AddSavingsDialogState extends State<_AddSavingsDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -700,21 +701,24 @@ class _AddSavingsDialogState extends State<_AddSavingsDialog> {
           child: Text(tr(context, 'cancel')),
         ),
         FilledButton(
-          onPressed: () async {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            final id = widget.goal.id;
-            if (id == null) return;
-            await context.read<MoneyProvider>().addSavings(
-                  id,
-                  double.parse(_amountCtrl.text.trim()),
-                );
-            if (context.mounted) {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(tr(context, 'msg_saved'))),
-              );
-            }
-          },
+          onPressed: _saving
+              ? null
+              : () async {
+                  if (!(_formKey.currentState?.validate() ?? false)) return;
+                  final id = widget.goal.id;
+                  if (id == null) return;
+                  setState(() => _saving = true);
+                  await context.read<MoneyProvider>().addSavings(
+                        id,
+                        double.parse(_amountCtrl.text.trim()),
+                      );
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(tr(context, 'msg_saved'))),
+                    );
+                  }
+                },
           child: Text(tr(context, 'save')),
         ),
       ],
