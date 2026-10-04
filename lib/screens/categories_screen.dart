@@ -149,11 +149,27 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             color: kCustomCategoryColor, size: 22),
                   ),
                   title: Text(cc.name),
-                  trailing: IconButton(
-                    tooltip: tr(context, 'delete'),
-                    icon: Icon(Icons.delete_outline,
-                        color: theme.colorScheme.error),
-                    onPressed: () => _deleteCustom(cc),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: tr(context, 'edit_category_title'),
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () async {
+                          final saved = await showEditCategoryDialog(
+                              context, cc);
+                          if (saved == true && context.mounted) {
+                            await _reload();
+                          }
+                        },
+                      ),
+                      IconButton(
+                        tooltip: tr(context, 'delete'),
+                        icon: Icon(Icons.delete_outline,
+                            color: theme.colorScheme.error),
+                        onPressed: () => _deleteCustom(cc),
+                      ),
+                    ],
                   ),
                 ),
               ),

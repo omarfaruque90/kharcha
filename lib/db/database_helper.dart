@@ -1402,6 +1402,17 @@ class DatabaseHelper {
     return _deleteRecord('custom_categories', id);
   }
 
+  Future<int> updateCustomCategory(
+      String id, String name, String emoji) async {
+    final db = await database;
+    return db.update(
+      'custom_categories',
+      {'name': name.trim(), 'emoji': emoji.trim()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // --------------------------- notes --------------------
   Future<List<Map<String, dynamic>>> getNotes() async {
     final db = await database;

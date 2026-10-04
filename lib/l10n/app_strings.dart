@@ -286,6 +286,7 @@ class AppStrings {
       // v5 — custom categories + notification center
       'add_new_category': 'Add new category',
       'new_category_title': 'New category',
+      'edit_category_title': 'Edit category',
       'category_name': 'Category name',
       'category_name_hint': 'e.g. Pet, Gifts',
       'err_name_empty': 'Please enter a name',
@@ -1145,6 +1146,7 @@ class AppStrings {
       // v5 — কাস্টম ক্যাটাগরি + নোটিফিকেশন সেন্টার
       'add_new_category': 'নতুন ক্যাটাগরি',
       'new_category_title': 'নতুন ক্যাটাগরি',
+      'edit_category_title': 'ক্যাটাগরি এডিট করুন',
       'category_name': 'ক্যাটাগরির নাম',
       'category_name_hint': 'যেমন: পোষা প্রাণী, উপহার',
       'err_name_empty': 'নাম লিখুন',
