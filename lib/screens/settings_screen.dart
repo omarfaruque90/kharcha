@@ -9,6 +9,7 @@ import '../l10n/app_strings.dart';
 import '../db/database_helper.dart';
 import '../widgets/motion.dart';
 import '../widgets/smart_search.dart';
+import '../widgets/color_picker_dialog.dart';
 import '../providers/settings_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
@@ -749,12 +750,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 14),
                       child: PressableScale(
-                        onTap: () => settings.setAccent(key),
+                        onTap: () async {
+                          if (key == SettingsProvider.accentCustom) {
+                            final picked =
+                                await showDialog<Color>(
+                              context: context,
+                              builder: (ctx) => ColorPickerDialog(
+                                initialColor: settings.customColor,
+                              ),
+                            );
+                            if (picked != null && context.mounted) {
+                              await settings.setCustomColor(picked);
+                            }
+                          } else {
+                            settings.setAccent(key);
+                          }
+                        },
                         child: Builder(
                           builder: (dotCtx) {
-                            final swatch =
-                                SettingsProvider.accentColors[key] ??
-                                    Colors.grey;
+                            final isCustom =
+                                key == SettingsProvider.accentCustom;
+                            final swatch = isCustom
+                                ? settings.customColor
+                                : (SettingsProvider.accentColors[key] ??
+                                    Colors.grey);
                             final onSwatch =
                                 ThemeData.estimateBrightnessForColor(
                                             swatch) ==

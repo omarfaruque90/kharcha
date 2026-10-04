@@ -318,12 +318,15 @@ Future<void> _finishBootInBackgroundImpl(
   await NotificationCenter.refreshUnread();
 }
 
-ColorScheme _brandScheme(Brightness brightness, String accent) {
+ColorScheme _brandScheme(Brightness brightness, String accent,
+    [Color? customColor]) {
   final base = ColorScheme.fromSeed(
     seedColor: kDeepGreen,
     brightness: brightness,
   );
-  final accentColor = kAccents[accent] ?? kGold;
+  final accentColor = accent == 'custom' && customColor != null
+      ? customColor
+      : (kAccents[accent] ?? kGold);
   final accentDark = kAccentDarks[accent] ?? kGoldDark;
   // Text/icon color on top of the accent: dark green on light accents
   // (gold), white on saturated ones. Matches the original gold behavior.
@@ -356,12 +359,19 @@ ColorScheme _brandScheme(Brightness brightness, String accent) {
 
 /// Shared premium fintech theme: accent primary buttons, accent focused
 /// inputs, accent selected chips, deep-green app bars with accent titles.
-ThemeData _buildTheme(Brightness brightness, String accent) {
-  final scheme = _brandScheme(brightness, accent);
+ThemeData _buildTheme(Brightness brightness, String accent,
+    [Color? customColor]) {
+  final scheme = _brandScheme(brightness, accent, customColor);
   final dark = brightness == Brightness.dark;
-  final accentColor = kAccents[accent] ?? kGold;
-  final accentLight = kAccentLights[accent] ?? kGoldLight;
-  final accentDark = kAccentDarks[accent] ?? kGoldDark;
+  final accentColor = accent == 'custom' && customColor != null
+      ? customColor
+      : (kAccents[accent] ?? kGold);
+  final accentLight = accent == 'custom' && customColor != null
+      ? Color.lerp(customColor, Colors.white, 0.6)!
+      : (kAccentLights[accent] ?? kGoldLight);
+  final accentDark = accent == 'custom' && customColor != null
+      ? Color.lerp(customColor, Colors.black, 0.3)!
+      : (kAccentDarks[accent] ?? kGoldDark);
   final onAccent =
       ThemeData.estimateBrightnessForColor(accentColor) == Brightness.dark
           ? Colors.white
@@ -552,10 +562,14 @@ class KharchaApp extends StatelessWidget {
         );
         return MediaQuery(data: scaled, child: rtl);
       },
-      theme: _buildTheme(Brightness.light, settings.accent),
+      theme: _buildTheme(
+          Brightness.light, settings.accent, settings.customColor),
       darkTheme: settings.amoled
-          ? buildAmoledTheme(kAccents[settings.accent] ?? kGold)
-          : _buildTheme(Brightness.dark, settings.accent),
+          ? buildAmoledTheme(settings.accent == 'custom'
+              ? settings.customColor
+              : (kAccents[settings.accent] ?? kGold))
+          : _buildTheme(
+              Brightness.dark, settings.accent, settings.customColor),
       themeMode: settings.themeMode,
       home: const SplashScreen(),
     );

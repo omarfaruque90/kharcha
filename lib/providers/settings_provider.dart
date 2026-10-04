@@ -23,6 +23,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String accentBlue = 'blue';
   static const String accentPurple = 'purple';
   static const String accentOrange = 'orange';
+  static const String accentCustom = 'custom';
 
   /// Accent keys in picker order.
   static const List<String> accents = [
@@ -31,6 +32,7 @@ class SettingsProvider extends ChangeNotifier {
     accentBlue,
     accentPurple,
     accentOrange,
+    accentCustom,
   ];
 
   /// Dot colors for the settings accent picker. Must match `kAccents` in
@@ -51,6 +53,7 @@ class SettingsProvider extends ChangeNotifier {
   String _darkStart = '22:00';
   String _darkEnd = '06:00';
   String _accent = accentGold;
+  int _customColor = 0xFFD4AF37; // Custom accent color (ARGB int)
   bool _amoled = false;
   double _fontScale = 1.0;
   Timer? _scheduleTimer;
@@ -60,6 +63,7 @@ class SettingsProvider extends ChangeNotifier {
   String get darkStart => _darkStart;
   String get darkEnd => _darkEnd;
   String get accent => _accent;
+  Color get customColor => Color(_customColor);
   bool get amoled => _amoled;
   double get fontScale => _fontScale;
 
@@ -121,6 +125,8 @@ class SettingsProvider extends ChangeNotifier {
     _themeChoice = _isValidChoice(choice) ? choice : choiceLight;
     final accent = await db.getSetting('accent');
     _accent = (accent != null && _isValidAccent(accent)) ? accent : accentGold;
+    final cc = int.tryParse(await db.getSetting('custom_color') ?? '');
+    if (cc != null) _customColor = cc;
     final start = await db.getSetting('dark_start');
     if (start != null && _hhmmRe.hasMatch(start)) _darkStart = start;
     final end = await db.getSetting('dark_end');
@@ -136,6 +142,15 @@ class SettingsProvider extends ChangeNotifier {
     if (!_isValidAccent(accent) || accent == _accent) return;
     _accent = accent;
     await DatabaseHelper.instance.setSetting('accent', accent);
+    notifyListeners();
+  }
+
+  Future<void> setCustomColor(Color color) async {
+    _customColor = color.value;
+    _accent = accentCustom;
+    await DatabaseHelper.instance
+        .setSetting('custom_color', color.value.toString());
+    await DatabaseHelper.instance.setSetting('accent', accentCustom);
     notifyListeners();
   }
 
