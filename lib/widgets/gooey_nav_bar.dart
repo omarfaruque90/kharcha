@@ -234,8 +234,8 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                 : [kDeepGreen, kDeepGreenDark],
           ),
           border: Border.all(
-            color: accent.withValues(alpha: 0.65),
-            width: 2.5,
+            color: Colors.transparent,
+            width: 0,
           ),
           boxShadow: [
             BoxShadow(
