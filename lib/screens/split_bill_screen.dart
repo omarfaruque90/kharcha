@@ -38,6 +38,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
   final TextEditingController _totalCtrl = TextEditingController();
   final List<_PersonRow> _rows = [];
   bool _saving = false;
+  String _debtKind = 'lent'; // 'lent' (diyechi) or 'borrowed' (niyechi)
 
   @override
   void initState() {
@@ -141,7 +142,7 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
           Debt(
             person: name,
             amount: amount,
-            kind: 'lent',
+            kind: _debtKind,
             date: DateTime.now(),
             note: 'Split: $title',
             settled: false,
@@ -200,6 +201,27 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Lent / Borrowed selector.
+            StaggeredEntrance(
+              child: SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'lent',
+                    icon: const Icon(Icons.handshake_outlined),
+                    label: Text(tr(context, 'debt_lent')),
+                  ),
+                  ButtonSegment(
+                    value: 'borrowed',
+                    icon: const Icon(Icons.call_received_outlined),
+                    label: Text(tr(context, 'debt_borrowed')),
+                  ),
+                ],
+                selected: {_debtKind},
+                onSelectionChanged: (s) =>
+                    setState(() => _debtKind = s.first),
+              ),
+            ),
+            const SizedBox(height: 12),
             StaggeredEntrance(
               child: TextFormField(
                 controller: _titleCtrl,
