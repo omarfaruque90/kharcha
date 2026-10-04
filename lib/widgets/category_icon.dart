@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/category.dart';
-import '../services/custom_category_registry.dart';
+import '../models/custom_category.dart';
 
 /// Displays a category's icon: custom emoji for user-created categories,
 /// built-in icon otherwise.
