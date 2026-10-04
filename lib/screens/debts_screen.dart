@@ -43,7 +43,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
   List<Debt> _debts = [];
   bool _loaded = false;
   _DebtFilter _filter = _DebtFilter.all;
-  final Set<String> _settling = {}; // debt IDs currently being settled
 
   @override
   void initState() {
@@ -453,14 +452,23 @@ class _TotalsCard extends StatelessWidget {
 
 /// One debt row: person, amount, due date, note; settle action or settled
 /// badge; long-press deletes.
-class _DebtTile extends StatelessWidget {
+class _DebtTile extends StatefulWidget {
   final Debt debt;
   final VoidCallback onChanged;
 
   const _DebtTile({required this.debt, required this.onChanged});
 
   @override
+  State<_DebtTile> createState() => _DebtTileState();
+}
+
+class _DebtTileState extends State<_DebtTile> {
+  bool _settling = false;
+
+  @override
   Widget build(BuildContext context) {
+    final debt = widget.debt;
+    final onChanged = widget.onChanged;
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final lang = context.read<SettingsProvider>().language;
@@ -544,9 +552,8 @@ class _DebtTile extends StatelessWidget {
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   Future<void> _settle(BuildContext context, Debt debt) async {
-    final id = debt.id;
-    if (id == null || _settling.contains(id)) return;
-    _settling.add(id);
+    if (_settling) return;
+    setState(() => _settling = true);
     try {
     // Capture context-dependent values before any async gap.
     final expenses = context.read<ExpenseProvider>();
@@ -585,7 +592,7 @@ class _DebtTile extends StatelessWidget {
       SnackBar(content: Text(settledMsg)),
     );
     } finally {
-      _settling.remove(id);
+      if (mounted) setState(() => _settling = false);
     }
   }
 
