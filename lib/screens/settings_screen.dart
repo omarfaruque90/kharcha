@@ -580,15 +580,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// Named section header — every settings group gets one.
   Widget _sectionHeader(BuildContext context, String key) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        tr(context, key),
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
+            alignment: Alignment.center,
+            child: Icon(
+              _sectionIcon(key),
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            tr(context, key),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ],
       ),
     );
+  }
+
+  IconData _sectionIcon(String key) {
+    switch (key) {
+      case 'account_section':
+        return Icons.person_outline;
+      case 'general_section':
+        return Icons.tune;
+      case 'appearance_section':
+        return Icons.palette_outlined;
+      case 'money_section':
+        return Icons.account_balance_wallet_outlined;
+      case 'profile_section':
+        return Icons.group_outlined;
+      case 'security_section':
+        return Icons.lock_outline;
+      case 'ai_settings_section':
+        return Icons.smart_toy_outlined;
+      case 'data_section':
+        return Icons.backup_outlined;
+      case 'about':
+        return Icons.info_outline;
+      default:
+        return Icons.settings_outlined;
+    }
   }
 
   @override
