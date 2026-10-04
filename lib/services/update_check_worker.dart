@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../app_version.dart';
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import 'drive_backup_service.dart';
@@ -99,8 +100,7 @@ Future<void> _runDriveAutoBackup() async {
 Future<void> _runUpdateCheck() async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final pkg = await PackageInfo.fromPlatform();
-    final local = _parseVersion(pkg.version);
+    final local = _parseVersion(kReleaseVersion);
     if (local == null) return;
 
     final resp = await http

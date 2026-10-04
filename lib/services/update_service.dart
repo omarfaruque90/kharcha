@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
+import '../app_version.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -66,8 +68,9 @@ class UpdateService {
   /// Reads the public version.json from kharcha-updates.
   static Future<UpdateInfo?> _checkVersionJson() async {
     try {
-      final pkg = await PackageInfo.fromPlatform();
-      final local = _parseVersion(pkg.version);
+      // Use the release version constant — Android versionName is hardcoded
+      // in build.gradle and not reliable for update checks.
+      final local = _parseVersion(kReleaseVersion);
       if (local == null) return null;
       final resp = await http
           .get(Uri.parse(_versionJsonUrl))
@@ -113,8 +116,7 @@ class UpdateService {
 
   static Future<UpdateInfo?> _checkGithubApi() async {
     try {
-      final pkg = await PackageInfo.fromPlatform();
-      final local = _parseVersion(pkg.version);
+      final local = _parseVersion(kReleaseVersion);
       if (local == null) return null;
       final resp = await http
           .get(
@@ -266,19 +268,123 @@ class UpdateService {
   }) async {
     final update = await showDialog<bool>(
       context: context,
-      builder: (dctx) => AlertDialog(
-        icon: const Icon(Icons.system_update, color: kGold, size: 32),
-        title: Text('${tr(dctx, 'update_title')} v${info.version}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(false),
-            child: Text(tr(dctx, 'update_later')),
+      builder: (dctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(dctx).colorScheme.surface,
+                Theme.of(dctx)
+                    .colorScheme
+                    .surface
+                    .withValues(alpha: 0.95),
+              ],
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dctx).pop(true),
-            child: Text(tr(dctx, 'update_now')),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFD4AF37), Color(0xFFF0D878)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFD4AF37)
+                          .withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.system_update_rounded,
+                  color: Colors.white,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${tr(dctx, 'update_title')}',
+                style: Theme.of(dctx)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4AF37)
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'v${info.version}',
+                  style: const TextStyle(
+                    color: Color(0xFFD4AF37),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          Navigator.of(dctx).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(tr(dctx, 'update_later')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () =>
+                          Navigator.of(dctx).pop(true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xFFD4AF37),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(tr(dctx, 'update_now')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     if (update == true) {
