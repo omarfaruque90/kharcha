@@ -282,6 +282,14 @@ class _MoneyOverviewCardState extends State<MoneyOverviewCard> {
                   value: tb.lentOut,
                   theme: theme,
                 ),
+                // Borrowed (auto from debts).
+                _row(
+                  context,
+                  icon: Icons.call_received_outlined,
+                  label: tr(context, 'money_borrowed'),
+                  value: tb.borrowed,
+                  theme: theme,
+                ),
               ],
             ],
           ),

@@ -23,11 +23,13 @@ class TotalBalanceProvider extends ChangeNotifier {
   double _cash = 0;
   Map<String, double> _wallets = {for (final id in walletIds) id: 0};
   double _lentOut = 0;
+  double _borrowed = 0;
   bool _loaded = false;
 
   bool get isLoaded => _loaded;
   double get cash => _cash;
   double get lentOut => _lentOut;
+  double get borrowed => _borrowed;
   double walletOf(String id) => _wallets[id] ?? 0;
 
   double get walletsTotal =>
@@ -49,6 +51,9 @@ class TotalBalanceProvider extends ChangeNotifier {
       final debts = results[2] as List;
       _lentOut = debts
           .where((d) => d.kind == 'lent' && !d.settled)
+          .fold<double>(0, (s, d) => s + (d.amount as num).toDouble());
+      _borrowed = debts
+          .where((d) => d.kind == 'borrowed' && !d.settled)
           .fold<double>(0, (s, d) => s + (d.amount as num).toDouble());
     } catch (_) {
       // Keep previous values; never crash startup.
