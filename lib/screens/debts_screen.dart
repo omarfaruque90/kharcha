@@ -533,53 +533,32 @@ class _DebtTile extends StatelessWidget {
 
   Future<void> _settle(BuildContext context, Debt debt) async {
     await DatabaseHelper.instance.settleDebt(debt.id!);
+    // Auto-update balance: lent settled = I got money back (income),
+    // borrowed settled = I paid back (expense).
+    final borrowed = debt.kind == 'borrowed';
+    try {
+      if (borrowed) {
+        await context.read<ExpenseProvider>().add(Expense(
+              amount: debt.amount,
+              categoryId: 'others',
+              date: DateTime.now(),
+              note:
+                  '${tr(context, 'debts_settle_expense_note')}: ${debt.person}',
+              paymentMethod: 'cash',
+            ));
+      } else {
+        await context.read<MoneyProvider>().addIncome(Income(
+              amount: debt.amount,
+              source: tr(context, 'debts_settle_income_source'),
+              date: DateTime.now(),
+              note: debt.person,
+            ));
+      }
+    } catch (_) {}
     onChanged();
     if (!context.mounted) return;
-    // After settling, offer to also log it as an expense (borrowed) or
-    // income (lent) so the money flow stays in the books.
-    final borrowed = debt.kind == 'borrowed';
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr(
-            ctx, borrowed ? 'debts_log_expense_title' : 'debts_log_income_title')),
-        content: Text(tr(
-            ctx, borrowed ? 'debts_log_expense_msg' : 'debts_log_income_msg')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(tr(ctx, 'cancel')),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (borrowed) {
-                await ctx.read<ExpenseProvider>().add(Expense(
-                      amount: debt.amount,
-                      categoryId: 'others',
-                      date: DateTime.now(),
-                      note:
-                          '${tr(ctx, 'debts_settle_expense_note')}: ${debt.person}',
-                      paymentMethod: 'cash',
-                    ));
-              } else {
-                await ctx.read<MoneyProvider>().addIncome(Income(
-                      amount: debt.amount,
-                      source: tr(ctx, 'debts_settle_income_source'),
-                      date: DateTime.now(),
-                      note: debt.person,
-                    ));
-              }
-              if (ctx.mounted) {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text(tr(ctx, 'debts_settled_msg'))),
-                );
-              }
-            },
-            child: Text(tr(ctx, 'confirm')),
-          ),
-        ],
-      ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(tr(context, 'debts_settled_msg'))),
     );
   }
 
