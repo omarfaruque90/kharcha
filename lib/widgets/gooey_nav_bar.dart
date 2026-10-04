@@ -210,7 +210,7 @@ class _MorphTabButtonState extends State<_MorphTabButton>
     super.initState();
     _morphCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 550),
     );
   }
 
@@ -240,18 +240,21 @@ class _MorphTabButtonState extends State<_MorphTabButton>
             animation: _morphCtrl,
             builder: (ctx, _) {
               final t = _morphCtrl.value;
-              // Bounce scale: 1 -> 1.3 -> 1 with overshoot.
-              final scale = 1.0 + 0.35 * math.sin(t * math.pi);
-              // Slight rotation morph.
+              // Dramatic morph matching video: strong tilt + bounce + wobble.
+              final scale =
+                  1.0 + 0.45 * math.sin(t * math.pi) * (1 - t * 0.3);
               final rotation =
-                  0.25 * math.sin(t * math.pi * 2);
-              // Icon squash for morph effect.
-              final squashX = 1.0 + 0.15 * math.sin(t * math.pi * 2);
-              final squashY = 1.0 - 0.12 * math.sin(t * math.pi * 2);
+                  0.6 * math.sin(t * math.pi * 1.5) * (1 - t);
+              final wobble =
+                  0.12 * math.sin(t * math.pi * 4) * (1 - t);
+              final squashX =
+                  1.0 + 0.2 * math.sin(t * math.pi * 2) * (1 - t);
+              final squashY =
+                  1.0 - 0.18 * math.sin(t * math.pi * 2) * (1 - t);
               return Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
-                  ..rotateZ(rotation)
+                  ..rotateZ(rotation + wobble)
                   ..scaleByDouble(
                       scale * squashX, scale * squashY, 1.0, 1.0),
                 child: Icon(
