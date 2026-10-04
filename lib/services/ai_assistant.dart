@@ -152,7 +152,9 @@ class AiAssistant {
       'spent', 'খরচ করলাম', 'khoroch korlam', 'khoroch holo',
       'খরচ হলো', 'khoroch hoise', 'খরচ হয়েছে', 'dিলাম', 'dilam',
       'diyechi', 'দিয়েছি', 'kinlam', 'কিনলাম', 'kinechi', 'কিনেছি',
-    ])) return true;
+    ])) {
+      return true;
+    }
     // Fallback: if there's an amount and it's NOT income/budget/delete,
     // it's almost certainly an expense (this is an expense tracker).
     // e.g. "lunch 200", "500 taka", "ajke 300"
