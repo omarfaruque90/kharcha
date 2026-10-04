@@ -216,20 +216,36 @@ class LlmService {
     }
     try {
       final prov = config.effectiveProvider;
-      if (prov == 'openai' || prov == 'nvidia') {
-        return await _chatOpenAi(
-          config: config,
-          history: history,
-          systemPrompt: systemPrompt,
-          toolSchemas: toolSchemas,
-        );
+      // Retry on 429 with exponential backoff (max 2 retries).
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (prov == 'openai' || prov == 'nvidia') {
+            return await _chatOpenAi(
+              config: config,
+              history: history,
+              systemPrompt: systemPrompt,
+              toolSchemas: toolSchemas,
+            );
+          }
+          return await _chatGemini(
+            config: config,
+            history: history,
+            systemPrompt: systemPrompt,
+            toolSchemas: toolSchemas,
+          );
+        } catch (e) {
+          final isRateLimit = e.toString().contains('429') ||
+              (e is _HttpError && e.status == 429);
+          if (isRateLimit && attempt < 2) {
+            // Wait 2s, then 4s before retrying.
+            await Future.delayed(
+                Duration(seconds: 2 * (attempt + 1)));
+            continue;
+          }
+          rethrow;
+        }
       }
-      return await _chatGemini(
-        config: config,
-        history: history,
-        systemPrompt: systemPrompt,
-        toolSchemas: toolSchemas,
-      );
+      return const LlmReply(text: null, toolCalls: []);
     } catch (e) {
       return LlmReply(text: _friendlyError(e));
     }

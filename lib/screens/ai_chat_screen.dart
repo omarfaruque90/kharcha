@@ -334,9 +334,12 @@ class _AiChatScreenState extends State<AiChatScreen> {
     var displayText = finalText?.trim().isNotEmpty == true
         ? finalText!.trim()
         : AppStrings.get('ai_action_failed', lang);
-    // True offline fallback: if the LLM is unreachable, answer with the
-    // on-device rule-based assistant instead of showing an error.
-    if (displayText.startsWith('🌐')) {
+    // True offline fallback: if the LLM is unreachable or rate-limited,
+    // answer with the on-device rule-based assistant instead of showing
+    // an error.
+    if (displayText.startsWith('🌐') ||
+        displayText.startsWith('⏳') ||
+        displayText.startsWith('⚠️')) {
       try {
         final res = await AiAssistant.answer(input, lang);
         if (!mounted) return;
