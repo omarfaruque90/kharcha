@@ -468,7 +468,6 @@ class _DebtTileState extends State<_DebtTile> {
   @override
   Widget build(BuildContext context) {
     final debt = widget.debt;
-    final onChanged = widget.onChanged;
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final lang = context.read<SettingsProvider>().language;
@@ -586,7 +585,7 @@ class _DebtTileState extends State<_DebtTile> {
             ));
       }
     } catch (_) {}
-    onChanged();
+    widget.onChanged();
     if (!context.mounted) return;
     messenger.showSnackBar(
       SnackBar(content: Text(settledMsg)),
@@ -610,7 +609,7 @@ class _DebtTileState extends State<_DebtTile> {
           FilledButton(
             onPressed: () async {
               await DatabaseHelper.instance.deleteDebt(debt.id!);
-              onChanged();
+              widget.onChanged();
               if (ctx.mounted) {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(ctx).showSnackBar(
