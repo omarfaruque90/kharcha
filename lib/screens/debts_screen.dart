@@ -532,24 +532,32 @@ class _DebtTile extends StatelessWidget {
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
   Future<void> _settle(BuildContext context, Debt debt) async {
+    // Capture context-dependent values before any async gap.
+    final expenses = context.read<ExpenseProvider>();
+    final money = context.read<MoneyProvider>();
+    final expenseNote =
+        '${tr(context, 'debts_settle_expense_note')}: ${debt.person}';
+    final incomeSource = tr(context, 'debts_settle_income_source');
+    final settledMsg = tr(context, 'debts_settled_msg');
+    final messenger = ScaffoldMessenger.of(context);
+
     await DatabaseHelper.instance.settleDebt(debt.id!);
     // Auto-update balance: lent settled = I got money back (income),
     // borrowed settled = I paid back (expense).
     final borrowed = debt.kind == 'borrowed';
     try {
       if (borrowed) {
-        await context.read<ExpenseProvider>().add(Expense(
+        await expenses.add(Expense(
               amount: debt.amount,
               categoryId: 'others',
               date: DateTime.now(),
-              note:
-                  '${tr(context, 'debts_settle_expense_note')}: ${debt.person}',
+              note: expenseNote,
               paymentMethod: 'cash',
             ));
       } else {
-        await context.read<MoneyProvider>().addIncome(Income(
+        await money.addIncome(Income(
               amount: debt.amount,
-              source: tr(context, 'debts_settle_income_source'),
+              source: incomeSource,
               date: DateTime.now(),
               note: debt.person,
             ));
@@ -557,8 +565,8 @@ class _DebtTile extends StatelessWidget {
     } catch (_) {}
     onChanged();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(tr(context, 'debts_settled_msg'))),
+    messenger.showSnackBar(
+      SnackBar(content: Text(settledMsg)),
     );
   }
 
