@@ -145,10 +145,31 @@ class AiAssistant {
         'income', 'আয়', 'aay', 'বেতন', 'salary',
       ]);
 
-  static bool _isAddExpense(String q) => _has(q, const [
-        'add', 'যোগ', 'khoroch', 'খরচ', 'expense', 'ব্যয়',
-        'spent', 'খরচ করলাম', 'khoroch korlam',
-      ]);
+  static bool _isAddExpense(String q) {
+    // Explicit expense keywords.
+    if (_has(q, const [
+      'add', 'যোগ', 'khoroch', 'খরচ', 'expense', 'ব্যয়',
+      'spent', 'খরচ করলাম', 'khoroch korlam', 'khoroch holo',
+      'খরচ হলো', 'khoroch hoise', 'খরচ হয়েছে', 'dিলাম', 'dilam',
+      'diyechi', 'দিয়েছি', 'kinlam', 'কিনলাম', 'kinechi', 'কিনেছি',
+    ])) return true;
+    // Fallback: if there's an amount and it's NOT income/budget/delete,
+    // it's almost certainly an expense (this is an expense tracker).
+    // e.g. "lunch 200", "500 taka", "ajke 300"
+    return false;
+  }
+
+  /// Smart fallback: amount present but no clear intent → treat as expense.
+  static bool _looksLikeExpenseAmount(String q, double? amount) {
+    if (amount == null || amount <= 0) return false;
+    if (_isAddIncome(q) || _isSetBudget(q) || _isDeleteLast(q)) return false;
+    if (_looksLikeQuestion(q)) return false;
+    // Has a number and money-related word, or just a number with context
+    return _has(q, const [
+          'taka', 'টাকা', 'tk', '৳', 'rs', 'rupi',
+        ]) ||
+        RegExp(r'\d').hasMatch(q);
+  }
 
   /// Parses an action command. Returns null when the input is a question
   /// or has no actionable amount.
@@ -185,6 +206,16 @@ class AiAssistant {
         amount: amount,
         categoryId: parsed.categoryId ?? 'others',
         note: '',
+      );
+    }
+    // Smart fallback: amount + money context but no keyword → expense.
+    // This is an expense tracker, so "lunch 200" or "500 taka" = expense.
+    if (_looksLikeExpenseAmount(q, amount)) {
+      return AiAction(
+        type: 'add_expense',
+        amount: amount,
+        categoryId: parsed.categoryId ?? 'others',
+        note: input.trim(),
       );
     }
     return null;
