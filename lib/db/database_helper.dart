@@ -997,8 +997,7 @@ class DatabaseHelper {
       );
     } else {
       id = await _insertRecord('budgets', budget.toMap());
-    }
-    await _pushRow<Budget>(
+    }    await _pushRow<Budget>(
       table: 'budgets',
       collection: 'budgets',
       id: id,
@@ -1030,6 +1029,35 @@ class DatabaseHelper {
     final count = await _deleteRecord('budgets', id);
     await _pushDelete('budgets', id);
     return count;
+  }
+
+  /// Atomically replaces all budgets for a month: deletes old + inserts
+  /// new inside one transaction. A crash mid-way loses nothing.
+  Future<void> replaceMonthBudgets(
+      String monthKey, List<Budget> budgets) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('budgets',
+          where: 'monthKey = ?', whereArgs: [monthKey]);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final b in budgets) {
+        final map = b.toMap();
+        map['updatedAt'] = now;
+        await txn.insert('budgets', map);
+      }
+    });
+    // Push to cloud after the transaction commits.
+    for (final b in budgets) {
+      try {
+        await _pushRow<Budget>(
+          table: 'budgets',
+          collection: 'budgets',
+          id: b.id!,
+          fromMap: Budget.fromMap,
+          toFirestore: (item) => item.toFirestore(),
+        );
+      } catch (_) {}
+    }
   }
 
   /// Wipes all local budgets without touching the cloud (logout).
@@ -1607,6 +1635,18 @@ class DatabaseHelper {
   /// Inserts a debt record. Returns the new id.
   Future<String> insertDebt(Debt debt) async {
     return _insertRecord('debts', debt.toMap());
+  }
+
+  /// Atomically saves a split bill: my expense + all lent debts in one
+  /// transaction. A failure mid-way saves nothing (no partial split).
+  Future<void> saveSplitBill(Expense expense, List<Debt> debts) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.insert('expenses', expense.toMap());
+      for (final d in debts) {
+        await txn.insert('debts', d.toMap());
+      }
+    });
   }
 
   /// Marks a debt as paid off (settled = 1).

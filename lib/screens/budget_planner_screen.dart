@@ -159,7 +159,8 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
     }
   }
 
-  /// Deletes this month's budgets and inserts the planner amounts.
+  /// Atomically replaces this month's budgets (delete + insert in one
+  /// transaction — a crash mid-way loses nothing).
   Future<void> _apply() async {
     if (_applying || _items.isEmpty) return;
     setState(() => _applying = true);
@@ -168,20 +169,20 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
       final now = DateTime.now();
       final monthKey =
           '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final budgets = _items
+          .where((s) => s.amount > 0)
+          .map((s) => Budget(
+                id: Budget.newId(),
+                categoryId: s.categoryId,
+                monthKey: monthKey,
+                limitAmount: s.amount,
+              ))
+          .toList();
+      await DatabaseHelper.instance
+          .replaceMonthBudgets(monthKey, budgets);
+      // Refresh the provider from DB.
       final money = context.read<MoneyProvider>();
-
-      for (final b in money.budgetsForMonth(monthKey)) {
-        await money.removeBudget(b.id!);
-      }
-      for (final s in _items) {
-        if (s.amount <= 0) continue;
-        await money.upsertBudget(Budget(
-          id: Budget.newId(),
-          categoryId: s.categoryId,
-          monthKey: monthKey,
-          limitAmount: s.amount,
-        ));
-      }
+      await money.load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

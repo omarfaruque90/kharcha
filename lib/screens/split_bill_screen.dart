@@ -8,6 +8,7 @@ import '../models/debt.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/total_balance_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
@@ -124,32 +125,42 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
     // Language-independent marker so the Splits filter works in all languages.
     final splitNote = '[split] $title';
     try {
-      // My own share → a normal expense.
-      await context.read<ExpenseProvider>().add(
-            Expense(
-              amount: meAmount,
-              categoryId: 'others',
-              date: DateTime.now(),
-              note: splitNote,
-              paymentMethod: 'cash',
-            ),
-          );
-      // Every other person's share → a "lent" debt I can settle later.
+      // Atomic: my expense + all lent debts in one DB transaction.
+      final now = DateTime.now();
+      final expense = Expense(
+        id: Expense.newId(),
+        amount: meAmount,
+        categoryId: 'others',
+        date: now,
+        note: splitNote,
+        paymentMethod: 'cash',
+      );
+      final debts = <Debt>[];
       for (var i = 0; i < _rows.length; i++) {
         if (i == idx) continue;
         final name = _rows[i].nameCtrl.text.trim();
         final amount = _rowAmount(_rows[i]);
-        await DatabaseHelper.instance.insertDebt(
-          Debt(
-            person: name,
-            amount: amount,
-            kind: _rows[i].debtKind,
-            date: DateTime.now(),
-            note: splitNote,
-            settled: false,
-          ),
-        );
+        debts.add(Debt(
+          id: Debt.newId(),
+          person: name,
+          amount: amount,
+          kind: _rows[i].debtKind,
+          date: now,
+          note: splitNote,
+          settled: false,
+        ));
       }
+      await DatabaseHelper.instance.saveSplitBill(expense, debts);
+      // Deduct my share from the wallet (mirrors ExpenseProvider.add).
+      try {
+        final totalBalance =
+            context.read<TotalBalanceProvider>();
+        await totalBalance.deductForExpense(
+            expense.paymentMethod, expense.amount);
+      } catch (_) {}
+      // Refresh providers from DB.
+      if (!mounted) return;
+      await context.read<ExpenseProvider>().load();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'split_saved'))),
