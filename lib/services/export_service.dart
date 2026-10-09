@@ -183,10 +183,65 @@ class ExportService {
     );
   }
 
+  /// Monthly expense export as CSV (UTF-8 with BOM so Excel opens
+  /// Bangla text correctly). No extra package needed.
+  static Future<void> exportMonthlyCsv(
+      BuildContext context, DateTime month) async {
+    final lang =
+        Provider.of<SettingsProvider>(context, listen: false).language;
+    final rows = await _monthExpenses(month);
+    final total = rows.fold<double>(0, (s, e) => s + e.amount);
+    final monthLabel = monthLong(month, lang);
+
+    String esc(String v) {
+      // Quote fields containing comma, quote, or newline.
+      if (v.contains(',') || v.contains('"') || v.contains('\n')) {
+        return '"${v.replaceAll('"', '""')}"';
+      }
+      return v;
+    }
+
+    final buf = StringBuffer();
+    // BOM for Excel Bangla support.
+    buf.write('\uFEFF');
+    buf.writeln([
+      esc(AppStrings.get('date', lang)),
+      esc(AppStrings.get('category', lang)),
+      esc(AppStrings.get('amount', lang)),
+      esc(AppStrings.get('payment_method', lang)),
+      esc(AppStrings.get('note', lang)),
+    ].join(','));
+    for (final e in rows) {
+      buf.writeln([
+        _dateStr(e.date),
+        esc(CustomCategoryRegistry.displayName(e.categoryId, lang)),
+        e.amount.toString(),
+        esc(AppStrings.paymentName(e.paymentMethod, lang)),
+        esc(e.note),
+      ].join(','));
+    }
+    buf.writeln([
+      '',
+      esc(AppStrings.get('month_total', lang)),
+      total.toString(),
+      '',
+      '',
+    ].join(','));
+
+    final dir = await getTemporaryDirectory();
+    final file = File(p.join(dir.path, '${_fileBase(month)}.csv'));
+    await file.writeAsString(buf.toString());
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Khorcha — $monthLabel',
+      ),
+    );
+  }
+
   /// Branded monthly statement PDF: deep-green header, income/expense/
   /// balance summary boxes, category breakdown bars and the full expense
-  /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.
-  static Future<void> exportFancyStatement(
+  /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.  static Future<void> exportFancyStatement(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
