@@ -198,6 +198,8 @@ class ToolTile extends StatelessWidget {
                     letterSpacing: 0.2,
                     fontSize: 10.5,
                     height: 1.25,
+                    // Explicit color so labels stay visible in dark mode.
+                    color: theme.colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
