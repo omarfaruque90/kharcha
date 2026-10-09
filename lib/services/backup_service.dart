@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -101,7 +102,8 @@ class BackupService {
         } catch (_) {}
         // Trigger a sync so restored rows reach the cloud.
         try {
-          await SyncService.instance.startSync();
+          final uid = FirebaseAuth.instance.currentUser?.uid;
+          if (uid != null) await SyncService.instance.startSync(uid);
         } catch (_) {}
       }
       return written;

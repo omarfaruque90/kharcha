@@ -122,6 +122,8 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final title = _titleCtrl.text.trim();
+    // Capture before any async gap (use_build_context_synchronously).
+    final totalBalance = context.read<TotalBalanceProvider>();
     // Language-independent marker so the Splits filter works in all languages.
     final splitNote = '[split] $title';
     try {
@@ -153,8 +155,6 @@ class _SplitBillScreenState extends State<SplitBillScreen> {
       await DatabaseHelper.instance.saveSplitBill(expense, debts);
       // Deduct my share from the wallet (mirrors ExpenseProvider.add).
       try {
-        final totalBalance =
-            context.read<TotalBalanceProvider>();
         await totalBalance.deductForExpense(
             expense.paymentMethod, expense.amount);
       } catch (_) {}

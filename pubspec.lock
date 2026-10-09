@@ -411,6 +411,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  flutter_staggered_grid_view:
+    dependency: "direct main"
+    description:
+      name: flutter_staggered_grid_view
+      sha256: "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.7.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -710,7 +718,7 @@ packages:
     source: hosted
     version: "4.12.0"
   latlong2:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: latlong2
       sha256: "98227922caf49e6056f91b6c56945ea1c7b166f28ffcd5fb8e72fc0b453cc8fe"
@@ -1085,14 +1093,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
-  receive_sms:
-    dependency: "direct main"
-    description:
-      name: receive_sms
-      sha256: "9dcdd48959e69716a84f937189271a740d27fca9c6a88f0e9a35c158676724ad"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
   record_use:
     dependency: transitive
     description:

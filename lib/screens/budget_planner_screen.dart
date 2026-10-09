@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../db/database_helper.dart';
 import '../main.dart';
 import '../models/budget.dart';
 import '../models/category.dart';
@@ -165,6 +166,7 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
     if (_applying || _items.isEmpty) return;
     setState(() => _applying = true);
     final lang = context.read<SettingsProvider>().language;
+    final money = context.read<MoneyProvider>();
     try {
       final now = DateTime.now();
       final monthKey =
@@ -181,7 +183,6 @@ class _BudgetPlannerScreenState extends State<BudgetPlannerScreen> {
       await DatabaseHelper.instance
           .replaceMonthBudgets(monthKey, budgets);
       // Refresh the provider from DB.
-      final money = context.read<MoneyProvider>();
       await money.load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
