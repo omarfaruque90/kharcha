@@ -241,7 +241,8 @@ class ExportService {
 
   /// Branded monthly statement PDF: deep-green header, income/expense/
   /// balance summary boxes, category breakdown bars and the full expense
-  /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.  static Future<void> exportFancyStatement(
+  /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.
+  static Future<void> exportFancyStatement(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
