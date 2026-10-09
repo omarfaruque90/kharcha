@@ -268,14 +268,18 @@ class SyncService {
     final col = _collection(uid);
 
     // 0. Push tombstoned deletes first (prevents resurrection).
+    // Only clear tombstones for IDs that actually deleted — failed
+    // ones are kept for retry so the doc doesn't resurrect locally.
     final tombstones = await db.getTombstones('expense');
+    final deletedIds = <String>[];
     for (final id in tombstones) {
       try {
         await col.doc(id).delete();
+        deletedIds.add(id);
       } catch (_) {}
     }
-    if (tombstones.isNotEmpty) {
-      await db.clearTombstones('expense');
+    if (deletedIds.isNotEmpty) {
+      await db.clearTombstonesForIds('expense', deletedIds);
     }
 
     // 1. Pull: merge remote docs into SQLite (last-write-wins on updatedAt).
@@ -456,6 +460,13 @@ class SyncService {
     await db.wipeLocalCustomPayments();
     await db.wipeLocalBillReminders();
     await db.wipeLocalWishlist();
+    // Local-only per-user tables (not synced) — wipe so the next
+    // account on this device can't see the previous user's data.
+    await db.wipeLocalDebts();
+    await db.wipeLocalShoppingItems();
+    await db.wipeLocalSubscriptions();
+    await db.wipeLocalDues();
+    await db.wipeLocalNotes();
     await db.clearTombstones('expense');
   }
 }

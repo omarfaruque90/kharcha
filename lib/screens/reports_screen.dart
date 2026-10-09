@@ -979,8 +979,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // Reuses ExpenseProvider.totalsByCategory for both months.
   // -------------------------------------------------------------------------
 
-  /// Side-by-side horizontal bars per category (gold = this month,
-  /// grey = last month) plus a total delta line.
+  /// Side-by-side horizontal bars per category (gold = this period,
+  /// grey = previous equivalent period) plus a total delta line.
   Widget _buildCompareView(
     BuildContext context,
     ExpenseProvider provider,
@@ -989,9 +989,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
     Map<String, double> catTotals,
     double monthTotal,
   ) {
-    final prevMonth =
-        DateTime(_selectedMonth.year, _selectedMonth.month - 1);
-    final prevTotals = provider.totalsByCategory(prevMonth);
+    // Compare against the equivalent previous period (same length),
+    // not a hardcoded calendar month.
+    final (rs, re) = _periodRange;
+    final length = re.difference(rs);
+    final prevEnd = rs.subtract(const Duration(milliseconds: 1));
+    final prevStart = prevEnd.subtract(length);
+    final prevTotals =
+        provider.totalsByCategoryRange(prevStart, prevEnd);
     final prevTotal = prevTotals.values.fold(0.0, (a, b) => a + b);
     final delta = monthTotal - prevTotal;
 

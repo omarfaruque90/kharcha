@@ -738,6 +738,16 @@ class DatabaseHelper {
     } catch (_) {}
   }
 
+  /// Clears only the given tombstone IDs (keeps failed ones for retry).
+  Future<void> clearTombstonesForIds(
+      String type, List<String> ids) async {
+    try {
+      final remaining = await getTombstones(type);
+      remaining.removeAll(ids);
+      await setSetting('tombstones_$type', remaining.join(','));
+    } catch (_) {}
+  }
+
   /// Upserts a remote expense into SQLite without touching the cloud.
   /// The caller (SyncService) holds the [SyncService.applyingRemote] guard.
   /// Preserves device-local columns (receiptPath, project_id, lat, lng)
@@ -748,12 +758,18 @@ class DatabaseHelper {
     if (expense.id != null) {
       final existing = await db.query(
         'expenses',
-        columns: ['receiptPath', 'project_id', 'lat', 'lng'],
+        columns: ['receiptPath', 'project_id', 'lat', 'lng', 'updatedAt'],
         where: 'id = ?',
         whereArgs: [expense.id],
       );
       if (existing.isNotEmpty) {
         final row = existing.first;
+        // Last-write-wins: skip if local is newer or equal.
+        final localUpdated =
+            (row['updatedAt'] as num?)?.toInt() ?? 0;
+        final remoteUpdated =
+            expense.updatedAt.millisecondsSinceEpoch;
+        if (localUpdated >= remoteUpdated) return;
         expense = expense.copyWith(
           receiptPath: row['receiptPath'] as String?,
           projectId: row['project_id'] as String? ?? '',
@@ -1064,6 +1080,37 @@ class DatabaseHelper {
   Future<void> wipeLocalBudgets() async {
     final db = await database;
     await db.delete('budgets');
+  }
+
+  /// Wipes local-only per-user tables on logout (debts, shopping, etc.)
+  /// so a second account on the same device can't see them.
+  Future<void> wipeLocalDebts() async {
+    final db = await database;
+    await db.delete('debts');
+  }
+
+  Future<void> wipeLocalShoppingItems() async {
+    final db = await database;
+    await db.delete('shopping_items');
+  }
+
+  Future<void> wipeLocalSubscriptions() async {
+    final db = await database;
+    await db.delete('subscriptions');
+  }
+
+  Future<void> wipeLocalDues() async {
+    try {
+      final db = await database;
+      await db.delete('dues');
+    } catch (_) {}
+  }
+
+  Future<void> wipeLocalNotes() async {
+    try {
+      final db = await database;
+      await db.delete('notes');
+    } catch (_) {}
   }
 
   // ------------------------- recurring expenses ----------------------

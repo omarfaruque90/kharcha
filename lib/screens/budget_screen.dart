@@ -31,6 +31,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
   /// once per screen open.
   Map<String, double> _carried = {};
 
+  /// Cached future — avoids re-querying the DB on every rebuild.
+  Future<Map<String, double>>? _spentFuture;
+  String? _spentKey;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +53,11 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final money = context.watch<MoneyProvider>();
     final lang = context.watch<SettingsProvider>().language;
     final key = monthKeyOf(DateTime.now());
+    // Cache the future per month key — don't re-query on every rebuild.
+    if (_spentKey != key) {
+      _spentKey = key;
+      _spentFuture = money.expenseForMonth(key);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -135,7 +144,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
         label: Text(tr(context, 'budget_set')),
       ),
       body: FutureBuilder<Map<String, double>>(
-        future: money.expenseForMonth(key),
+        future: _spentFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {

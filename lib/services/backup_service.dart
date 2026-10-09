@@ -13,6 +13,7 @@ import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../providers/expense_provider.dart';
 import '../providers/money_provider.dart';
+import 'sync_service.dart';
 
 /// Full local backup / restore as a JSON file.
 ///
@@ -97,6 +98,10 @@ class BackupService {
         if (!context.mounted) return written;
         try {
           await money.load();
+        } catch (_) {}
+        // Trigger a sync so restored rows reach the cloud.
+        try {
+          await SyncService.instance.startSync();
         } catch (_) {}
       }
       return written;
