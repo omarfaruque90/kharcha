@@ -79,7 +79,6 @@ class _ObPage {
 const List<_ObPage> _pages = [
   _ObPage('🧾', Icons.receipt_long_outlined, 'ob1_title', 'ob1_sub'),
   _ObPage('🎯', Icons.savings_outlined, 'ob2_title', 'ob2_sub'),
-  _ObPage('🤖', Icons.auto_awesome_outlined, 'ob3_title', 'ob3_sub'),
   _ObPage('📴', Icons.cloud_off_outlined, 'ob4_title', 'ob4_sub'),
 ];
 

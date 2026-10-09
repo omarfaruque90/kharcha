@@ -593,8 +593,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return Icons.group_outlined;
       case 'security_section':
         return Icons.lock_outline;
-      case 'ai_settings_section':
-        return Icons.smart_toy_outlined;
       case 'data_section':
         return Icons.backup_outlined;
       case 'about':
