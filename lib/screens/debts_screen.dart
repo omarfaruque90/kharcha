@@ -859,18 +859,49 @@ class _DebtDialogState extends State<_DebtDialog> {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    // Capture context-dependent values before async gaps.
+    final person = _personCtrl.text.trim();
+    final amount = double.parse(_amountCtrl.text.trim());
+    final kind = _kind;
+    final note = _noteCtrl.text.trim();
+    final date = _date;
+    final dueDate = _dueDate;
+    final lentNote = tr(context, 'debts_lent_note');
+    final borrowedSource = tr(context, 'debts_borrowed_source');
+    final expenses = context.read<ExpenseProvider>();
+    final money = context.read<MoneyProvider>();
     try {
       await DatabaseHelper.instance.insertDebt(Debt(
         id: Debt.newId(),
-        person: _personCtrl.text.trim(),
-        amount: double.parse(_amountCtrl.text.trim()),
-        kind: _kind,
-        date: _date,
-        dueDate: _dueDate,
-        note: _noteCtrl.text.trim(),
+        person: person,
+        amount: amount,
+        kind: kind,
+        date: date,
+        dueDate: dueDate,
+        note: note,
         settled: false,
         updatedAt: DateTime.now(),
       ));
+      // Balance update on add: lent = money left my pocket (expense),
+      // borrowed = money came to my pocket (income).
+      try {
+        if (kind == 'lent') {
+          await expenses.add(Expense(
+            amount: amount,
+            categoryId: 'others',
+            date: DateTime.now(),
+            note: '$lentNote $person',
+            paymentMethod: 'cash',
+          ));
+        } else {
+          await money.addIncome(Income(
+            amount: amount,
+            source: borrowedSource,
+            date: DateTime.now(),
+            note: person,
+          ));
+        }
+      } catch (_) {}
     } finally {
       if (mounted) setState(() => _saving = false);
     }
