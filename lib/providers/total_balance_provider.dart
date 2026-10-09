@@ -158,6 +158,23 @@ class TotalBalanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Credits an income amount to the cash wallet (symmetric to
+  /// [deductForExpense]). Income has no wallet field, so cash is used.
+  Future<void> creditForIncome(double amount) async {
+    if (amount <= 0) return;
+    try {
+      await DatabaseHelper.instance.insertCashEntry(CashEntry(
+        id: CashEntry.newId(),
+        amount: amount,
+        type: 'in',
+        note: 'income',
+        date: DateTime.now(),
+      ));
+      _cash = await DatabaseHelper.instance.getCashBalance();
+    } catch (_) {}
+    notifyListeners();
+  }
+
   /// Refunds a deleted expense amount back to the matching wallet.
   Future<void> refundForExpense(
       String paymentMethod, double amount) async {

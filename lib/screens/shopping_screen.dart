@@ -66,7 +66,11 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
   /// Logs the item as an expense (same pattern as QuickTemplates
   /// one-tap add), marks it done, and toasts.
+  bool _markingBought = false;
+
   Future<void> _markBought(ShoppingItem item) async {
+    if (_markingBought || item.done) return;
+    _markingBought = true;
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<ExpenseProvider>();
     try {
@@ -91,6 +95,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text(tr(context, 'tpl_failed'))),
       );
+    } finally {
+      _markingBought = false;
     }
   }
 

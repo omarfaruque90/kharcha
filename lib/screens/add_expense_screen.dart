@@ -71,6 +71,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _locating = false;
   // Package BA: OCR auto-categorize.
   bool _categoryManuallyPicked = false;
+  bool _dateManuallyPicked = false;
+  int _ocrSeq = 0;
   bool _ocrAutoCategory = false;
   // Package BG: smart category suggestion from the note text.
   Timer? _suggestDebounce;
@@ -151,7 +153,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       locale: lang == 'en' ? const Locale('en') : null,
     );
     if (picked != null && mounted) {
-      setState(() => _date = picked);
+      setState(() {
+        _date = picked;
+        _dateManuallyPicked = true;
+      });
     }
   }
 
@@ -371,9 +376,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   /// autofills the amount and date. Manual edits always win: the amount is
   /// only filled when the field is still empty.
   Future<void> _ocrAutofill(XFile file) async {
+    final seq = ++_ocrSeq;
     try {
       final result = await OcrService.scanBillAmount(file);
-      if (!mounted || result == null) return;
+      // Stale-result guard: a newer scan started while this one was in flight.
+      if (!mounted || result == null || seq != _ocrSeq) return;
       var touched = false;
       final amount = result['amount'] as double?;
       if (amount != null && _amountCtrl.text.trim().isEmpty) {
@@ -384,7 +391,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
       final raw = result['rawText'] as String? ?? '';
       final date = _extractDateFromText(raw);
-      if (date != null) {
+      if (date != null && !_dateManuallyPicked) {
         _date = date;
         touched = true;
       }

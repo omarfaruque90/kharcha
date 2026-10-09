@@ -198,8 +198,15 @@ class DatabaseHelper {
           await _createV8Tables(db);
         }
         if (oldVersion < 9) {
-          await db.execute(
-              "ALTER TABLE shopping_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'");
+          // PRAGMA-guarded: safe to re-run if a previous upgrade
+          // was interrupted mid-way.
+          final info =
+              await db.rawQuery('PRAGMA table_info(shopping_items)');
+          final exists = info.any((c) => c['name'] == 'unit');
+          if (!exists) {
+            await db.execute(
+                "ALTER TABLE shopping_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'");
+          }
         }
       },
     );

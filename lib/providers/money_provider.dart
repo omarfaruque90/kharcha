@@ -6,6 +6,7 @@ import '../models/budget.dart';
 import '../models/income.dart';
 import '../models/recurring_expense.dart';
 import '../models/savings_goal.dart';
+import 'total_balance_provider.dart';
 
 /// `yyyy-MM` key for a calendar month, e.g. `"2026-10"`.
 String monthKeyOf(DateTime date) {
@@ -24,6 +25,9 @@ class MoneyProvider extends ChangeNotifier {
   final List<SavingsGoal> _goals = [];
   final List<BillReminder> _reminders = [];
   bool _loaded = false;
+
+  /// Wired by main.dart — used to credit wallets on income add.
+  TotalBalanceProvider? totalBalance;
 
   List<Income> get incomes => List.unmodifiable(_incomes);
   List<Budget> get budgets => List.unmodifiable(_budgets);
@@ -64,9 +68,16 @@ class MoneyProvider extends ChangeNotifier {
 
   Future<void> addIncome(Income income) async {
     final id = await DatabaseHelper.instance.insertIncome(income);
-    _incomes.add(income.copyWith(id: id));
+    final saved = income.copyWith(id: id);
+    _incomes.add(saved);
     _sortIncomes();
     notifyListeners();
+    // Credit the cash wallet (symmetric to expense deduction).
+    if (totalBalance != null) {
+      try {
+        await totalBalance!.creditForIncome(saved.amount);
+      } catch (_) {}
+    }
   }
 
   Future<void> updateIncome(Income income) async {

@@ -202,7 +202,9 @@ class UpdateService {
     final client = http.Client();
     try {
       final request = http.Request('GET', Uri.parse(apkUrl));
-      final response = await client.send(request);
+      final response = await client
+          .send(request)
+          .timeout(const Duration(minutes: 5));
       if (response.statusCode != 200) {
         // Don't stream an error page into the installer: the caller shows
         // the "update failed" state on any throw.

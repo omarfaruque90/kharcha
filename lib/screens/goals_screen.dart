@@ -484,6 +484,7 @@ class _GoalDialogState extends State<_GoalDialog> {
   final _targetCtrl = TextEditingController();
   final _emojiCtrl = TextEditingController();
   DateTime? _deadline;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -613,27 +614,33 @@ class _GoalDialogState extends State<_GoalDialog> {
         FilledButton(
           onPressed: () async {
             if (!(_formKey.currentState?.validate() ?? false)) return;
-            final money = context.read<MoneyProvider>();
-            final existing = widget.existing;
-            if (existing == null) {
-              await money.addGoal(SavingsGoal(
-                title: _titleCtrl.text.trim(),
-                targetAmount: double.parse(_targetCtrl.text.trim()),
-                deadline: _deadline,
-                emoji: _emojiCtrl.text.trim().isEmpty
-                    ? '💰'
-                    : _emojiCtrl.text.trim(),
-              ));
-            } else {
-              await money.updateGoal(existing.copyWith(
-                title: _titleCtrl.text.trim(),
-                targetAmount: double.parse(_targetCtrl.text.trim()),
-                deadline: _deadline,
-                clearDeadline: _deadline == null,
-                emoji: _emojiCtrl.text.trim().isEmpty
-                    ? '💰'
-                    : _emojiCtrl.text.trim(),
-              ));
+            if (_saving) return;
+            setState(() => _saving = true);
+            try {
+              final money = context.read<MoneyProvider>();
+              final existing = widget.existing;
+              if (existing == null) {
+                await money.addGoal(SavingsGoal(
+                  title: _titleCtrl.text.trim(),
+                  targetAmount: double.parse(_targetCtrl.text.trim()),
+                  deadline: _deadline,
+                  emoji: _emojiCtrl.text.trim().isEmpty
+                      ? '💰'
+                      : _emojiCtrl.text.trim(),
+                ));
+              } else {
+                await money.updateGoal(existing.copyWith(
+                  title: _titleCtrl.text.trim(),
+                  targetAmount: double.parse(_targetCtrl.text.trim()),
+                  deadline: _deadline,
+                  clearDeadline: _deadline == null,
+                  emoji: _emojiCtrl.text.trim().isEmpty
+                      ? '💰'
+                      : _emojiCtrl.text.trim(),
+                ));
+              }
+            } finally {
+              if (mounted) setState(() => _saving = false);
             }
             if (context.mounted) {
               Navigator.of(context).pop();
