@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// Bottom navigation bar matching the reference design exactly:
-/// dark pill bar, 5 tabs, large blue center orb breaking the top,
-/// white abstract logo, thin outline icons, green glowing indicator
-/// at the bottom edge under the active tab.
+/// 5 floating tabs on a FULLY TRANSPARENT background (no pill, no bar,
+/// no backing container) — large blue center orb, thin outline icons,
+/// labels under each icon, green glowing indicator under the active tab.
 class GooeyNavBar extends StatefulWidget {
   final int index;
   final ValueChanged<int> onTap;
@@ -30,7 +32,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
     _currentPos = widget.index.toDouble();
     _posCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 300),
     );
     _pos = Tween<double>(begin: _currentPos, end: _currentPos).animate(
       CurvedAnimation(parent: _posCtrl, curve: Curves.easeOutQuint),
@@ -60,31 +62,19 @@ class _GooeyNavBarState extends State<GooeyNavBar>
 
   @override
   Widget build(BuildContext context) {
-    // Khorcha tabs mapped to reference icon styles:
-    // 0: Home (line chart), 1: History (wallet), 2: Add (blue orb),
-    // 3: Reports (storefront), 4: More (briefcase).
+    // Fully transparent — the icons, orb and indicator float directly
+    // over the app content. No pill, no bar, no backing container.
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
         child: SizedBox(
-          height: 96,
+          height: 108,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Dark pill bar.
+              // Tab items + sliding green indicator (transparent layer).
               Positioned.fill(
-                top: 28,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                ),
-              ),
-              // Tab items + sliding green indicator.
-              Positioned.fill(
-                top: 28,
                 child: AnimatedBuilder(
                   animation: _pos,
                   builder: (ctx, _) {
@@ -93,49 +83,50 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                         final w = cons.maxWidth;
                         // 5 slots; slot centers at (i + 0.5) / 5 * w.
                         final slotW = w / 5;
-                        final indX =
-                            (_pos.value + 0.5) * slotW;
+                        final indX = (_pos.value + 0.5) * slotW;
                         return Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            // Green glowing indicator at bottom edge.
-                            Positioned(
-                              left: indX - 14,
-                              bottom: 0,
-                              child: Container(
-                                width: 28,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF00E676),
-                                  borderRadius: BorderRadius.circular(2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF00E676)
-                                          .withValues(alpha: 0.8),
-                                      blurRadius: 8,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            // 5 tab buttons.
+                            // 4 side tab buttons (center slot is the orb).
                             Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.end,
                               children: List.generate(5, (i) {
                                 if (i == 2) {
                                   return const Expanded(
                                       child: SizedBox());
                                 }
-                                final active =
-                                    widget.index == i;
+                                final active = widget.index == i;
                                 return Expanded(
                                   child: _TabButton(
                                     active: active,
                                     index: i,
-                                    onTap: () =>
-                                        widget.onTap(i),
+                                    onTap: () => widget.onTap(i),
                                   ),
                                 );
                               }),
+                            ),
+                            // Green glowing indicator under active label.
+                            Positioned(
+                              left: indX - 16,
+                              bottom: 2,
+                              child: Container(
+                                width: 32,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00E676),
+                                  borderRadius:
+                                      BorderRadius.circular(3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF00E676)
+                                          .withValues(alpha: 0.9),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         );
@@ -144,7 +135,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                   },
                 ),
               ),
-              // Blue center orb breaking the top.
+              // Large blue center orb floating above the row.
               Positioned(
                 left: 0,
                 right: 0,
@@ -163,7 +154,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
   }
 }
 
-/// Single tab button with thin outline icon + small label.
+/// Single tab button: thin outline icon + small label below.
 /// Plays a bounce/morph micro-animation when tapped.
 class _TabButton extends StatefulWidget {
   final bool active;
@@ -191,22 +182,22 @@ class _TabButtonState extends State<_TabButton>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 550),
+      duration: const Duration(milliseconds: 450),
     );
     // Bounce: overshoot then settle.
     _scale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.35)
+        tween: Tween(begin: 1.0, end: 1.3)
             .chain(CurveTween(curve: Curves.easeOut)),
         weight: 35,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.35, end: 0.9)
+        tween: Tween(begin: 1.3, end: 0.92)
             .chain(CurveTween(curve: Curves.easeInOut)),
         weight: 30,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.9, end: 1.0)
+        tween: Tween(begin: 0.92, end: 1.0)
             .chain(CurveTween(curve: Curves.elasticOut)),
         weight: 35,
       ),
@@ -214,17 +205,17 @@ class _TabButtonState extends State<_TabButton>
     // Tilt: rotate slightly then wobble back.
     _tilt = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: 0.3)
+        tween: Tween(begin: 0.0, end: 0.25)
             .chain(CurveTween(curve: Curves.easeOut)),
         weight: 35,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.3, end: -0.15)
+        tween: Tween(begin: 0.25, end: -0.12)
             .chain(CurveTween(curve: Curves.easeInOut)),
         weight: 30,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: -0.15, end: 0.0)
+        tween: Tween(begin: -0.12, end: 0.0)
             .chain(CurveTween(curve: Curves.elasticOut)),
         weight: 35,
       ),
@@ -244,26 +235,26 @@ class _TabButtonState extends State<_TabButton>
 
   @override
   Widget build(BuildContext context) {
-    // Reference icon styles: 0 = line chart, 1 = wallet,
-    // 3 = storefront, 4 = briefcase.
+    // Reference icon styles (thin outlines):
+    // 0 = home, 1 = wallet, 3 = chart/store, 4 = briefcase.
     IconData icon;
-    String label;
+    String labelKey;
     switch (widget.index) {
       case 0:
-        icon = Icons.show_chart_rounded;
-        label = 'Home';
+        icon = Icons.home_outlined;
+        labelKey = 'nav_home';
         break;
       case 1:
         icon = Icons.account_balance_wallet_outlined;
-        label = 'History';
+        labelKey = 'nav_history';
         break;
       case 3:
-        icon = Icons.storefront_outlined;
-        label = 'Reports';
+        icon = Icons.show_chart_rounded;
+        labelKey = 'nav_reports';
         break;
       default:
         icon = Icons.business_center_outlined;
-        label = 'More';
+        labelKey = 'nav_more';
     }
     final color =
         widget.active ? Colors.white : const Color(0xFF8E8E93);
@@ -271,9 +262,9 @@ class _TabButtonState extends State<_TabButton>
       onTap: _handleTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        height: 68,
+        height: 76,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
             AnimatedBuilder(
               animation: _ctrl,
@@ -282,14 +273,14 @@ class _TabButtonState extends State<_TabButton>
                   angle: _tilt.value,
                   child: Transform.scale(
                     scale: _scale.value,
-                    child: Icon(icon, color: color, size: 26),
+                    child: Icon(icon, color: color, size: 28),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
-              label,
+              tr(context, labelKey),
               style: TextStyle(
                 color: color,
                 fontSize: 11,
@@ -298,6 +289,8 @@ class _TabButtonState extends State<_TabButton>
                     : FontWeight.w400,
               ),
             ),
+            // Space reserved for the green indicator below.
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -306,6 +299,7 @@ class _TabButtonState extends State<_TabButton>
 }
 
 /// Large blue orb with white abstract overlapping-circles logo.
+/// Tapping opens the Add (center) tab.
 class _CenterOrb extends StatefulWidget {
   final VoidCallback onTap;
 
@@ -348,15 +342,22 @@ class _CenterOrbState extends State<_CenterOrb>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          width: 72,
-          height: 72,
+          width: 84,
+          height: 84,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF2E5BFF),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF3D6BFF),
+                Color(0xFF1E40D8),
+              ],
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2E5BFF).withValues(alpha: 0.4),
-                blurRadius: 16,
+                color: const Color(0xFF2E5BFF).withValues(alpha: 0.5),
+                blurRadius: 20,
                 spreadRadius: 2,
               ),
             ],
@@ -379,26 +380,26 @@ class _AbstractLogoPainter extends CustomPainter {
 
     // Large circle bottom-left.
     canvas.drawCircle(
-      c + const Offset(-7, 8),
-      13,
+      c + const Offset(-8, 9),
+      15,
       paint,
     );
     // Medium circle top-right (slightly transparent overlap).
     canvas.drawCircle(
-      c + const Offset(9, -7),
-      10,
+      c + const Offset(10, -8),
+      11,
       paint..color = Colors.white.withValues(alpha: 0.85),
     );
     // Small dot top-left.
     canvas.drawCircle(
-      c + const Offset(-13, -11),
-      4,
+      c + const Offset(-15, -13),
+      4.5,
       paint..color = Colors.white,
     );
     // Small dot bottom-right.
     canvas.drawCircle(
-      c + const Offset(14, 10),
-      3.5,
+      c + const Offset(16, 12),
+      4,
       paint,
     );
   }
