@@ -270,6 +270,7 @@ class SyncService {
     // 0. Push tombstoned deletes first (prevents resurrection).
     // Only clear tombstones for IDs that actually deleted — failed
     // ones are kept for retry so the doc doesn't resurrect locally.
+    // H3: also push secondary-collection tombstones.
     final tombstones = await db.getTombstones('expense');
     final deletedIds = <String>[];
     for (final id in tombstones) {
@@ -280,6 +281,28 @@ class SyncService {
     }
     if (deletedIds.isNotEmpty) {
       await db.clearTombstonesForIds('expense', deletedIds);
+    }
+    const secondary = {
+      'income': 'incomes',
+      'budget': 'budgets',
+      'recurring': 'recurring_expenses',
+      'goal': 'savings_goals',
+      'place': 'custom_places',
+      'payment': 'custom_payments',
+      'reminder': 'bill_reminders',
+    };
+    for (final entry in secondary.entries) {
+      final ids = await db.getTombstones(entry.key);
+      final done = <String>[];
+      for (final id in ids) {
+        try {
+          await _userCollection(uid, entry.value).doc(id).delete();
+          done.add(id);
+        } catch (_) {}
+      }
+      if (done.isNotEmpty) {
+        await db.clearTombstonesForIds(entry.key, done);
+      }
     }
 
     // 1. Pull: merge remote docs into SQLite (last-write-wins on updatedAt).
@@ -318,6 +341,8 @@ class SyncService {
   ) async {
     final db = DatabaseHelper.instance;
     var changed = false;
+    // H2: fetch once — never resurrect tombstoned (pending-delete) docs.
+    final tombstoned = await db.getTombstones('expense');
     _beginApplying();
     try {
       for (final change in snap.docChanges) {
@@ -327,6 +352,7 @@ class SyncService {
             case DocumentChangeType.modified:
               final data = change.doc.data();
               if (data != null) {
+                if (tombstoned.contains(change.doc.id)) break;
                 await db.upsertExpense(
                   Expense.fromFirestore(change.doc.id, data),
                 );

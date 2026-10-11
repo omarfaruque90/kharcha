@@ -889,9 +889,30 @@ class DatabaseHelper {
   /// Upserts a remotely-fetched record into [table] by id without touching
   /// the cloud. The caller (SyncService) holds the
   /// [SyncService.applyingRemote] guard while calling this.
+  /// H1: last-write-wins on updatedAt — stale cloud data never clobbers
+  /// newer local edits.
   Future<void> upsertRemoteRecord(
       String table, Map<String, dynamic> map) async {
     final db = await database;
+    final id = map['id'];
+    if (id != null) {
+      final existing = await db.query(
+        table,
+        columns: ['updatedAt'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        final localUpdated =
+            (existing.first['updatedAt'] as num?)?.toInt() ?? 0;
+        final remoteRaw = map['updatedAt'];
+        final remoteUpdated = remoteRaw is num
+            ? remoteRaw.toInt()
+            : 0;
+        if (localUpdated >= remoteUpdated && remoteUpdated > 0) return;
+      }
+    }
     await db.insert(
       table,
       map,
@@ -958,6 +979,9 @@ class DatabaseHelper {
 
   Future<int> deleteIncome(String id) async {
     final count = await _deleteRecord('incomes', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('income', id);
+    }
     await _pushDelete('incomes', id);
     return count;
   }
@@ -1062,6 +1086,9 @@ class DatabaseHelper {
 
   Future<int> deleteBudget(String id) async {
     final count = await _deleteRecord('budgets', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('budget', id);
+    }
     await _pushDelete('budgets', id);
     return count;
   }
@@ -1190,6 +1217,9 @@ class DatabaseHelper {
 
   Future<int> deleteRecurringExpense(String id) async {
     final count = await _deleteRecord('recurring_expenses', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('recurring', id);
+    }
     await _pushDelete('recurring', id);
     return count;
   }
@@ -1244,6 +1274,9 @@ class DatabaseHelper {
 
   Future<int> deleteSavingsGoal(String id) async {
     final count = await _deleteRecord('savings_goals', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('goal', id);
+    }
     await _pushDelete('goals', id);
     return count;
   }
@@ -1331,6 +1364,9 @@ class DatabaseHelper {
 
   Future<int> deleteCustomPlace(String id) async {
     final count = await _deleteRecord('custom_places', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('place', id);
+    }
     await _pushDelete('custom_places', id);
     return count;
   }
@@ -1417,6 +1453,9 @@ class DatabaseHelper {
 
   Future<int> deleteCustomPayment(String id) async {
     final count = await _deleteRecord('custom_payment_methods', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('payment', id);
+    }
     await _pushDelete('custom_payments', id);
     return count;
   }
@@ -1482,6 +1521,9 @@ class DatabaseHelper {
 
   Future<int> deleteBillReminder(String id) async {
     final count = await _deleteRecord('bill_reminders', id);
+    if (!SyncService.instance.applyingRemote) {
+      await _addTombstone('reminder', id);
+    }
     await _pushDelete('reminders', id);
     return count;
   }
