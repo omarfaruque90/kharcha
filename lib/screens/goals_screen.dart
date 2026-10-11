@@ -715,10 +715,14 @@ class _AddSavingsDialogState extends State<_AddSavingsDialog> {
                   final id = widget.goal.id;
                   if (id == null) return;
                   setState(() => _saving = true);
-                  await context.read<MoneyProvider>().addSavings(
-                        id,
-                        double.parse(_amountCtrl.text.trim()),
-                      );
+                  try {
+                    await context.read<MoneyProvider>().addSavings(
+                          id,
+                          double.parse(_amountCtrl.text.trim()),
+                        );
+                  } finally {
+                    if (mounted) setState(() => _saving = false);
+                  }
                   if (context.mounted) {
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(

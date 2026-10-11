@@ -74,17 +74,27 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<ExpenseProvider>();
     try {
-      await provider.add(
-        Expense(
-          amount: item.price * item.qty,
-          categoryId: 'shopping',
-          date: DateTime.now(),
-          note: '${tr(context, 'shopping_prefix')}: ${item.name}',
-          paymentMethod: 'cash',
-        ),
-      );
+      // H13: mark done FIRST — if the expense write then fails, the
+      // item stays not-done only if we revert; a retry can't duplicate
+      // because the done flag gates re-entry.
       await DatabaseHelper.instance
           .updateShoppingItem(item.copyWith(done: true));
+      try {
+        await provider.add(
+          Expense(
+            amount: item.price * item.qty,
+            categoryId: 'shopping',
+            date: DateTime.now(),
+            note: '${tr(context, 'shopping_prefix')}: ${item.name}',
+            paymentMethod: 'cash',
+          ),
+        );
+      } catch (_) {
+        // Expense failed: revert the done flag so retry is safe.
+        await DatabaseHelper.instance
+            .updateShoppingItem(item.copyWith(done: false));
+        rethrow;
+      }
       await _reload();
       if (!mounted) return;
       messenger.showSnackBar(
