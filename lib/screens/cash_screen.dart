@@ -52,6 +52,8 @@ class _CashScreenState extends State<CashScreen> {
   }
 
   Future<void> _openAddCash() async {
+    // Capture before async gaps (analyzer: use_build_context_synchronously).
+    final balance = context.read<TotalBalanceProvider>();
     final result = await showDialog<_CashDialogResult>(
       context: context,
       builder: (_) => const _CashDialog(),
@@ -76,7 +78,7 @@ class _CashScreenState extends State<CashScreen> {
     await _reload();
     // H20: refresh the shared balance so Home/My Money update.
     try {
-      await context.read<TotalBalanceProvider>().load();
+      await balance.load();
     } catch (_) {}
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,6 +90,8 @@ class _CashScreenState extends State<CashScreen> {
   /// Sets the wallet balance directly: inserts an adjustment entry
   /// for the difference between the current and the entered balance.
   Future<void> _openSetBalance() async {
+    // Capture before async gaps (analyzer: use_build_context_synchronously).
+    final balance = context.read<TotalBalanceProvider>();
     final ctrl = TextEditingController(
       text: _balance.truncateToDouble() == _balance
           ? _balance.toStringAsFixed(0)
@@ -173,7 +177,7 @@ class _CashScreenState extends State<CashScreen> {
     await _reload();
     // H20: refresh the shared balance so Home/My Money update.
     try {
-      await context.read<TotalBalanceProvider>().load();
+      await balance.load();
     } catch (_) {}
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -151,22 +151,24 @@ class DatabaseHelper {
   }
 
   Future<Database> get database async {
-    final existing = _db;
-    if (existing != null) return existing;
     // H15: capture the profile — if setProfile() runs while _open()
     // is in flight, don't assign the old profile's DB to _db.
-    final wantProfile = _profile;
-    final created = await _open();
-    if (_profile == wantProfile) {
-      _db = created;
-      return created;
+    // Loop instead of recursive getter call (analyzer: recursive_getters).
+    while (true) {
+      final existing = _db;
+      if (existing != null) return existing;
+      final wantProfile = _profile;
+      final created = await _open();
+      if (_profile == wantProfile) {
+        _db = created;
+        return created;
+      }
+      // Profile switched mid-open: close the stale handle and retry
+      // for the new profile.
+      try {
+        await created.close();
+      } catch (_) {}
     }
-    // Profile switched mid-open: close the stale handle and retry
-    // for the new profile.
-    try {
-      await created.close();
-    } catch (_) {}
-    return database;
   }
 
   Future<Database> _open() async {

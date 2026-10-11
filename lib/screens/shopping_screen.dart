@@ -79,6 +79,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     _markingBought = true;
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<ExpenseProvider>();
+    // Capture before async gaps (analyzer: use_build_context_synchronously).
+    final prefix = tr(context, 'shopping_prefix');
     try {
       // H13: mark done FIRST — if the expense write then fails, the
       // item stays not-done only if we revert; a retry can't duplicate
@@ -91,7 +93,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
             amount: item.price * item.qty,
             categoryId: 'shopping',
             date: DateTime.now(),
-            note: '${tr(context, 'shopping_prefix')}: ${item.name}',
+            note: '$prefix: ${item.name}',
             paymentMethod: 'cash',
           ),
         );
