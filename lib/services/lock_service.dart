@@ -39,10 +39,51 @@ class LockService {
     await DatabaseHelper.instance.setSetting(_bioKey, '0');
   }
 
+  /// M17: rate-limiting state (in-memory + persisted timestamp).
+  static const _failKey = 'lock_fail_count';
+  static const _lockoutKey = 'lock_lockout_until';
+
+  /// Seconds to wait after N failed attempts (exponential backoff).
+  Future<int> lockoutRemaining() async {
+    try {
+      final until =
+          await DatabaseHelper.instance.getSetting(_lockoutKey);
+      if (until == null || until.isEmpty) return 0;
+      final ms = int.tryParse(until) ?? 0;
+      final remaining =
+          (ms - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
+      return remaining > 0 ? remaining : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<bool> verifyPin(String pin) async {
+    // M17: enforce lockout.
+    if (await lockoutRemaining() > 0) return false;
     final hash = await _storage.read(key: _pinHashKey);
     if (hash == null || hash.isEmpty) return false;
-    return _constantTimeEquals(hash, _hash(pin));
+    final ok = _constantTimeEquals(hash, _hash(pin));
+    try {
+      final db = DatabaseHelper.instance;
+      if (ok) {
+        await db.setSetting(_failKey, '0');
+        await db.setSetting(_lockoutKey, '');
+      } else {
+        final raw = await db.getSetting(_failKey);
+        final fails = (int.tryParse(raw ?? '') ?? 0) + 1;
+        await db.setSetting(_failKey, '$fails');
+        // Exponential backoff: 30s, 60s, 120s, ... capped at 15 min.
+        if (fails >= 5) {
+          final backoffSecs =
+              (30 * (1 << (fails - 5))).clamp(30, 900);
+          final until = DateTime.now().millisecondsSinceEpoch +
+              backoffSecs * 1000;
+          await db.setSetting(_lockoutKey, '$until');
+        }
+      }
+    } catch (_) {}
+    return ok;
   }
 
   Future<bool> isBiometricEnabled() async {

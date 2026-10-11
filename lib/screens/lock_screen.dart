@@ -23,6 +23,7 @@ class _LockScreenState extends State<LockScreen> {
   bool _checking = true;
   bool _error = false;
   bool _verifying = false;
+  int _lockoutSecs = 0; // M17
 
   @override
   void initState() {
@@ -68,6 +69,19 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Future<void> _verify() async {
+    // M17: check lockout first.
+    final remaining =
+        await LockService.instance.lockoutRemaining();
+    if (!mounted) return;
+    if (remaining > 0) {
+      setState(() {
+        _pin = '';
+        _error = true;
+        _verifying = false;
+        _lockoutSecs = remaining;
+      });
+      return;
+    }
     setState(() => _verifying = true);
     final ok = await LockService.instance.verifyPin(_pin);
     if (!mounted) return;
@@ -75,10 +89,13 @@ class _LockScreenState extends State<LockScreen> {
       widget.onUnlock();
       return;
     }
+    final rem2 = await LockService.instance.lockoutRemaining();
+    if (!mounted) return;
     setState(() {
       _pin = '';
       _error = true;
       _verifying = false;
+      _lockoutSecs = rem2;
     });
   }
 
@@ -134,7 +151,10 @@ class _LockScreenState extends State<LockScreen> {
               height: 24,
               child: _error
                   ? Text(
-                      tr(context, 'lock_wrong_pin'),
+                      // M17: show lockout countdown when rate-limited.
+                      _lockoutSecs > 0
+                          ? '${tr(context, 'lock_wrong_pin')} — ${_lockoutSecs}s'
+                          : tr(context, 'lock_wrong_pin'),
                       style: TextStyle(color: scheme.error),
                     )
                   : null,

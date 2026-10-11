@@ -97,12 +97,22 @@ class TotalBalanceProvider extends ChangeNotifier {
 
   Future<void> setWallet(String id, double amount) async {
     if (!walletIds.contains(id)) return;
+    // M14: persist first — only update in-memory on success, so a
+    // DB failure doesn't leave the UI showing a phantom value.
+    final prev = _wallets[id];
     _wallets[id] = amount;
-    notifyListeners();
     try {
       await DatabaseHelper.instance
           .setSetting('wallet_balances', jsonEncode(_wallets));
-    } catch (_) {}
+    } catch (_) {
+      // Revert on failure.
+      if (prev == null) {
+        _wallets.remove(id);
+      } else {
+        _wallets[id] = prev;
+      }
+    }
+    notifyListeners();
   }
 
   /// Sets hand cash via a ledger adjustment entry.

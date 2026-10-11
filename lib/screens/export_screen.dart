@@ -38,21 +38,23 @@ class _ExportScreenState extends State<ExportScreen> {
       _busyKind = kind;
     });
     try {
+      // M15: only show "done" if the user actually shared.
+      bool shared = false;
       switch (kind) {
         case 'pdf':
-          await ExportService.exportMonthlyPdf(context, _month);
+          shared = await ExportService.exportMonthlyPdf(context, _month);
           break;
         case 'excel':
-          await ExportService.exportMonthlyExcel(context, _month);
+          shared = await ExportService.exportMonthlyExcel(context, _month);
           break;
         case 'csv':
-          await ExportService.exportMonthlyCsv(context, _month);
+          shared = await ExportService.exportMonthlyCsv(context, _month);
           break;
         case 'statement':
-          await ExportService.exportFancyStatement(context, _month);
+          shared = await ExportService.exportFancyStatement(context, _month);
           break;
       }
-      if (mounted) {
+      if (mounted && shared) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tr(context, 'export_done'))),
         );

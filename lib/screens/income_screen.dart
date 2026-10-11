@@ -317,7 +317,7 @@ class _IncomeDialogState extends State<_IncomeDialog> {
       lastDate: DateTime.now(),
       locale: Locale(lang),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null && mounted) setState(() => _date = picked); // M13
   }
 
   @override

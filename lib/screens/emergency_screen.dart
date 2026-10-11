@@ -89,9 +89,14 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         ? _amount + result.amount
         : (_amount - result.amount).clamp(0.0, double.infinity).toDouble();
     try {
-      await db.setEmergencyFund(newAmount);
-      await db.addEmergencyLedger(
-          'vault', result.amount, isAdd ? 'in' : 'out', result.reason);
+      // M8: atomic vault + ledger update.
+      await db.updateEmergencyFundAtomic(
+        newAmount,
+        'vault_${DateTime.now().millisecondsSinceEpoch}',
+        result.amount,
+        isAdd ? 'in' : 'out',
+        result.reason,
+      );
       await _reload();
     } catch (_) {
       if (mounted) {

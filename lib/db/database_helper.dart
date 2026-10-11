@@ -174,7 +174,7 @@ class DatabaseHelper {
     final path = p.join(dir.path, dbFileNameFor(_profile));
     return openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: (db, version) async {
         await _createExpensesTable(db);
         await _createSettingsTable(db);
@@ -207,6 +207,21 @@ class DatabaseHelper {
         }
         if (oldVersion < 8) {
           await _createV8Tables(db);
+        }
+        if (oldVersion < 10) {
+          // M7: UNIQUE(categoryId, monthKey) via unique index —
+          // prevents duplicate budget rows from concurrent upserts.
+          // Dedupe first: keep the newest row per (categoryId, monthKey).
+          await db.execute('''
+            DELETE FROM budgets WHERE id NOT IN (
+              SELECT id FROM budgets GROUP BY categoryId, monthKey
+              HAVING MAX(updatedAt)
+            )
+          ''');
+          await db.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_cat_month
+            ON budgets(categoryId, monthKey)
+          ''');
         }
         if (oldVersion < 9) {
           // PRAGMA-guarded: safe to re-run if a previous upgrade
@@ -267,7 +282,8 @@ class DatabaseHelper {
         categoryId TEXT NOT NULL,
         monthKey TEXT NOT NULL,
         limitAmount REAL NOT NULL,
-        updatedAt INTEGER NOT NULL DEFAULT 0
+        updatedAt INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(categoryId, monthKey)
       )
     ''');
     await db.execute('''
@@ -739,18 +755,30 @@ class DatabaseHelper {
   /// Records a deleted record ID (tombstone) to prevent resurrection on sync.
   /// M3: scoped to the current uid — a tombstone created by user A is
   /// never pushed against user B's collections.
+  /// In-memory fallback if the settings write fails (M6).
+  static final Set<String> _tombstoneFallback = {};
+
   Future<void> _addTombstone(String type, String id) async {
-    try {
-      final uid = SyncService.instance.currentUid ?? '';
-      final key = 'tombstones_$type';
-      final raw = await getSetting(key);
-      final entries = <String>{};
-      if (raw != null && raw.isNotEmpty) {
-        entries.addAll(raw.split(',').where((s) => s.isNotEmpty));
+    final uid = SyncService.instance.currentUid ?? '';
+    final entry = '$uid|$id';
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final key = 'tombstones_$type';
+        final raw = await getSetting(key);
+        final entries = <String>{};
+        if (raw != null && raw.isNotEmpty) {
+          entries.addAll(raw.split(',').where((s) => s.isNotEmpty));
+        }
+        entries.add(entry);
+        await setSetting(key, entries.join(','));
+        _tombstoneFallback.remove('$type|$entry');
+        return;
+      } catch (_) {
+        if (attempt < 2) await Future.delayed(Duration(milliseconds: 200 * (attempt + 1)));
       }
-      entries.add('$uid|$id');
-      await setSetting(key, entries.join(','));
-    } catch (_) {}
+    }
+    // M6: last resort — keep in memory so the delete isn't lost.
+    _tombstoneFallback.add('$type|$entry');
   }
 
   /// Returns tombstoned IDs for [type].
@@ -758,8 +786,18 @@ class DatabaseHelper {
   Future<Set<String>> getTombstones(String type, {String? uid}) async {
     try {
       final raw = await getSetting('tombstones_$type');
-      if (raw == null || raw.isEmpty) return {};
-      final all = raw.split(',').where((s) => s.isNotEmpty);
+      final allEntries = <String>[];
+      if (raw != null && raw.isNotEmpty) {
+        allEntries.addAll(raw.split(',').where((s) => s.isNotEmpty));
+      }
+      // M6: include in-memory fallback entries.
+      for (final f in _tombstoneFallback) {
+        final i = f.indexOf('|');
+        if (i >= 0 && f.substring(0, i) == type) {
+          allEntries.add(f.substring(i + 1));
+        }
+      }
+      final all = allEntries;
       if (uid == null) {
         // Legacy: strip uid prefixes.
         return all.map((e) {
@@ -1167,16 +1205,25 @@ class DatabaseHelper {
         }
       }
       // Push new rows to cloud after the transaction commits.
+      // M5: retry once on failure — don't silently diverge.
       for (final b in budgets) {
-        try {
-          await _pushRow<Budget>(
-            table: 'budgets',
-            collection: 'budgets',
-            id: b.id!,
-            fromMap: Budget.fromMap,
-            toFirestore: (item) => item.toFirestore(),
-          );
-        } catch (_) {}
+        var pushed = false;
+        for (var attempt = 0; attempt < 2 && !pushed; attempt++) {
+          try {
+            await _pushRow<Budget>(
+              table: 'budgets',
+              collection: 'budgets',
+              id: b.id!,
+              fromMap: Budget.fromMap,
+              toFirestore: (item) => item.toFirestore(),
+            );
+            pushed = true;
+          } catch (_) {
+            if (attempt == 0) {
+              await Future.delayed(const Duration(seconds: 1));
+            }
+          }
+        }
       }
     }
   }
@@ -1438,11 +1485,24 @@ class DatabaseHelper {
       await db.update('custom_places', updates,
           where: 'id = ?', whereArgs: [id]);
     } else {
-      id = await _insertRecord('custom_places', {
-        'label': trimmed,
-        'emoji': emoji,
-        'usageCount': 1,
-      });
+      // M9: race-safe — if a concurrent insert won, fetch its id.
+      try {
+        id = await _insertRecord('custom_places', {
+          'label': trimmed,
+          'emoji': emoji,
+          'usageCount': 1,
+        });
+      } catch (_) {
+        final retry = await db.query(
+          'custom_places',
+          columns: ['id'],
+          where: 'label = ? COLLATE NOCASE',
+          whereArgs: [trimmed],
+          limit: 1,
+        );
+        if (retry.isEmpty) rethrow;
+        id = retry.first['id'] as String;
+      }
     }
     await _pushRow<CustomPlace>(
       table: 'custom_places',
@@ -1528,10 +1588,23 @@ class DatabaseHelper {
         whereArgs: [id],
       );
     } else {
-      id = await _insertRecord('custom_payment_methods', {
-        'label': trimmed,
-        'usageCount': 1,
-      });
+      // M9: race-safe — if a concurrent insert won, fetch its id.
+      try {
+        id = await _insertRecord('custom_payment_methods', {
+          'label': trimmed,
+          'usageCount': 1,
+        });
+      } catch (_) {
+        final retry = await db.query(
+          'custom_payment_methods',
+          columns: ['id'],
+          where: 'label = ? COLLATE NOCASE',
+          whereArgs: [trimmed],
+          limit: 1,
+        );
+        if (retry.isEmpty) rethrow;
+        id = retry.first['id'] as String;
+      }
     }
     await _pushRow<CustomPayment>(
       table: 'custom_payment_methods',
@@ -2124,6 +2197,32 @@ class DatabaseHelper {
       'type': type,
       'date': DateTime.now().millisecondsSinceEpoch,
       'note': note,
+    });
+  }
+
+  /// M8: atomically updates the vault total + ledger entry in one
+  /// transaction. A kill mid-way corrupts nothing.
+  Future<void> updateEmergencyFundAtomic(
+      double newAmount, String ledgerId, double ledgerAmount,
+      String type, String note) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.insert(
+        'emergency_fund',
+        {
+          'id': 'vault',
+          'amount': newAmount,
+          'updated': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await txn.insert('emergency_ledger', {
+        'id': ledgerId,
+        'amount': ledgerAmount,
+        'type': type,
+        'date': DateTime.now().millisecondsSinceEpoch,
+        'note': note,
+      });
     });
   }
 

@@ -506,7 +506,7 @@ class _WishlistDialogState extends State<_WishlistDialog> {
     final existing = widget.existing;
     _nameCtrl.text = existing?.name ?? '';
     _priceCtrl.text =
-        existing != null ? existing.targetPrice.toStringAsFixed(0) : '';
+        existing != null ? (existing.targetPrice.truncateToDouble() == existing.targetPrice ? existing.targetPrice.toStringAsFixed(0) : existing.targetPrice.toString()) : '';
     _emojiCtrl.text = existing?.emoji ?? '';
     _noteCtrl.text = existing?.note ?? '';
   }

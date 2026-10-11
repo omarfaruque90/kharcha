@@ -52,7 +52,8 @@ class ExportService {
     return '${d.year}-$m-$day';
   }
 
-  static Future<void> exportMonthlyPdf(
+  /// M15: returns true if the share sheet completed (not dismissed).
+  static Future<bool> exportMonthlyPdf(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
@@ -113,15 +114,17 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.pdf'));
     await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(
+    final result = await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
         text: 'Khorcha — $monthLabel',
       ),
     );
+    return result.status == ShareResultStatus.success;
   }
 
-  static Future<void> exportMonthlyExcel(
+  /// M15: returns true if the share sheet completed (not dismissed).
+  static Future<bool> exportMonthlyExcel(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
@@ -175,17 +178,19 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.xlsx'));
     await file.writeAsBytes(bytes);
-    await SharePlus.instance.share(
+    final result = await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
         text: 'Khorcha — $monthLabel',
       ),
     );
+    return result.status == ShareResultStatus.success;
   }
 
   /// Monthly expense export as CSV (UTF-8 with BOM so Excel opens
   /// Bangla text correctly). No extra package needed.
-  static Future<void> exportMonthlyCsv(
+  /// M15: returns true if the share sheet completed (not dismissed).
+  static Future<bool> exportMonthlyCsv(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
@@ -231,18 +236,20 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.csv'));
     await file.writeAsString(buf.toString());
-    await SharePlus.instance.share(
+    final result = await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
         text: 'Khorcha — $monthLabel',
       ),
     );
+    return result.status == ShareResultStatus.success;
   }
 
   /// Branded monthly statement PDF: deep-green header, income/expense/
   /// balance summary boxes, category breakdown bars and the full expense
   /// table. The plain [exportMonthlyPdf] stays as the lightweight fallback.
-  static Future<void> exportFancyStatement(
+  /// M15: returns true if the share sheet completed (not dismissed).
+  static Future<bool> exportFancyStatement(
       BuildContext context, DateTime month) async {
     final lang =
         Provider.of<SettingsProvider>(context, listen: false).language;
@@ -477,11 +484,12 @@ class ExportService {
     final file =
         File(p.join(dir.path, '${_fileBase(month)}-statement.pdf'));
     await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(
+    final result = await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
         text: 'Khorcha — $monthLabel',
       ),
     );
+    return result.status == ShareResultStatus.success;
   }
 }

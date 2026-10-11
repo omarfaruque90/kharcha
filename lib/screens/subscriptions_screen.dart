@@ -51,9 +51,20 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     var base = _day(due);
     final today = _day(now);
     if (base.isBefore(today)) base = today;
-    return cycle == 'yearly'
-        ? DateTime(base.year + 1, base.month, base.day)
-        : DateTime(base.year, base.month + 1, base.day);
+    // M18: clamp day to target month length (Jan 31 monthly -> Feb 28,
+    // not Mar 2/3).
+    int targetYear, targetMonth;
+    if (cycle == 'yearly') {
+      targetYear = base.year + 1;
+      targetMonth = base.month;
+    } else {
+      targetYear = base.year + (base.month == 12 ? 1 : 0);
+      targetMonth = base.month == 12 ? 1 : base.month + 1;
+    }
+    final lastDay =
+        DateTime(targetYear, targetMonth + 1, 0).day;
+    final day = base.day > lastDay ? lastDay : base.day;
+    return DateTime(targetYear, targetMonth, day);
   }
 
   double _monthlyCost() {
@@ -436,7 +447,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
     final existing = widget.existing;
     _nameCtrl.text = existing?.name ?? '';
     _amountCtrl.text =
-        existing != null ? existing.amount.toStringAsFixed(0) : '';
+        existing != null ? (existing.amount.truncateToDouble() == existing.amount ? existing.amount.toStringAsFixed(0) : existing.amount.toString()) : '';
     _emojiCtrl.text = existing?.emoji ?? '';
     _cycle = existing?.cycle ?? 'monthly';
     _nextDue = existing?.nextDue ?? DateTime.now();

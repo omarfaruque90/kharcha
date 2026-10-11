@@ -368,7 +368,7 @@ class _MonthlyBudgetDialogState extends State<_MonthlyBudgetDialog> {
     super.initState();
     _ctrl = TextEditingController(
       text: widget.existing != null && widget.existing!.limitAmount > 0
-          ? widget.existing!.limitAmount.toStringAsFixed(0)
+          ? (widget.existing!.limitAmount.truncateToDouble() == widget.existing!.limitAmount ? widget.existing!.limitAmount.toStringAsFixed(0) : widget.existing!.limitAmount.toString())
           : '',
     );
   }
@@ -710,7 +710,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
     _categoryId = existing?.categoryId ??
         (visible.isNotEmpty ? visible.first.id : kCategories.first.id);
     if (existing != null) {
-      _amountCtrl.text = existing.limitAmount.toStringAsFixed(0);
+      _amountCtrl.text = (existing.limitAmount.truncateToDouble() == existing.limitAmount ? existing.limitAmount.toStringAsFixed(0) : existing.limitAmount.toString());
     }
   }
 
