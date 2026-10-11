@@ -212,7 +212,7 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> _createExpensesTable(Database db) async {
+  Future<void> _createExpensesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE expenses(
         id TEXT PRIMARY KEY,
@@ -596,25 +596,44 @@ class DatabaseHelper {
 
   /// v1 -> v2: INTEGER AUTOINCREMENT ids become TEXT UUIDs; every row gets
   /// an `updatedAt` stamp. Settings table is untouched.
+  /// C2: idempotent + atomic — a kill mid-migration is recoverable.
   Future<void> _migrateV1ToV2(Database db) async {
-    final oldRows = await db.query('expenses');
-    await db.execute('ALTER TABLE expenses RENAME TO expenses_v1');
-    await _createExpensesTable(db);
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final batch = db.batch();
-    for (final row in oldRows) {
-      batch.insert('expenses', {
-        'id': const Uuid().v4(),
-        'amount': row['amount'],
-        'categoryId': row['categoryId'],
-        'date': row['date'],
-        'note': row['note'] ?? '',
-        'paymentMethod': row['paymentMethod'] ?? 'cash',
-        'updatedAt': now,
-      });
+    // Idempotency: if a previous run died after the rename, the backup
+    // table still exists — resume from it instead of renaming again.
+    final tables = await db.query(
+      "sqlite_master",
+      columns: ['name'],
+      where: "name IN ('expenses', 'expenses_v1')",
+    );
+    final names = tables.map((r) => r['name'] as String).toSet();
+    if (!names.contains('expenses_v1')) {
+      // Fresh run: back up first. If 'expenses' is already v2, skip.
+      final cols = await db.query("PRAGMA table_info(expenses)");
+      final hasUuidId = cols.any((c) =>
+          c['name'] == 'id' &&
+          (c['type'] as String).toUpperCase().contains('TEXT'));
+      if (hasUuidId) return; // already migrated
+      await db.execute('ALTER TABLE expenses RENAME TO expenses_v1');
     }
-    await batch.commit(noResult: true);
-    await db.execute('DROP TABLE expenses_v1');
+    final oldRows = await db.query('expenses_v1');
+    await db.transaction((txn) async {
+      await _createExpensesTable(txn);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final batch = txn.batch();
+      for (final row in oldRows) {
+        batch.insert('expenses', {
+          'id': const Uuid().v4(),
+          'amount': row['amount'],
+          'categoryId': row['categoryId'],
+          'date': row['date'],
+          'note': row['note'] ?? '',
+          'paymentMethod': row['paymentMethod'] ?? 'cash',
+          'updatedAt': now,
+        });
+      }
+      await batch.commit(noResult: true);
+      await txn.execute('DROP TABLE expenses_v1');
+    });
   }
 
   /// Local insert: assigns a UUID id and fresh updatedAt, writes SQLite,

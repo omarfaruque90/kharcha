@@ -395,6 +395,9 @@ class SyncService {
     final id = expense.id;
     if (uid == null || id == null) return;
     try {
+      // C1: abort if the account changed mid-push — never write
+      // user A's data into user B's collections.
+      if (!identical(_uid, uid)) return;
       await _collection(uid).doc(id).set(expense.toFirestore());
     } catch (_) {
       // Offline/transient: the write stays queued in the Firestore cache
@@ -407,6 +410,7 @@ class SyncService {
     final uid = _uid;
     if (uid == null) return;
     try {
+      if (!identical(_uid, uid)) return;
       await _collection(uid).doc(id).delete();
     } catch (_) {}
   }
@@ -421,6 +425,7 @@ class SyncService {
     final uid = _uid;
     if (uid == null) return;
     try {
+      if (!identical(_uid, uid)) return;
       await _userCollection(uid, collection).doc(id).set(data);
     } catch (_) {
       // Offline/transient: queued in the Firestore cache; the next
@@ -434,6 +439,7 @@ class SyncService {
     final uid = _uid;
     if (uid == null) return;
     try {
+      if (!identical(_uid, uid)) return;
       await _userCollection(uid, collection).doc(id).delete();
     } catch (_) {}
   }
