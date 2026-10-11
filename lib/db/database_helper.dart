@@ -153,9 +153,20 @@ class DatabaseHelper {
   Future<Database> get database async {
     final existing = _db;
     if (existing != null) return existing;
+    // H15: capture the profile — if setProfile() runs while _open()
+    // is in flight, don't assign the old profile's DB to _db.
+    final wantProfile = _profile;
     final created = await _open();
-    _db = created;
-    return created;
+    if (_profile == wantProfile) {
+      _db = created;
+      return created;
+    }
+    // Profile switched mid-open: close the stale handle and retry
+    // for the new profile.
+    try {
+      await created.close();
+    } catch (_) {}
+    return database;
   }
 
   Future<Database> _open() async {
@@ -726,25 +737,40 @@ class DatabaseHelper {
   }
 
   /// Records a deleted record ID (tombstone) to prevent resurrection on sync.
+  /// M3: scoped to the current uid — a tombstone created by user A is
+  /// never pushed against user B's collections.
   Future<void> _addTombstone(String type, String id) async {
     try {
+      final uid = SyncService.instance.currentUid ?? '';
       final key = 'tombstones_$type';
       final raw = await getSetting(key);
-      final ids = <String>{};
+      final entries = <String>{};
       if (raw != null && raw.isNotEmpty) {
-        ids.addAll(raw.split(',').where((s) => s.isNotEmpty));
+        entries.addAll(raw.split(',').where((s) => s.isNotEmpty));
       }
-      ids.add(id);
-      await setSetting(key, ids.join(','));
+      entries.add('$uid|$id');
+      await setSetting(key, entries.join(','));
     } catch (_) {}
   }
 
   /// Returns tombstoned IDs for [type].
-  Future<Set<String>> getTombstones(String type) async {
+  /// If [uid] is given, only that user's tombstones are returned (M3).
+  Future<Set<String>> getTombstones(String type, {String? uid}) async {
     try {
       final raw = await getSetting('tombstones_$type');
       if (raw == null || raw.isEmpty) return {};
-      return raw.split(',').where((s) => s.isNotEmpty).toSet();
+      final all = raw.split(',').where((s) => s.isNotEmpty);
+      if (uid == null) {
+        // Legacy: strip uid prefixes.
+        return all.map((e) {
+          final i = e.indexOf('|');
+          return i >= 0 ? e.substring(i + 1) : e;
+        }).toSet();
+      }
+      return all
+          .where((e) => e.startsWith('$uid|'))
+          .map((e) => e.substring(uid.length + 1))
+          .toSet();
     } catch (_) {
       return {};
     }
@@ -759,10 +785,21 @@ class DatabaseHelper {
 
   /// Clears only the given tombstone IDs (keeps failed ones for retry).
   Future<void> clearTombstonesForIds(
-      String type, List<String> ids) async {
+      String type, List<String> ids, {String? uid}) async {
     try {
-      final remaining = await getTombstones(type);
-      remaining.removeAll(ids);
+      final raw = await getSetting('tombstones_$type');
+      if (raw == null || raw.isEmpty) return;
+      final idSet = ids.toSet();
+      final remaining = raw.split(',').where((e) {
+        if (e.isEmpty) return false;
+        final i = e.indexOf('|');
+        final entryId = i >= 0 ? e.substring(i + 1) : e;
+        final entryUid = i >= 0 ? e.substring(0, i) : '';
+        // Remove only if id matches AND (no uid filter or uid matches).
+        if (!idSet.contains(entryId)) return true;
+        if (uid != null && entryUid != uid) return true;
+        return false;
+      });
       await setSetting('tombstones_$type', remaining.join(','));
     } catch (_) {}
   }
@@ -1178,6 +1215,39 @@ class DatabaseHelper {
     try {
       final db = await database;
       await db.delete('notes');
+    } catch (_) {}
+  }
+
+  /// M2: wipes remaining per-user tables on logout/account-switch.
+  /// Settings table is intentionally KEPT (app preferences, not user data).
+  Future<void> wipeLocalExtraTables() async {
+    const tables = [
+      'custom_categories',
+      'notifications',
+      'templates',
+      'salary_rules',
+      'challenges',
+      'achievements',
+      'cash_ledger',
+      'fuel_logs',
+      'gifts',
+      'emergency_fund',
+      'emergency_ledger',
+      'category_learning',
+      'projects',
+    ];
+    try {
+      final db = await database;
+      for (final t in tables) {
+        try {
+          await db.delete(t);
+        } catch (_) {}
+      }
+      // Reset wallet balances (per-user financial state).
+      try {
+        await db.delete('settings',
+            where: "key IN ('wallet_balances', 'deducted_locally')");
+      } catch (_) {}
     } catch (_) {}
   }
 

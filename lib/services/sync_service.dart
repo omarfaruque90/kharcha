@@ -32,6 +32,13 @@ class SyncService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String? _uid;
+
+  /// M4: incremented on every startSync/stopAndClear. Listener callbacks
+  /// capture it and abort if it changed (stale user data guard).
+  int _generation = 0;
+
+  /// Current uid for tombstone scoping (M3).
+  String? get currentUid => _uid;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
 
   /// Live listeners for the secondary collections (one per collection).
@@ -100,25 +107,31 @@ class SyncService {
     }
     _collectionSubscriptions.clear();
     _uid = uid;
+    _generation++;
+    final gen = _generation;
     try {
       await _pullAndPush(uid);
     } catch (_) {
       // Cloud unreachable — local data keeps working; retry next login.
     }
+    if (gen != _generation) return; // superseded by newer startSync
     _subscription = _collection(uid).snapshots().listen(
-          _onRemoteSnapshot,
+          (snap) {
+            if (gen == _generation) _onRemoteSnapshot(snap); // M4
+          },
           onError: (_) {},
         );
-    await _startSecondarySyncs(uid);
+    await _startSecondarySyncs(uid, gen);
   }
 
   /// Pulls + pushes every secondary collection, then attaches a live
   /// listener per collection. Each collection syncs independently: one
   /// failing collection never blocks the others.
-  Future<void> _startSecondarySyncs(String uid) async {
+  Future<void> _startSecondarySyncs(String uid, int gen) async {
     final db = DatabaseHelper.instance;
     await _syncCollection<Income>(
       uid: uid,
+      gen: gen,
       name: 'incomes',
       getAll: db.getAllIncomes,
       upsert: db.upsertIncome,
@@ -130,6 +143,7 @@ class SyncService {
     );
     await _syncCollection<Budget>(
       uid: uid,
+      gen: gen,
       name: 'budgets',
       getAll: db.getAllBudgets,
       upsert: (budget) => db.upsertRemoteRecord('budgets', budget.toMap()),
@@ -141,6 +155,7 @@ class SyncService {
     );
     await _syncCollection<RecurringExpense>(
       uid: uid,
+      gen: gen,
       name: 'recurring',
       getAll: db.getAllRecurringExpenses,
       upsert: (template) =>
@@ -153,6 +168,7 @@ class SyncService {
     );
     await _syncCollection<SavingsGoal>(
       uid: uid,
+      gen: gen,
       name: 'goals',
       getAll: db.getAllSavingsGoals,
       upsert: (goal) => db.upsertRemoteRecord('savings_goals', goal.toMap()),
@@ -164,6 +180,7 @@ class SyncService {
     );
     await _syncCollection<BillReminder>(
       uid: uid,
+      gen: gen,
       name: 'reminders',
       getAll: db.getAllBillReminders,
       upsert: (reminder) =>
@@ -176,6 +193,7 @@ class SyncService {
     );
     await _syncCollection<CustomPlace>(
       uid: uid,
+      gen: gen,
       name: 'custom_places',
       getAll: db.getAllCustomPlaces,
       upsert: (place) =>
@@ -188,6 +206,7 @@ class SyncService {
     );
     await _syncCollection<CustomPayment>(
       uid: uid,
+      gen: gen,
       name: 'custom_payments',
       getAll: db.getAllCustomPayments,
       upsert: (payment) =>
@@ -206,6 +225,7 @@ class SyncService {
   /// Cloud failures are swallowed — local data keeps working.
   Future<void> _syncCollection<T>({
     required String uid,
+    required int gen,
     required String name,
     required Future<List<T>> Function() getAll,
     required Future<void> Function(T item) upsert,
@@ -252,12 +272,16 @@ class SyncService {
     }
     _collectionSubscriptions.add(
       col.snapshots().listen(
-        (snap) => _onRemoteCollectionSnapshot<T>(
-          snap,
-          fromFirestore: fromFirestore,
-          upsert: upsert,
-          deleteLocal: deleteLocal,
-        ),
+        (snap) {
+          if (gen == _generation) { // M4: stale listener guard
+            _onRemoteCollectionSnapshot<T>(
+              snap,
+              fromFirestore: fromFirestore,
+              upsert: upsert,
+              deleteLocal: deleteLocal,
+            );
+          }
+        },
         onError: (_) {},
       ),
     );
@@ -270,8 +294,8 @@ class SyncService {
     // 0. Push tombstoned deletes first (prevents resurrection).
     // Only clear tombstones for IDs that actually deleted — failed
     // ones are kept for retry so the doc doesn't resurrect locally.
-    // H3: also push secondary-collection tombstones.
-    final tombstones = await db.getTombstones('expense');
+    // H3/M3: uid-scoped — only this user's tombstones are pushed.
+    final tombstones = await db.getTombstones('expense', uid: uid);
     final deletedIds = <String>[];
     for (final id in tombstones) {
       try {
@@ -280,7 +304,7 @@ class SyncService {
       } catch (_) {}
     }
     if (deletedIds.isNotEmpty) {
-      await db.clearTombstonesForIds('expense', deletedIds);
+      await db.clearTombstonesForIds('expense', deletedIds, uid: uid);
     }
     const secondary = {
       'income': 'incomes',
@@ -292,7 +316,7 @@ class SyncService {
       'reminder': 'bill_reminders',
     };
     for (final entry in secondary.entries) {
-      final ids = await db.getTombstones(entry.key);
+      final ids = await db.getTombstones(entry.key, uid: uid);
       final done = <String>[];
       for (final id in ids) {
         try {
@@ -301,7 +325,7 @@ class SyncService {
         } catch (_) {}
       }
       if (done.isNotEmpty) {
-        await db.clearTombstonesForIds(entry.key, done);
+        await db.clearTombstonesForIds(entry.key, done, uid: uid);
       }
     }
 
@@ -342,7 +366,7 @@ class SyncService {
     final db = DatabaseHelper.instance;
     var changed = false;
     // H2: fetch once — never resurrect tombstoned (pending-delete) docs.
-    final tombstoned = await db.getTombstones('expense');
+    final tombstoned = await db.getTombstones('expense', uid: _uid);
     _beginApplying();
     try {
       for (final change in snap.docChanges) {
@@ -480,6 +504,7 @@ class SyncService {
     }
     _collectionSubscriptions.clear();
     _uid = null;
+    _generation++; // M4: invalidate in-flight listeners
     // Reset the remote-apply guard so a stale count can't leak across users.
     _applyingRemote = 0;
     final db = DatabaseHelper.instance;
@@ -499,6 +524,9 @@ class SyncService {
     await db.wipeLocalSubscriptions();
     await db.wipeLocalDues();
     await db.wipeLocalNotes();
-    await db.clearTombstones('expense');
+    // M2: wipe remaining per-user tables.
+    await db.wipeLocalExtraTables();
+    // M1: tombstones are KEPT (uid-scoped) so offline deletes
+    // propagate on next login instead of being silently dropped.
   }
 }
