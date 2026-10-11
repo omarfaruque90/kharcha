@@ -81,19 +81,39 @@ class MoneyProvider extends ChangeNotifier {
   }
 
   Future<void> updateIncome(Income income) async {
-    await DatabaseHelper.instance.updateIncome(income);
+    // H6: reconcile the wallet for the amount delta.
     final index = _incomes.indexWhere((e) => e.id == income.id);
+    final oldAmount = index != -1 ? _incomes[index].amount : 0.0;
+    await DatabaseHelper.instance.updateIncome(income);
     if (index != -1) {
       _incomes[index] = income;
       _sortIncomes();
     }
     notifyListeners();
+    final delta = income.amount - oldAmount;
+    if (totalBalance != null && delta != 0) {
+      try {
+        if (delta > 0) {
+          await totalBalance!.creditForIncome(delta);
+        } else {
+          await totalBalance!.debitForIncome(-delta);
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> removeIncome(String id) async {
+    // H5: reverse the wallet credit before deleting.
+    final existing = _incomes.where((e) => e.id == id).toList();
+    final amount = existing.isNotEmpty ? existing.first.amount : 0.0;
     await DatabaseHelper.instance.deleteIncome(id);
     _incomes.removeWhere((e) => e.id == id);
     notifyListeners();
+    if (totalBalance != null && amount > 0) {
+      try {
+        await totalBalance!.debitForIncome(amount);
+      } catch (_) {}
+    }
   }
 
   void _sortIncomes() {

@@ -40,8 +40,25 @@ class ExpenseProvider extends ChangeNotifier {
       ..clear()
       ..addAll(items);
     _dedupeById();
+    // H7: restore the deducted-ids set so deletes after a restart
+    // still refund correctly.
+    try {
+      final raw = await DatabaseHelper.instance
+          .getSetting('deducted_locally');
+      _deductedLocally
+        ..clear()
+        ..addAll(
+            (raw ?? '').split(',').where((e) => e.isNotEmpty));
+    } catch (_) {}
     _loaded = true;
     notifyListeners();
+  }
+
+  Future<void> _persistDeducted() async {
+    try {
+      await DatabaseHelper.instance.setSetting(
+          'deducted_locally', _deductedLocally.join(','));
+    } catch (_) {}
   }
 
   /// Safety net: the same id must never appear twice in memory.
@@ -69,7 +86,10 @@ class ExpenseProvider extends ChangeNotifier {
             saved.paymentMethod, saved.bdtAmount ?? saved.amount);
         // Mark as deducted on this device so delete() refunds correctly.
         final did = saved.id;
-        if (did != null) _deductedLocally.add(did);
+        if (did != null) {
+          _deductedLocally.add(did);
+          await _persistDeducted();
+        }
       } catch (_) {}
     } else if (saved.paymentMethod == 'cash') {
       // Fallback if TotalBalanceProvider isn't wired (shouldn't happen).
@@ -130,6 +150,7 @@ class ExpenseProvider extends ChangeNotifier {
     // ONLY refund if the wallet was deducted on this device — synced-down
     // expenses never touched this device's wallet.
     if (removed != null && _deductedLocally.remove(id)) {
+      await _persistDeducted();
       try {
         await totalBalance?.refundForExpense(
           removed.paymentMethod,

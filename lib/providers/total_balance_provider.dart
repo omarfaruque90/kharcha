@@ -175,6 +175,23 @@ class TotalBalanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reverses an income credit (income deleted). Symmetric to
+  /// [creditForIncome]. Inserts an offsetting cash-ledger 'out' entry.
+  Future<void> debitForIncome(double amount) async {
+    if (amount <= 0) return;
+    try {
+      await DatabaseHelper.instance.insertCashEntry(CashEntry(
+        id: CashEntry.newId(),
+        amount: amount,
+        type: 'out',
+        note: 'income_reversed',
+        date: DateTime.now(),
+      ));
+      _cash = await DatabaseHelper.instance.getCashBalance();
+    } catch (_) {}
+    notifyListeners();
+  }
+
   /// Refunds a deleted expense amount back to the matching wallet.
   Future<void> refundForExpense(
       String paymentMethod, double amount) async {
