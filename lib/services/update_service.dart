@@ -192,10 +192,12 @@ class UpdateService {
 
   /// Streams the APK to the cache dir, reporting 0..1 progress, then opens
   /// it so the system package installer takes over.
+  /// Thrown when the user cancels the download.
   static Future<void> downloadAndInstall(
     String apkUrl,
-    void Function(double progress) onProgress,
-  ) async {
+    void Function(double progress) onProgress, {
+    bool Function()? isCancelled,
+  }) async {
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, 'kharcha-update.apk'));
     if (await file.exists()) await file.delete();
@@ -214,7 +216,14 @@ class UpdateService {
       var received = 0;
       final sink = file.openWrite();
       try {
-        await for (final chunk in response.stream) {
+        // H18: 60s stall timeout on the stream (resets per chunk) +
+        // user cancellation check per chunk.
+        await for (final chunk in response.stream.timeout(
+          const Duration(seconds: 60),
+        )) {
+          if (isCancelled?.call() ?? false) {
+            throw _DownloadCancelled();
+          }
           received += chunk.length;
           sink.add(chunk);
           if (total > 0) onProgress(received / total);
@@ -222,12 +231,16 @@ class UpdateService {
       } finally {
         await sink.close();
       }
+      if (isCancelled?.call() ?? false) throw _DownloadCancelled();
       onProgress(1);
       await OpenFilex.open(file.path);
     } finally {
       client.close();
     }
   }
+
+/// Internal marker for user-cancelled downloads.
+class _DownloadCancelled implements Exception {}
 
   /// Startup entry point: checks once; shows the update dialog unless this
   /// exact tag was already dismissed with "Later".
@@ -433,6 +446,7 @@ class _UpdateProgressDialog extends StatefulWidget {
 class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
   double _progress = 0;
   bool _failed = false;
+  bool _cancelled = false;
 
   @override
   void initState() {
@@ -447,11 +461,18 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
         (value) {
           if (mounted) setState(() => _progress = value);
         },
+        isCancelled: () => _cancelled,
       );
+      if (mounted) Navigator.of(context).pop();
+    } on _DownloadCancelled {
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     }
+  }
+
+  void _cancel() {
+    setState(() => _cancelled = true);
   }
 
   @override
@@ -478,6 +499,12 @@ class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
         ],
       ),
       actions: [
+        // H18: cancel is always available (not just on failure).
+        if (!_failed)
+          TextButton(
+            onPressed: _cancelled ? null : _cancel,
+            child: Text(tr(context, 'cancel')),
+          ),
         if (_failed)
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

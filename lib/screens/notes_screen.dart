@@ -303,12 +303,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (mounted) Navigator.pop(context, true);
   }
 
+  /// H17: true if the user changed anything since opening/saving.
+  bool get _isDirty {
+    final orig = widget.note;
+    return _titleCtrl.text != (orig?.title ?? '') ||
+        _contentCtrl.text != (orig?.content ?? '') ||
+        _color != (orig?.color ?? 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bg = NoteColors.background(_color, dark);
     final fg = NoteColors.onBackground(_color, dark);
-    return Scaffold(
+    // H17: auto-save on back so edits are never silently discarded.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (_isDirty) await _save();
+        if (context.mounted) Navigator.pop(context, true);
+      },
+      child: Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: bg,
@@ -389,6 +405,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
