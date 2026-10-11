@@ -66,7 +66,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
         );
       }
     } finally {
-      if (id != null) _toggling.remove(id);
+      _toggling.remove(id);
     }
   }
 
