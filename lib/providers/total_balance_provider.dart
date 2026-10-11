@@ -38,7 +38,14 @@ class TotalBalanceProvider extends ChangeNotifier {
   /// Everything the user owns.
   double get total => _cash + walletsTotal + _lentOut;
 
+  /// Incremented on every in-memory wallet mutation. Lets [load()]
+  /// avoid clobbering changes made while it was awaiting the DB.
+  int _mutationCount = 0;
+
   Future<void> load() async {
+    // H21: capture the mutation count; if a deduct/refund happens
+    // while we're awaiting, merge instead of overwriting.
+    final startCount = _mutationCount;
     try {
       final db = DatabaseHelper.instance;
       final results = await Future.wait([
@@ -46,8 +53,14 @@ class TotalBalanceProvider extends ChangeNotifier {
         _readWallets(db),
         db.getDebts(),
       ]);
-      _cash = results[0] as double;
-      _wallets = results[1] as Map<String, double>;
+      if (_mutationCount != startCount) {
+        // A wallet changed mid-load: keep in-memory values (they're
+        // newer), just refresh cash/debts which are ledger-derived.
+        _cash = results[0] as double;
+      } else {
+        _cash = results[0] as double;
+        _wallets = results[1] as Map<String, double>;
+      }
       final debts = results[2] as List;
       _lentOut = debts
           .where((d) => d.kind == 'lent' && !d.settled)
@@ -154,6 +167,7 @@ class TotalBalanceProvider extends ChangeNotifier {
       String paymentMethod, double amount) async {
     final w = walletForPayment(paymentMethod);
     if (w == null || amount <= 0) return;
+    _mutationCount++;
     try {
       if (w == 'cash') {
         await DatabaseHelper.instance.insertCashEntry(CashEntry(

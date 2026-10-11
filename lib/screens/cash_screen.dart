@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../db/database_helper.dart';
 import '../l10n/app_strings.dart';
 import '../main.dart';
 import '../models/cash_entry.dart';
+import '../providers/total_balance_provider.dart';
 import '../utils/formatters.dart';
 import '../widgets/motion.dart';
 
@@ -72,6 +74,10 @@ class _CashScreenState extends State<CashScreen> {
       return;
     }
     await _reload();
+    // H20: refresh the shared balance so Home/My Money update.
+    try {
+      await context.read<TotalBalanceProvider>().load();
+    } catch (_) {}
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr(context, 'cash_added'))),
@@ -165,6 +171,10 @@ class _CashScreenState extends State<CashScreen> {
       return;
     }
     await _reload();
+    // H20: refresh the shared balance so Home/My Money update.
+    try {
+      await context.read<TotalBalanceProvider>().load();
+    } catch (_) {}
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
