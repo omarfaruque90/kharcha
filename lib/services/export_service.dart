@@ -174,7 +174,7 @@ class ExportService {
         .value = DoubleCellValue(total);
 
     final bytes = excel.save();
-    if (bytes == null) return;
+    if (bytes == null) return false;
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, '${_fileBase(month)}.xlsx'));
     await file.writeAsBytes(bytes);

@@ -239,9 +239,6 @@ class UpdateService {
     }
   }
 
-/// Internal marker for user-cancelled downloads.
-class _DownloadCancelled implements Exception {}
-
   /// Startup entry point: checks once; shows the update dialog unless this
   /// exact tag was already dismissed with "Later".
   static Future<void> maybePromptOnStartup(
@@ -432,6 +429,9 @@ class _DownloadCancelled implements Exception {}
     return false;
   }
 }
+
+/// Internal marker for user-cancelled downloads.
+class _DownloadCancelled implements Exception {}
 
 /// Modal progress dialog: downloads the APK, then fires the installer.
 class _UpdateProgressDialog extends StatefulWidget {

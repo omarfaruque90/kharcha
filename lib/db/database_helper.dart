@@ -1471,7 +1471,7 @@ class DatabaseHelper {
       limit: 1,
     );
     final now = DateTime.now().millisecondsSinceEpoch;
-    final String id;
+    String id;
     if (existing.isNotEmpty) {
       final row = existing.first;
       id = row['id'] as String;
@@ -1574,7 +1574,7 @@ class DatabaseHelper {
       limit: 1,
     );
     final now = DateTime.now().millisecondsSinceEpoch;
-    final String id;
+    String id;
     if (existing.isNotEmpty) {
       final row = existing.first;
       id = row['id'] as String;
