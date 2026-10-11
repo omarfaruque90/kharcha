@@ -2063,7 +2063,12 @@ class DatabaseHelper {
   }
 
   Future<int> updateChallenge(Challenge c) async {
-    return _updateRecord('challenges', c.id ?? '', c.toMap());
+    // L1: fail loudly instead of silently no-op on null id.
+    final id = c.id;
+    if (id == null || id.isEmpty) {
+      throw ArgumentError('updateChallenge: null/empty id');
+    }
+    return _updateRecord('challenges', id, c.toMap());
   }
 
   Future<int> deleteChallenge(String id) async {

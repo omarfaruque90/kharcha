@@ -639,6 +639,14 @@ class _GoalDialogState extends State<_GoalDialog> {
                       : _emojiCtrl.text.trim(),
                 ));
               }
+            } catch (_) {
+              // L7: show error instead of silently failing.
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(tr(context, 'tpl_failed'))),
+                );
+              }
+              return;
             } finally {
               if (mounted) setState(() => _saving = false);
             }

@@ -50,7 +50,11 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
       .where((i) => !i.done)
       .fold(0.0, (s, i) => s + i.price * i.qty);
 
+  final Set<String> _toggling = {}; // L8: per-item toggle guard
+
   Future<void> _toggleDone(ShoppingItem item) async {
+    final id = item.id;
+    if (id == null || !_toggling.add(id)) return; // already toggling
     try {
       await DatabaseHelper.instance
           .updateShoppingItem(item.copyWith(done: !item.done));
@@ -61,6 +65,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           SnackBar(content: Text(tr(context, 'tpl_failed'))),
         );
       }
+    } finally {
+      if (id != null) _toggling.remove(id);
     }
   }
 
