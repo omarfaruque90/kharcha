@@ -1095,9 +1095,19 @@ class DatabaseHelper {
 
   /// Atomically replaces all budgets for a month: deletes old + inserts
   /// new inside one transaction. A crash mid-way loses nothing.
+  /// H4: also deletes the old remote docs so they don't orphan/resurrect.
   Future<void> replaceMonthBudgets(
       String monthKey, List<Budget> budgets) async {
     final db = await database;
+    // Capture old IDs before wiping, for remote cleanup.
+    final oldRows = await db.query(
+      'budgets',
+      columns: ['id'],
+      where: 'monthKey = ?',
+      whereArgs: [monthKey],
+    );
+    final oldIds =
+        oldRows.map((r) => r['id'] as String).toList();
     await db.transaction((txn) async {
       await txn.delete('budgets',
           where: 'monthKey = ?', whereArgs: [monthKey]);
@@ -1108,17 +1118,29 @@ class DatabaseHelper {
         await txn.insert('budgets', map);
       }
     });
-    // Push to cloud after the transaction commits.
-    for (final b in budgets) {
-      try {
-        await _pushRow<Budget>(
-          table: 'budgets',
-          collection: 'budgets',
-          id: b.id!,
-          fromMap: Budget.fromMap,
-          toFirestore: (item) => item.toFirestore(),
-        );
-      } catch (_) {}
+    if (!SyncService.instance.applyingRemote) {
+      // Delete orphaned remote docs for replaced budgets.
+      final newIds = budgets.map((b) => b.id).toSet();
+      for (final oid in oldIds) {
+        if (!newIds.contains(oid)) {
+          try {
+            await SyncService.instance
+                .pushRecordDelete('budgets', oid);
+          } catch (_) {}
+        }
+      }
+      // Push new rows to cloud after the transaction commits.
+      for (final b in budgets) {
+        try {
+          await _pushRow<Budget>(
+            table: 'budgets',
+            collection: 'budgets',
+            id: b.id!,
+            fromMap: Budget.fromMap,
+            toFirestore: (item) => item.toFirestore(),
+          );
+        } catch (_) {}
+      }
     }
   }
 
@@ -1747,6 +1769,7 @@ class DatabaseHelper {
 
   /// Atomically saves a split bill: my expense + all lent debts in one
   /// transaction. A failure mid-way saves nothing (no partial split).
+  /// H8: pushes to Firestore after commit so the split isn't device-only.
   Future<void> saveSplitBill(Expense expense, List<Debt> debts) async {
     final db = await database;
     await db.transaction((txn) async {
@@ -1755,6 +1778,20 @@ class DatabaseHelper {
         await txn.insert('debts', d.toMap());
       }
     });
+    if (!SyncService.instance.applyingRemote) {
+      try {
+        await SyncService.instance.pushExpense(expense);
+      } catch (_) {}
+      for (final d in debts) {
+        try {
+          await SyncService.instance.pushRecord(
+            'debts',
+            d.id!,
+            d.toFirestore(),
+          );
+        } catch (_) {}
+      }
+    }
   }
 
   /// Marks a debt as paid off (settled = 1).
