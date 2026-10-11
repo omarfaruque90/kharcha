@@ -563,28 +563,27 @@ class _DebtTileState extends State<_DebtTile> {
     final settledMsg = tr(context, 'debts_settled_msg');
     final messenger = ScaffoldMessenger.of(context);
 
-    await DatabaseHelper.instance.settleDebt(debt.id!);
-    // Auto-update balance: lent settled = I got money back (income),
-    // borrowed settled = I paid back (expense).
+    // H10: balance entry FIRST — only settle the debt if the offsetting
+    // entry succeeds. A failed balance write leaves the debt unsettled
+    // so the user can retry (previously: settled with no balance move).
     final borrowed = debt.kind == 'borrowed';
-    try {
-      if (borrowed) {
-        await expenses.add(Expense(
-              amount: debt.amount,
-              categoryId: 'others',
-              date: DateTime.now(),
-              note: expenseNote,
-              paymentMethod: 'cash',
-            ));
-      } else {
-        await money.addIncome(Income(
-              amount: debt.amount,
-              source: incomeSource,
-              date: DateTime.now(),
-              note: debt.person,
-            ));
-      }
-    } catch (_) {}
+    if (borrowed) {
+      await expenses.add(Expense(
+            amount: debt.amount,
+            categoryId: 'others',
+            date: DateTime.now(),
+            note: expenseNote,
+            paymentMethod: 'cash',
+          ));
+    } else {
+      await money.addIncome(Income(
+            amount: debt.amount,
+            source: incomeSource,
+            date: DateTime.now(),
+            note: debt.person,
+          ));
+    }
+    await DatabaseHelper.instance.settleDebt(debt.id!);
     widget.onChanged();
     if (!context.mounted) return;
     messenger.showSnackBar(
@@ -871,6 +870,24 @@ class _DebtDialogState extends State<_DebtDialog> {
     final expenses = context.read<ExpenseProvider>();
     final money = context.read<MoneyProvider>();
     try {
+      // H10: balance entry FIRST — only insert the debt if the offsetting
+      // entry succeeds.
+      if (kind == 'lent') {
+        await expenses.add(Expense(
+          amount: amount,
+          categoryId: 'others',
+          date: DateTime.now(),
+          note: '$lentNote $person',
+          paymentMethod: 'cash',
+        ));
+      } else {
+        await money.addIncome(Income(
+          amount: amount,
+          source: borrowedSource,
+          date: DateTime.now(),
+          note: person,
+        ));
+      }
       await DatabaseHelper.instance.insertDebt(Debt(
         id: Debt.newId(),
         person: person,
@@ -882,26 +899,6 @@ class _DebtDialogState extends State<_DebtDialog> {
         settled: false,
         updatedAt: DateTime.now(),
       ));
-      // Balance update on add: lent = money left my pocket (expense),
-      // borrowed = money came to my pocket (income).
-      try {
-        if (kind == 'lent') {
-          await expenses.add(Expense(
-            amount: amount,
-            categoryId: 'others',
-            date: DateTime.now(),
-            note: '$lentNote $person',
-            paymentMethod: 'cash',
-          ));
-        } else {
-          await money.addIncome(Income(
-            amount: amount,
-            source: borrowedSource,
-            date: DateTime.now(),
-            note: person,
-          ));
-        }
-      } catch (_) {}
     } finally {
       if (mounted) setState(() => _saving = false);
     }

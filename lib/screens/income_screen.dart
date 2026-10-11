@@ -281,6 +281,7 @@ class _IncomeDialogState extends State<_IncomeDialog> {
   final _sourceCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   late DateTime _date;
+  bool _saving = false; // H11: double-submit guard
 
   @override
   void initState() {
@@ -387,25 +388,32 @@ class _IncomeDialogState extends State<_IncomeDialog> {
           child: Text(tr(context, 'cancel')),
         ),
         FilledButton(
-          onPressed: () async {
+          onPressed: _saving
+              ? null
+              : () async {
             if (!(_formKey.currentState?.validate() ?? false)) return;
-            final amount = double.parse(_amountCtrl.text.trim());
-            final money = context.read<MoneyProvider>();
-            final existing = widget.existing;
-            if (existing == null) {
-              await money.addIncome(Income(
-                amount: amount,
-                source: _sourceCtrl.text.trim(),
-                date: _date,
-                note: _noteCtrl.text.trim(),
-              ));
-            } else {
-              await money.updateIncome(existing.copyWith(
-                amount: amount,
-                source: _sourceCtrl.text.trim(),
-                date: _date,
-                note: _noteCtrl.text.trim(),
-              ));
+            setState(() => _saving = true);
+            try {
+              final amount = double.parse(_amountCtrl.text.trim());
+              final money = context.read<MoneyProvider>();
+              final existing = widget.existing;
+              if (existing == null) {
+                await money.addIncome(Income(
+                  amount: amount,
+                  source: _sourceCtrl.text.trim(),
+                  date: _date,
+                  note: _noteCtrl.text.trim(),
+                ));
+              } else {
+                await money.updateIncome(existing.copyWith(
+                  amount: amount,
+                  source: _sourceCtrl.text.trim(),
+                  date: _date,
+                  note: _noteCtrl.text.trim(),
+                ));
+              }
+            } finally {
+              if (mounted) setState(() => _saving = false);
             }
             if (context.mounted) {
               Navigator.of(context).pop();
