@@ -55,12 +55,22 @@ class RecurringService {
           date: DateTime(now.year, now.month, day),
           note: 'Recurring',
         ));
+        // H9a: credit the cash wallet (mirrors MoneyProvider.addIncome).
+        try {
+          await db.insertCashEntry(CashEntry(
+            id: CashEntry.newId(),
+            amount: template.amount,
+            type: 'in',
+            note: 'recurring_income',
+            date: DateTime.now(),
+          ));
+        } catch (_) {}
       } else {
         final note = label.isEmpty
             ? template.note
             : '🔁 $label${template.note.trim().isEmpty ? '' : ' — ${template.note.trim()}'}';
 
-        await db.insertExpense(Expense(
+        final expId = await db.insertExpense(Expense(
           amount: template.amount,
           categoryId: template.categoryId,
           date: DateTime(now.year, now.month, day),
@@ -69,6 +79,16 @@ class RecurringService {
         ));
         // Deduct from wallet (mirrors ExpenseProvider.add wallet logic).
         await _deductWallet(db, template.paymentMethod, template.amount);
+        // H9b: mark as deducted so delete refunds (persisted set).
+        try {
+          final raw = await db.getSetting('deducted_locally');
+          final ids = (raw ?? '')
+              .split(',')
+              .where((e) => e.isNotEmpty)
+              .toSet();
+          ids.add(expId);
+          await db.setSetting('deducted_locally', ids.join(','));
+        } catch (_) {}
       }
       await db.updateRecurringExpense(
         template.copyWith(lastAddedMonth: currentKey),

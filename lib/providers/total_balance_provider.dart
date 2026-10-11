@@ -135,6 +135,21 @@ class TotalBalanceProvider extends ChangeNotifier {
   }
 
   /// Deducts an expense amount from the matching wallet.
+  /// Reads the persisted wallet map (picks up external writes,
+  /// e.g. from the recurring service).
+  Future<Map<String, double>> _loadWalletsFromDb() async {
+    final map = <String, double>{};
+    try {
+      final raw =
+          await DatabaseHelper.instance.getSetting('wallet_balances');
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        decoded.forEach((k, v) => map[k] = (v as num).toDouble());
+      }
+    } catch (_) {}
+    return map;
+  }
+
   Future<void> deductForExpense(
       String paymentMethod, double amount) async {
     final w = walletForPayment(paymentMethod);
@@ -150,9 +165,13 @@ class TotalBalanceProvider extends ChangeNotifier {
         ));
         _cash = await DatabaseHelper.instance.getCashBalance();
       } else {
-        _wallets[w] = (_wallets[w] ?? 0) - amount;
+        // H9c: read-modify-write from DB — the in-memory map may be
+        // stale if the recurring service deducted directly.
+        final latest = await _loadWalletsFromDb();
+        latest[w] = (latest[w] ?? 0) - amount;
+        _wallets[w] = latest[w]!;
         await DatabaseHelper.instance
-            .setSetting('wallet_balances', jsonEncode(_wallets));
+            .setSetting('wallet_balances', jsonEncode(latest));
       }
     } catch (_) {}
     notifyListeners();
