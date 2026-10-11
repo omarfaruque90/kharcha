@@ -54,6 +54,10 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// H12: was this expense's wallet deducted on this device?
+  bool wasDeductedLocally(String? id) =>
+      id != null && _deductedLocally.contains(id);
+
   Future<void> _persistDeducted() async {
     try {
       await DatabaseHelper.instance.setSetting(

@@ -203,11 +203,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       await provider.update(updated);
       if (!mounted) return;
       // Adjust wallets for the edit: refund the old, deduct the new.
+      // H12: only refund if this device deducted it (synced-down
+      // expenses never touched this wallet).
       try {
         final oldE = widget.expense;
         if (oldE != null) {
-          await totalBalance.refundForExpense(
-              oldE.paymentMethod, oldE.bdtAmount ?? oldE.amount);
+          if (provider.wasDeductedLocally(oldE.id)) {
+            await totalBalance.refundForExpense(
+                oldE.paymentMethod, oldE.bdtAmount ?? oldE.amount);
+          }
           await totalBalance.deductForExpense(
               _payment,
               CurrencyService.toBdt(amount, _currency));

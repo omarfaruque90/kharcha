@@ -914,8 +914,12 @@ class _MainShellState extends State<MainShell> {
             ),
           );
         },
-        child: IndexedStack(
+        child: KeyedSubtree(
+          // H16: the changing key lives here so AnimatedSwitcher
+          // animates, while the IndexedStack below keeps a STABLE
+          // identity — tab states (forms, scroll) survive switching.
           key: ValueKey<int>(_index),
+          child: IndexedStack(
           index: _index,
           children: [
             const HomeScreen(),
@@ -925,6 +929,7 @@ class _MainShellState extends State<MainShell> {
             const MoreScreen(),
           ],
         ),
+          ),
           ),
           // Floating navbar — no separate background area.
           Positioned(
