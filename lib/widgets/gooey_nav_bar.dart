@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
@@ -62,17 +64,62 @@ class _GooeyNavBarState extends State<GooeyNavBar>
 
   @override
   Widget build(BuildContext context) {
-    // Fully transparent — the icons, orb and indicator float directly
-    // over the app content. No pill, no bar, no backing container.
+    // Frosted-glass navbar: the icons, orb and indicator float over a
+    // LIGHT BLUR (no solid pill, no bar, no border). Content behind is
+    // softly blurred so icons stay readable on any background.
+    final scrim =
+        Theme.of(context).scaffoldBackgroundColor;
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-        child: SizedBox(
-          height: 108,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
+      child: SizedBox(
+        height: 118,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Frosted blur layer — full width, feathered top edge.
+            Positioned.fill(
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter:
+                      ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          scrim.withValues(alpha: 0.0),
+                          scrim.withValues(alpha: 0.45),
+                          scrim.withValues(alpha: 0.65),
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Tab row (padded like before).
+            Positioned.fill(
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: SizedBox(
+                  height: 108,
+                  child: _buildTabs(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabs(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
               // Tab items + sliding green indicator (transparent layer).
               Positioned.fill(
                 child: AnimatedBuilder(
@@ -146,10 +193,7 @@ class _GooeyNavBarState extends State<GooeyNavBar>
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+      ],
     );
   }
 }
